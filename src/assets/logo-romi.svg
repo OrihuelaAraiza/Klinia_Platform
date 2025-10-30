@@ -1,0 +1,6 @@
+<svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="ROMI Klinia">
+  <rect width="36" height="36" rx="8" fill="#0B1220"/>
+  <path d="M10 23V13h3.5c1.8 0 3 1 3 2.7 0 1.1-.6 2-1.6 2.4L18 23h-2.5l-3-4.4H12V23h-2Zm2-6h1.4c.9 0 1.5-.5 1.5-1.3s-.6-1.3-1.5-1.3H12V17Z" fill="#C3F53D"/>
+  <circle cx="25" cy="18" r="5" stroke="#C3F53D" stroke-width="2"/>
+  <circle cx="25" cy="18" r="2" fill="#C3F53D"/>
+</svg>
