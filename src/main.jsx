@@ -4,7 +4,13 @@ import App from "./App.jsx";
 import "./styles/global.css";
 import { initMsal } from "./services/msal";
 
-await initMsal();
+try {
+  await initMsal();
+} catch (error) {
+  if (import.meta.env.DEV) {
+    console.warn("[MSAL] Inicialización omitida:", error?.message || error);
+  }
+}
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>

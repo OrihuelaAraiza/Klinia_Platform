@@ -1,4 +1,5 @@
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PASSWORD_REGEX = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
 const CURP_REGEX =
   /^[A-Z][AEIOUX][A-Z]{2}\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])[HM](AS|BC|BS|CC|CL|CM|CS|CH|DF|DG|GT|GR|HG|JC|MC|MN|MS|NT|NL|OC|PL|QT|QR|SP|SL|SR|TC|TL|TS|VZ|YN|ZS|NE)[B-DF-HJ-NP-TV-Z]{3}[0-9A-Z]\d$/;
 const PHONE_REGEX = /^[+]?[\d\s()-]{10,}$/;
@@ -9,7 +10,10 @@ export function isValidEmail(email) {
 }
 
 export function isValidPassword(password) {
-  return typeof password === "string" && password.trim().length >= 6;
+  if (typeof password !== "string") {
+    return false;
+  }
+  return PASSWORD_REGEX.test(password);
 }
 
 export function isValidPhone(phone) {

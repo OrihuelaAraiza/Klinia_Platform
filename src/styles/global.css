@@ -1923,6 +1923,77 @@ main {
   font-size: 0.9rem;
 }
 
+.auth-providers {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.auth-providers__error {
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-sm);
+  background: rgba(239, 68, 68, 0.12);
+  color: #b91c1c;
+  font-size: 0.85rem;
+}
+
+.auth-providers__hint {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.btn-microsoft[aria-busy="true"] {
+  cursor: progress;
+  opacity: 0.8;
+  box-shadow: none;
+}
+
+.btn-microsoft[aria-busy="true"] .msft-logo-img {
+  opacity: 0.4;
+}
+
+.btn-microsoft[aria-busy="true"]::after {
+  content: "";
+  width: 1rem;
+  height: 1rem;
+  display: inline-block;
+  border-radius: 999px;
+  border: 2px solid color-mix(in srgb, var(--brand-ink) 30%, transparent);
+  border-top-color: transparent;
+  animation: spin 0.7s linear infinite;
+  margin-left: 0.25rem;
+}
+
+.policies-check {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.policies-check__control {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: var(--text);
+}
+
+.policies-check__control input[type="checkbox"] {
+  width: 1rem;
+  height: 1rem;
+  margin-top: 0.15rem;
+}
+
+.policies-check__error {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #b91c1c;
+}
+
+.policies-check.has-error label {
+  color: #b91c1c;
+}
+
 .input-field {
   display: grid;
   gap: 0.35rem;

@@ -1,13 +1,17 @@
-import { useEffect, useState, useId } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
 import InputField from "../components/InputField";
 import ButtonPrimary from "../components/ButtonPrimary";
 import auditService from "../services/auditService";
-import authService from "../services/authService";
+import {
+  register as registerAccount,
+  currentRole,
+} from "../services/authService";
 import storage from "../services/storage";
 import { ROLES, ROUTES } from "../utils/constants";
-import { isValidEmail } from "../utils/validators";
+import { isValidEmail, isValidPassword } from "../utils/validators";
+import { useToast } from "../components/UI/Toast";
 import doctorImg from "../assets/hero/doctor-login.jpg";
 import logo from "../assets/logo-romi.svg";
 
@@ -17,6 +21,7 @@ const INITIAL_STATE = {
   password: "",
   confirmPassword: "",
   role: "",
+  acceptPolicies: false,
 };
 
 const ROLE_OPTIONS = [
@@ -25,28 +30,50 @@ const ROLE_OPTIONS = [
   { value: ROLES.ASSISTANT, label: "Asistente" },
 ];
 
+const EMPTY_ERRORS = Object.freeze({});
+
+function resolveDestination(role) {
+  switch (role) {
+    case ROLES.ADMIN:
+      return ROUTES.dashboard;
+    case ROLES.PROFESSIONAL:
+    case ROLES.ASSISTANT:
+      return ROUTES.patients;
+    default:
+      return ROUTES.dashboard;
+  }
+}
+
 export default function Register() {
   const navigate = useNavigate();
+  const toast = useToast();
   const [form, setForm] = useState(INITIAL_STATE);
-  const [errors, setErrors] = useState({});
+  const [errors, setErrors] = useState(EMPTY_ERRORS);
   const [loading, setLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
+  const [formError, setFormError] = useState("");
+
+  const sanitizedEmail = useMemo(
+    () => form.email.trim().toLowerCase(),
+    [form.email]
+  );
 
   useEffect(() => {
     const token = storage.getToken();
-    const role = storage.getRole();
+    const role = currentRole();
     if (token && role) {
-      redirectByRole(role);
+      navigate(resolveDestination(role), { replace: true });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [navigate]);
 
   const handleChange = (event) => {
-    const { name, value } = event.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+    const { name, value, type, checked } = event.target;
+    const nextValue = type === "checkbox" ? checked : value;
+    setForm((prev) => ({ ...prev, [name]: nextValue }));
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: "" }));
+    }
+    if (formError) {
+      setFormError("");
     }
   };
 
@@ -61,8 +88,9 @@ export default function Register() {
       validationErrors.email = "Ingresa un correo electrónico válido.";
     }
 
-    if (!form.password || form.password.length < 8) {
-      validationErrors.password = "La contraseña debe tener al menos 8 caracteres.";
+    if (!isValidPassword(form.password)) {
+      validationErrors.password =
+        "La contraseña debe tener al menos 8 caracteres, con letras y números.";
     }
 
     if (form.password !== form.confirmPassword) {
@@ -73,15 +101,11 @@ export default function Register() {
       validationErrors.role = "Selecciona un rol de acceso.";
     }
 
-    return validationErrors;
-  };
-
-  const redirectByRole = (role) => {
-    if (role === ROLES.ASSISTANT) {
-      navigate(ROUTES.sessions, { replace: true });
-    } else {
-      navigate(ROUTES.dashboard, { replace: true });
+    if (!form.acceptPolicies) {
+      validationErrors.acceptPolicies = "Debes aceptar el Aviso de Privacidad y Términos.";
     }
+
+    return validationErrors;
   };
 
   const handleSubmit = async (event) => {
@@ -94,34 +118,54 @@ export default function Register() {
     }
 
     setLoading(true);
-    setErrorMessage("");
-    setSuccessMessage("");
+    setFormError("");
 
     try {
-      const user = await authService.register({
+      const payload = {
         name: form.name.trim(),
-        email: form.email.trim(),
+        email: sanitizedEmail,
         password: form.password,
         role: form.role,
-      });
+        acceptPolicies: form.acceptPolicies,
+      };
 
-      setSuccessMessage("Cuenta creada correctamente. Redirigiendo...");
-      await auditService.logAudit("register", {
-        role: user.role,
-        email: user.email ?? form.email.trim(),
-      });
+      const response = await registerAccount(payload);
+      const user = response?.user ?? null;
 
-      redirectByRole(user.role);
+      await auditService.logAudit(
+        "auth_register_success",
+        {
+          role: user?.role ?? form.role,
+          email: user?.email ?? sanitizedEmail,
+        },
+        { auth: false }
+      );
+
+      toast.success("Cuenta creada. Ahora puedes iniciar sesión.");
+
+      navigate(ROUTES.login, { replace: true });
     } catch (error) {
-      if (error.code === "NETWORK_ERROR") {
-        setErrorMessage(
-          "No se pudo contactar al servidor. Revisa tu conexión o la URL del API."
-        );
-      } else {
-        setErrorMessage(
-          error.message || "No fue posible crear la cuenta. Intenta nuevamente."
-        );
-      }
+      const isConflict = error?.status === 409;
+      const isNetwork = error?.code === "NETWORK_ERROR";
+      const fallbackMessage = isConflict
+        ? "Este correo ya está registrado."
+        : isNetwork
+        ? "No se pudo registrar. Verifica tu conexión."
+        : "No fue posible crear la cuenta. Intenta nuevamente.";
+      const message = error?.message || fallbackMessage;
+      setFormError(message);
+      toast.danger(message);
+
+      await auditService.logAudit(
+        "auth_register_failed",
+        {
+          role: form.role,
+          email: sanitizedEmail,
+          code: error?.status || error?.code,
+          message,
+        },
+        { auth: false }
+      );
     } finally {
       setLoading(false);
     }
@@ -188,19 +232,19 @@ export default function Register() {
 
             <RoleSelect value={form.role} onChange={handleChange} error={errors.role} />
 
-            <ButtonPrimary type="submit" disabled={loading} fullWidth>
+            <PoliciesCheckbox
+              checked={form.acceptPolicies}
+              onChange={handleChange}
+              error={errors.acceptPolicies}
+            />
+
+            <ButtonPrimary type="submit" disabled={loading} loading={loading} fullWidth>
               {loading ? "Creando cuenta…" : "Registrar cuenta"}
             </ButtonPrimary>
 
-            {errorMessage ? (
+            {formError ? (
               <p className="form-error" role="alert">
-                {errorMessage}
-              </p>
-            ) : null}
-
-            {successMessage ? (
-              <p className="helper-text" role="status" aria-live="polite">
-                {successMessage}
+                {formError}
               </p>
             ) : null}
 
@@ -234,28 +278,53 @@ function RoleSelect({ value, onChange, error }) {
   const inputId = useId();
 
   return (
-    <div className="input-field">
-      <label htmlFor={inputId} className="input-field__label">
-        Rol
-      </label>
-      <select
-        id={inputId}
-        name="role"
-        value={value}
-        onChange={onChange}
-        className={`role-select${error ? " has-error" : ""}`}
-        required
-        aria-invalid={Boolean(error)}
-      >
-        <option value="">Selecciona un rol</option>
-        {ROLE_OPTIONS.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+    <InputField label="Rol" name="role" error={error} required>
+      {({ controlId, describedBy }) => (
+        <select
+          id={controlId}
+          name="role"
+          value={value}
+          onChange={onChange}
+          className={`role-select${error ? " has-error" : ""}`}
+          required
+          aria-invalid={Boolean(error)}
+          aria-describedby={describedBy}
+        >
+          <option value="">Selecciona un rol</option>
+          {ROLE_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      )}
+    </InputField>
+  );
+}
+
+function PoliciesCheckbox({ checked, onChange, error }) {
+  const checkboxId = useId();
+  const messageId = `${checkboxId}-message`;
+
+  return (
+    <div className={`policies-check${error ? " has-error" : ""}`}>
+      <div className="policies-check__control">
+        <input
+          id={checkboxId}
+          type="checkbox"
+          name="acceptPolicies"
+          checked={checked}
+          onChange={onChange}
+          aria-describedby={error ? messageId : undefined}
+          aria-invalid={Boolean(error)}
+          required
+        />
+        <label htmlFor={checkboxId}>
+          Acepto el Aviso de Privacidad y Términos.
+        </label>
+      </div>
       {error ? (
-        <p className="input-field__feedback is-error" role="alert">
+        <p id={messageId} className="policies-check__error" role="alert">
           {error}
         </p>
       ) : null}

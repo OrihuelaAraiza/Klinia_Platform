@@ -1,4 +1,5 @@
-const usersByEmail = new Map();
+export const usersByEmail = new Map();
+export const loginBuckets = new Map();
 const auditEvents = [];
 const MAX_AUDIT_EVENTS = 200;
 
@@ -35,13 +36,6 @@ export function uid(prefix = "") {
   return `${prefix}${Math.random().toString(36).slice(2, 10)}`;
 }
 
-export function saveUser(user, password) {
-  usersByEmail.set(user.email.toLowerCase(), {
-    ...user,
-    password,
-  });
-}
-
 export function getUserByEmail(email) {
   return usersByEmail.get(email.toLowerCase()) || null;
 }
@@ -62,7 +56,6 @@ export function getAuditEvents() {
 }
 
 export default {
-  saveUser,
   getUserByEmail,
   hasUser,
   pushAuditEvent,
@@ -71,5 +64,7 @@ export default {
   consentsByPatient,
   historiesByPatient,
   notesByPatient,
+  usersByEmail,
+  loginBuckets,
   uid,
 };

@@ -23,15 +23,15 @@ app.use(
   })
 );
 app.use(express.json());
-app.use(morgan("dev"));
 app.use(delayMiddleware);
+app.use(morgan("dev"));
 
 const apiRouter = express.Router();
 apiRouter.use(healthRouter);
-apiRouter.use(authRouter);
 apiRouter.use(auditRouter);
 apiRouter.use("/patients", patientsRouter);
 
+app.use("/api/auth", authRouter);
 app.use("/api", apiRouter);
 app.use("/api/patients/:id/consents", consentsRouter);
 app.use("/api/patients/:id/history", historyRouter);

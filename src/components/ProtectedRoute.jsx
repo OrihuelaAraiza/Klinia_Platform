@@ -23,10 +23,13 @@ export default function ProtectedRoute({ allow, children }) {
     return <Navigate to={ROUTES.dashboard} replace />;
   }
 
-  const handleLogout = useCallback(() => {
-    authService.logout();
-    auditService.logAudit("logout", { role });
-    navigate(ROUTES.login, { replace: true });
+  const handleLogout = useCallback(async () => {
+    try {
+      await authService.logout();
+    } finally {
+      auditService.logAudit("auth_logout", { role });
+      navigate(ROUTES.login, { replace: true });
+    }
   }, [navigate, role]);
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);

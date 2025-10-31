@@ -1,12 +1,9 @@
-export function makeFakeJwt({ email, role }) {
-  const payload = {
-    sub: email,
-    email,
-    role,
+export function makeFakeJwt(payload = {}) {
+  const data = {
+    ...payload,
     iat: Date.now(),
   };
-
-  return Buffer.from(JSON.stringify(payload)).toString("base64url");
+  return Buffer.from(JSON.stringify(data)).toString("base64url");
 }
 
 export default {

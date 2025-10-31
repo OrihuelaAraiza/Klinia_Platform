@@ -2,10 +2,12 @@ import { api } from "./apiClient";
 
 const AUDIT_ENDPOINT = "/audit";
 
-export async function logAudit(event, meta = {}) {
+export async function logAudit(event, meta = {}, options = {}) {
   if (!event) {
     return;
   }
+
+  const { auth = true } = options;
 
   try {
     await api.post(
@@ -15,10 +17,12 @@ export async function logAudit(event, meta = {}) {
         meta,
         at: new Date().toISOString(),
       },
-      { auth: true }
+      { auth }
     );
   } catch (error) {
-    console.warn("[audit-failed]", error.message);
+    if (import.meta.env.DEV) {
+      console.warn("[audit-failed]", error.message);
+    }
   }
 }
 

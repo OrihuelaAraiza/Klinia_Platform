@@ -1,4 +1,6 @@
+import { useState } from "react";
 import Button from "./UI/Button";
+import Modal from "./UI/Modal";
 import { ROLES_LABEL } from "../utils/constants";
 
 function getInitials(name) {
@@ -29,6 +31,27 @@ export default function Topbar({ user, role, onLogout, onToggleSidebar, sidebarC
   const name = user?.name ?? "Usuario";
   const roleLabel = ROLES_LABEL[role] ?? role ?? "";
   const initials = getInitials(name);
+  const [confirmLogoutOpen, setConfirmLogoutOpen] = useState(false);
+  const [logoutLoading, setLogoutLoading] = useState(false);
+
+  const openConfirmLogout = () => setConfirmLogoutOpen(true);
+  const closeConfirmLogout = () => {
+    if (!logoutLoading) {
+      setConfirmLogoutOpen(false);
+    }
+  };
+  const confirmLogout = async () => {
+    if (logoutLoading) {
+      return;
+    }
+    setLogoutLoading(true);
+    setConfirmLogoutOpen(false);
+    try {
+      await onLogout?.();
+    } finally {
+      setLogoutLoading(false);
+    }
+  };
 
   return (
     <header className="topbar">
@@ -59,12 +82,29 @@ export default function Topbar({ user, role, onLogout, onToggleSidebar, sidebarC
           </summary>
           <div className="topbar__menu-content">
             <button type="button">Perfil (próximamente)</button>
-            <button type="button" className="danger" onClick={onLogout}>
+            <button type="button" className="danger" onClick={openConfirmLogout}>
               Cerrar sesión
             </button>
           </div>
         </details>
       </div>
+      <Modal
+        open={confirmLogoutOpen}
+        onClose={closeConfirmLogout}
+        title="Confirmar cierre de sesión"
+        footer={
+          <div className="cluster">
+            <Button variant="ghost" onClick={closeConfirmLogout}>
+              Cancelar
+            </Button>
+            <Button variant="danger" onClick={confirmLogout} loading={logoutLoading} disabled={logoutLoading}>
+              Cerrar sesión
+            </Button>
+          </div>
+        }
+      >
+        <p className="helper-text">Confirma que deseas cerrar sesión en la plataforma.</p>
+      </Modal>
     </header>
   );
 }
