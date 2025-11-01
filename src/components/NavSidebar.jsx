@@ -64,23 +64,23 @@ function ChartIcon(props) {
   );
 }
 
-export default function NavSidebar({ role, collapsed, onToggleCollapsed }) {
+export default function NavSidebar({
+  role,
+  collapsed,
+  id = "app-sidebar",
+}) {
   const filteredItems = NAV_ITEMS.filter((item) => item.roles.includes(role));
 
   return (
-    <nav className={`sidebar${collapsed ? " sidebar--collapsed" : ""}`} aria-label="Navegación principal">
+    <nav
+      id={id}
+      className={`sidebar${collapsed ? " sidebar--collapsed" : ""}`}
+      aria-label="Navegación principal"
+    >
       <div className="sidebar__brand">
         <img className="sidebar__logo" src={logo} alt="Klinia" />
         <span className="sidebar__title">Klinia</span>
       </div>
-      <button
-        type="button"
-        className="sidebar__collapse"
-        onClick={onToggleCollapsed}
-        aria-label={collapsed ? "Expandir menú" : "Colapsar menú"}
-      >
-        <span aria-hidden="true">{collapsed ? "⮞" : "⮜"}</span>
-      </button>
       <ul className="sidebar__list">
         {filteredItems.map((item) => (
           <li key={item.to} className="sidebar__item">

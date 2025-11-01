@@ -27,7 +27,23 @@ function CollapseIcon(props) {
   );
 }
 
-export default function Topbar({ user, role, onLogout, onToggleSidebar, sidebarCollapsed }) {
+function CloseIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" {...props}>
+      <path d="m7 7 10 10M17 7 7 17" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export default function Topbar({
+  user,
+  role,
+  onLogout,
+  onToggleSidebar,
+  sidebarCollapsed,
+  isMobile = false,
+  sidebarId,
+}) {
   const name = user?.name ?? "Usuario";
   const roleLabel = ROLES_LABEL[role] ?? role ?? "";
   const initials = getInitials(name);
@@ -53,6 +69,22 @@ export default function Topbar({ user, role, onLogout, onToggleSidebar, sidebarC
     }
   };
 
+  const toggleLabel = isMobile
+    ? sidebarCollapsed
+      ? "Abrir menú"
+      : "Cerrar menú"
+    : sidebarCollapsed
+    ? "Expandir menú"
+    : "Colapsar menú";
+
+  const ToggleIcon = isMobile
+    ? sidebarCollapsed
+      ? MenuIcon
+      : CloseIcon
+    : sidebarCollapsed
+    ? MenuIcon
+    : CollapseIcon;
+
   return (
     <header className="topbar">
       <div className="topbar__left">
@@ -60,10 +92,12 @@ export default function Topbar({ user, role, onLogout, onToggleSidebar, sidebarC
           variant="ghost"
           size="sm"
           onClick={onToggleSidebar}
-          aria-label={sidebarCollapsed ? "Expandir menú" : "Colapsar menú"}
+          aria-label={toggleLabel}
+          aria-controls={sidebarId}
+          aria-expanded={!sidebarCollapsed}
           className="topbar__toggle"
         >
-          {sidebarCollapsed ? <MenuIcon aria-hidden="true" /> : <CollapseIcon aria-hidden="true" />}
+          {ToggleIcon ? <ToggleIcon aria-hidden="true" /> : null}
         </Button>
         <div className="topbar__user">
           <p className="topbar__greeting">Hola, {name}</p>
