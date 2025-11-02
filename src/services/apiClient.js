@@ -25,8 +25,27 @@ async function request(path, options = {}) {
     signal,
   } = options;
 
+  const hasFormData = typeof FormData !== "undefined";
+  const hasBlob = typeof Blob !== "undefined";
+  const hasFile = typeof File !== "undefined";
+  const isFormData = hasFormData && body instanceof FormData;
+  const isBlob = hasBlob && body instanceof Blob;
+  const isFile = hasFile && body instanceof File;
+  const isArrayBuffer = body instanceof ArrayBuffer;
+  const isBodyBinary = isBlob || isArrayBuffer || isFile;
+
+  const defaultHeaders = {};
+  if (
+    body !== undefined &&
+    !isFormData &&
+    !isBodyBinary &&
+    typeof body !== "string"
+  ) {
+    defaultHeaders["Content-Type"] = "application/json";
+  }
+
   const requestHeaders = {
-    "Content-Type": "application/json",
+    ...defaultHeaders,
     ...headers,
   };
 
@@ -38,11 +57,24 @@ async function request(path, options = {}) {
   }
 
   let response;
+  let payload = body;
+
+  if (payload !== undefined) {
+    if (
+      !isFormData &&
+      !isBodyBinary &&
+      typeof payload !== "string" &&
+      !(payload instanceof URLSearchParams)
+    ) {
+      payload = JSON.stringify(payload);
+    }
+  }
+
   try {
     response = await fetch(buildUrl(path), {
       method,
       headers: requestHeaders,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
+      body: payload,
       signal,
       credentials: "include",
     });

@@ -13,6 +13,9 @@ import historyRouter from "./src/routes/history.js";
 import notesRouter from "./src/routes/notes.js";
 import exportRouter from "./src/routes/export.js";
 import sessionsRouter from "./src/routes/sessions.js";
+import uploadsRouter from "./src/routes/uploads.js";
+import verifyRouter from "./src/routes/verify.js";
+import registerRouter from "./src/routes/register.js";
 
 const app = express();
 
@@ -32,6 +35,9 @@ apiRouter.use(auditRouter);
 apiRouter.use("/patients", patientsRouter);
 
 app.use("/api/auth", authRouter);
+app.use("/api/auth", registerRouter);
+app.use("/api/uploads", uploadsRouter);
+app.use("/api/verify", verifyRouter);
 app.use("/api", apiRouter);
 app.use("/api/patients/:id/consents", consentsRouter);
 app.use("/api/patients/:id/history", historyRouter);

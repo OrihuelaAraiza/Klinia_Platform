@@ -61,6 +61,41 @@ export const PRESCRIPTION_FIELDS = [
   { name: "notes", label: "Indicaciones" },
 ];
 
+export const MEXICAN_STATES = [
+  { value: "AGUASCALIENTES", label: "Aguascalientes" },
+  { value: "BAJA_CALIFORNIA", label: "Baja California" },
+  { value: "BAJA_CALIFORNIA_SUR", label: "Baja California Sur" },
+  { value: "CAMPECHE", label: "Campeche" },
+  { value: "COAHUILA", label: "Coahuila" },
+  { value: "COLIMA", label: "Colima" },
+  { value: "CHIAPAS", label: "Chiapas" },
+  { value: "CHIHUAHUA", label: "Chihuahua" },
+  { value: "CIUDAD_DE_MEXICO", label: "Ciudad de Mexico" },
+  { value: "DURANGO", label: "Durango" },
+  { value: "GUANAJUATO", label: "Guanajuato" },
+  { value: "GUERRERO", label: "Guerrero" },
+  { value: "HIDALGO", label: "Hidalgo" },
+  { value: "JALISCO", label: "Jalisco" },
+  { value: "MEXICO", label: "Estado de Mexico" },
+  { value: "MICHOACAN", label: "Michoacan" },
+  { value: "MORELOS", label: "Morelos" },
+  { value: "NAYARIT", label: "Nayarit" },
+  { value: "NUEVO_LEON", label: "Nuevo Leon" },
+  { value: "OAXACA", label: "Oaxaca" },
+  { value: "PUEBLA", label: "Puebla" },
+  { value: "QUERETARO", label: "Queretaro" },
+  { value: "QUINTANA_ROO", label: "Quintana Roo" },
+  { value: "SAN_LUIS_POTOSI", label: "San Luis Potosi" },
+  { value: "SINALOA", label: "Sinaloa" },
+  { value: "SONORA", label: "Sonora" },
+  { value: "TABASCO", label: "Tabasco" },
+  { value: "TAMAULIPAS", label: "Tamaulipas" },
+  { value: "TLAXCALA", label: "Tlaxcala" },
+  { value: "VERACRUZ", label: "Veracruz" },
+  { value: "YUCATAN", label: "Yucatan" },
+  { value: "ZACATECAS", label: "Zacatecas" },
+];
+
 export default {
   ROLES,
   ROLES_LABEL,
@@ -70,4 +105,5 @@ export default {
   SESSION_STATUS_VARIANT,
   CONSENT_TYPES,
   PRESCRIPTION_FIELDS,
+  MEXICAN_STATES,
 };

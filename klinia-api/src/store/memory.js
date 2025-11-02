@@ -7,6 +7,8 @@ export const patients = new Map();
 export const consentsByPatient = new Map();
 export const historiesByPatient = new Map();
 export const notesByPatient = new Map();
+export const uploadsById = new Map();
+export const kycRecordsByUserId = new Map();
 
 function seed() {
   if (patients.size > 0) {
@@ -66,5 +68,7 @@ export default {
   notesByPatient,
   usersByEmail,
   loginBuckets,
+  uploadsById,
+  kycRecordsByUserId,
   uid,
 };
