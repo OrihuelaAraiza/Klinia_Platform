@@ -1,3 +1,5 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap");
+
 :root {
   /* Design system palette */
   --primary: #0f172a;
@@ -936,6 +938,56 @@ main {
   display: grid;
   gap: var(--s-5);
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.dashboard-page {
+  font-family: var(--font-main);
+}
+
+.dashboard-page__title {
+  margin: 0 0 1rem;
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: var(--line-tight);
+}
+
+.dashboard-page__subtitle {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.dashboard-page__section-title {
+  margin: 0 0 0.75rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: var(--line-tight);
+}
+
+.dashboard-page__card-title {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.dashboard-page__icon {
+  width: 24px;
+  height: 24px;
+  color: var(--primary);
+}
+
+.dashboard-page__body-text {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--text);
+}
+
+.dashboard-page__list {
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--text);
 }
 
 .card {
