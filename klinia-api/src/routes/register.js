@@ -4,10 +4,24 @@ import { z } from "zod";
 import {
   hasUser,
   kycRecordsByUserId,
-  pushAuditEvent,
+  pushAuditEvent, // <-- Asegúrate de que 'pushAuditEvent' esté importado
   uid,
   usersByEmail,
+  uploadsById,
 } from "../store/memory.js";
+import * as docIntelService from '../services/azureDocIntelService.js';
+import * as faceService from '../services/azureFaceService.js';
+
+
+function emitAudit(event, meta = {}) {
+  pushAuditEvent({
+    event,
+    meta,
+    at: new Date().toISOString(),
+  });
+}
+
+
 
 const router = Router();
 
@@ -53,158 +67,6 @@ const MEXICO_STATES = [
   "ZACATECAS",
 ];
 
-function emitAudit(event, meta = {}) {
-  pushAuditEvent({
-    event,
-    meta,
-    at: new Date().toISOString(),
-  });
-}
-
-function isAdult(birthDate) {
-  if (!DATE_REGEX.test(birthDate)) {
-    return false;
-  }
-  const date = new Date(birthDate);
-  if (Number.isNaN(date.getTime())) {
-    return false;
-  }
-  const today = new Date();
-  let age = today.getFullYear() - date.getFullYear();
-  const monthDiff = today.getMonth() - date.getMonth();
-  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < date.getDate())) {
-    age -= 1;
-  }
-  return age >= 18;
-}
-
-const emailSchema = z
-  .string({ required_error: "Correo requerido" })
-  .trim()
-  .min(1, { message: "Correo requerido" })
-  .email({ message: "Correo invalido" })
-  .transform((value) => value.toLowerCase());
-
-const passwordSchema = z
-  .string({ required_error: "Contraseña requerida" })
-  .min(8, { message: "La contraseña debe tener al menos 8 caracteres" })
-  .regex(PASSWORD_REGEX, {
-    message: "Debe incluir al menos una letra y un numero",
-  });
-
-const identitySchema = z.object({
-  firstName: z
-    .string({ required_error: "Nombre requerido" })
-    .trim()
-    .min(2, { message: "Nombre muy corto" }),
-  lastName: z
-    .string({ required_error: "Apellido requerido" })
-    .trim()
-    .min(2, { message: "Apellido muy corto" }),
-  curp: z
-    .string({ required_error: "CURP requerido" })
-    .trim()
-    .transform((value) => value.toUpperCase())
-    .refine((value) => CURP_REGEX.test(value), {
-      message: "CURP invalido",
-    }),
-  rfc: z
-    .string()
-    .trim()
-    .optional()
-    .transform((value) => {
-      if (!value) {
-        return undefined;
-      }
-      const upper = value.toUpperCase();
-      return upper || undefined;
-    })
-    .refine(
-      (value) => value === undefined || RFC_REGEX.test(value),
-      {
-        message: "RFC invalido",
-      }
-    ),
-  birthDate: z
-    .string({ required_error: "Fecha de nacimiento requerida" })
-    .trim()
-    .regex(DATE_REGEX, { message: "Fecha de nacimiento invalida" })
-    .refine((value) => isAdult(value), {
-      message: "Debe ser mayor de 18 años.",
-    }),
-});
-
-const registerCompleteSchema = z.object({
-  access: z.object({
-    email: emailSchema,
-    password: passwordSchema,
-  }),
-  identity: identitySchema,
-  address: z.object({
-    street: z
-      .string({ required_error: "Calle requerida" })
-      .trim()
-      .min(1, { message: "Calle requerida" }),
-    neighborhood: z
-      .string({ required_error: "Colonia requerida" })
-      .trim()
-      .min(1, { message: "Colonia requerida" }),
-    postalCode: z
-      .string({ required_error: "Codigo postal requerido" })
-      .trim()
-      .regex(POSTAL_CODE_REGEX, { message: "Codigo postal invalido" }),
-    city: z
-      .string({ required_error: "Ciudad requerida" })
-      .trim()
-      .min(1, { message: "Ciudad requerida" }),
-    state: z
-      .string({ required_error: "Estado requerido" })
-      .trim()
-      .min(1, { message: "Estado requerido" })
-      .refine((value) => MEXICO_STATES.includes(value), {
-        message: "Estado invalido",
-      }),
-  }),
-  contact: z.object({
-    phone: z
-      .string({ required_error: "Telefono requerido" })
-      .trim()
-      .regex(PHONE_REGEX, { message: "Telefono invalido" }),
-    emergencyName: z
-      .string({ required_error: "Contacto de emergencia requerido" })
-      .trim()
-      .min(2, { message: "Contacto de emergencia invalido" }),
-    emergencyPhone: z
-      .string({ required_error: "Telefono de emergencia requerido" })
-      .trim()
-      .regex(PHONE_REGEX, { message: "Telefono de emergencia invalido" }),
-  }),
-  documents: z.object({
-    idOrPassportFileId: z
-      .string({ required_error: "Identificacion requerida" })
-      .trim()
-      .min(1, { message: "Identificacion requerida" }),
-    professionalLicenseFileId: z
-      .string({ required_error: "Cedula requerida" })
-      .trim()
-      .min(1, { message: "Cedula requerida" }),
-    universityDegreeFileId: z
-      .string({ required_error: "Titulo requerido" })
-      .trim()
-      .min(1, { message: "Titulo requerido" }),
-    proofOfAddressFileId: z
-      .string({ required_error: "Comprobante requerido" })
-      .trim()
-      .min(1, { message: "Comprobante requerido" }),
-  }),
-  face: z.object({
-    selfieFileId: z
-      .string({ required_error: "Selfie requerida" })
-      .trim()
-      .min(1, { message: "Selfie requerida" }),
-  }),
-});
-
 router.post("/register/complete", async (req, res, next) => {
   const timestamp = new Date().toISOString();
   const emailForAudit = String(req.body?.access?.email || "").trim().toLowerCase();
@@ -214,15 +76,75 @@ router.post("/register/complete", async (req, res, next) => {
     const email = payload.access.email;
 
     if (hasUser(email)) {
-      emitAudit("auth_register_failed", {
-        email,
-        reason: "duplicate",
-      });
+      emitAudit("auth_register_failed", { email, reason: "duplicate" });
       return res
         .status(409)
         .json({ message: "Este correo ya esta registrado." });
     }
 
+    
+    const idDocFileId = payload.documents.idOrPassportFileId;
+    const selfieFileId = payload.face.selfieFileId;
+
+    const idDocRecord = uploadsById.get(idDocFileId);
+    const selfieRecord = uploadsById.get(selfieFileId);
+
+    if (!idDocRecord || !selfieRecord || !idDocRecord.blobUrl || !selfieRecord.blobUrl) {
+      return res.status(400).json({ message: "Archivos de verificación no encontrados. Súbelos de nuevo." });
+    }
+
+    const idDocUrl = idDocRecord.blobUrl;
+    const selfieUrl = selfieRecord.blobUrl;
+
+   
+    console.log('Iniciando verificación de documentos y rostros...');
+    const [docExtraction, selfieFaceId] = await Promise.all([
+      docIntelService.analyzeIdDocument(idDocUrl),
+      faceService.detectFace(selfieUrl),
+    ]);
+
+ 
+    const fields = docExtraction.fields;
+    const nombreExtraido = fields.FirstName?.value || '';
+    const curpExtraida = fields.PersonalIdentificationNumber?.value || '';
+    
+ 
+    const nombreCoincide = nombreExtraido.toUpperCase() === payload.identity.firstName.toUpperCase();
+    const curpCoincide = curpExtraida.toUpperCase() === payload.identity.curp.toUpperCase();
+
+  
+    const docFaceId = await faceService.detectFace(idDocUrl);
+    const faceVerification = await faceService.verifyFaces(selfieFaceId, docFaceId);
+
+    const verificationSummary = {
+      nombreCoincide,
+      curpCoincide,
+      faceVerification,
+      datosFormulario: {
+        nombre: payload.identity.firstName,
+        curp: payload.identity.curp,
+      },
+      datosExtraidos: { 
+        nombre: nombreExtraido, 
+        curp: curpExtraida 
+      },
+    };
+
+    if (!nombreCoincide || !curpCoincide || !faceVerification.isIdentical) {
+      console.warn('Verificación fallida para:', email, verificationSummary);
+      
+      emitAudit("auth_register_failed", {
+        email,
+        reason: "kyc_failed",
+        summary: verificationSummary,
+      });
+
+      return res.status(400).json({ 
+        message: 'Los datos de tus documentos no coinciden con el formulario o tu rostro.', 
+        summary: verificationSummary 
+      });
+    }
+  
     const passwordHash = await bcrypt.hash(payload.access.password, 8);
     const userId = uid("U_");
     const fullName = `${payload.identity.firstName} ${payload.identity.lastName}`.trim();
@@ -236,6 +158,7 @@ router.post("/register/complete", async (req, res, next) => {
       createdAt: timestamp,
     });
 
+    
     kycRecordsByUserId.set(userId, {
       id: uid("KYC_"),
       userId,
@@ -244,6 +167,7 @@ router.post("/register/complete", async (req, res, next) => {
       contact: payload.contact,
       documents: payload.documents,
       face: payload.face,
+      verification: verificationSummary, 
       createdAt: timestamp,
     });
 
