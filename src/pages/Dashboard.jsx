@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import { AnimatePresence, motion as Motion } from "framer-motion";
-import { Users, Calendar, Pill, BarChart, BarChart2, CheckCircle2 } from "lucide-react";
+import { Users, Calendar, Pill, BarChart, BarChart2, CheckCircle2, Menu } from "lucide-react";
 import { ROUTES, ROLES } from "../utils/constants";
 import DashboardStats from "../components/DashboardStats";
 import Button from "../components/UI/Button";
@@ -54,7 +54,7 @@ const SUGGESTIONS = [
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { role } = useOutletContext() ?? {};
+  const { role, toggleSidebar: toggleSidebarGlobal, isMobile } = useOutletContext() ?? {};
   const storageKey = useMemo(() => `${STORAGE_KEY}:${role || "default"}`, [role]);
   const stats = useMemo(() => {
     const seed = new Date().getDate();
@@ -233,6 +233,17 @@ export default function Dashboard() {
           </p>
         </div>
         <div className="dashboard-header__actions">
+          {isMobile ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="dashboard-header__hamburger"
+              onClick={() => toggleSidebarGlobal?.()}
+            >
+              <Menu aria-hidden="true" />
+              <span>Menú</span>
+            </Button>
+          ) : null}
           <Button variant="ghost" size="sm" onClick={() => setIsEditingShortcuts(true)}>
             Editar accesos rápidos
           </Button>
@@ -241,7 +252,7 @@ export default function Dashboard() {
 
       <DashboardStats stats={stats} />
 
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {visibleActions.length === 0 ? (
           <div className="dashboard-module dashboard-module--static">
             <h2 className="dashboard-page__section-title">Sin accesos visibles</h2>

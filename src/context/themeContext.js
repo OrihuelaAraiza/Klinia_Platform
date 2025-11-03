@@ -1,4 +1,2 @@
-import { createContext } from "react";
-
-export const ThemeContext = createContext(undefined);
-
+export { ThemeProvider } from "./ThemeContext.jsx";
+export { ThemeContext } from "./theme-context.js";
