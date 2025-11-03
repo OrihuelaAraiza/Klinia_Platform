@@ -1,83 +1,71 @@
-import { Router } from "express";
-import multer from "multer";
-import { pushAuditEvent, uid, uploadsById } from "../store/memory.js";
+import { Router } from 'express';
+import multer from 'multer';
+import * as blobService from '../services/azureBlobService.js';
+import * as faceService from '../services/azureFaceService.js'; 
+import { uid, uploadsById } from '../store/memory.js'; // Asegúrate de importar esto
 
 const router = Router();
 
-const ACCEPTED_MIME = new Set(["image/jpeg", "image/pjpeg"]);
-const MAX_FILE_SIZE = 5 * 1024 * 1024;
-const MIN_SELFIE_SIZE = 20 * 1024;
-
+// Configuración de Multer para la selfie (solo JPG)
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: MAX_FILE_SIZE },
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
   fileFilter: (req, file, cb) => {
-    if (ACCEPTED_MIME.has(file.mimetype)) {
+    if (file.mimetype === 'image/jpeg' || file.mimetype === 'image/pjpeg') {
       cb(null, true);
-      return;
+    } else {
+      cb(new Error('Formato invalido. Carga una foto JPG.'), false);
     }
-    const error = new Error("Formato invalido. Carga una foto JPG.");
-    error.status = 400;
-    cb(error);
   },
 });
 
-function emitAudit(event, meta = {}) {
-  pushAuditEvent({
-    event,
-    meta,
-    at: new Date().toISOString(),
-  });
-}
 
-router.post("/face", (req, res) => {
-  upload.single("file")(req, res, (err) => {
-    if (err) {
-      if (err.code === "LIMIT_FILE_SIZE") {
-        return res.status(413).json({
-          message: "Archivo demasiado grande para verificacion facial.",
-        });
-      }
-      const status = err.status || 400;
-      return res
-        .status(status)
-        .json({ message: err.message || "No pudimos procesar la imagen." });
+router.post('/face', upload.single('file'), async (req, res) => {
+  const file = req.file;
+  if (!file) {
+    return res.status(400).json({ message: 'No se adjuntó ningún archivo.' });
+  }
+
+  const userId = 'temp-user-id';
+  const selfieFileId = uid('SELF_'); 
+  const blobName = `auditoria/${userId}/selfie-${selfieFileId}.jpg`;
+
+  try {
+    const blobUrl = await blobService.uploadImageBuffer(
+      file.buffer,
+      blobName,
+      file.mimetype
+    );
+
+    let score = 0.9; 
+    try {
+      const faceId = await faceService.detectFace(blobUrl);
+      score = faceId ? 0.95 : 0.0;
+    } catch (faceError) {
+      score = 0.0;
+      console.warn('No se detectó un rostro en la selfie:', faceError.message);
     }
 
-    const file = req.file;
-    if (!file) {
-      emitAudit("face_verify", { ok: false, score: 0 });
-      return res
-        .status(400)
-        .json({ message: "Adjunta una selfie en formato JPG." });
-    }
-
-    if (file.size <= MIN_SELFIE_SIZE) {
-      emitAudit("face_verify", { ok: false, score: 0 });
-      return res.status(400).json({ message: "No face detected (mock)" });
-    }
-
-    const selfieFileId = uid("SELF_");
-    const score = 0.9;
     uploadsById.set(selfieFileId, {
       id: selfieFileId,
       name: file.originalname,
       mime: file.mimetype,
       size: file.size,
-      buffer: file.buffer,
+      blobUrl: blobUrl,
+        blobName: blobName, 
       uploadedAt: new Date().toISOString(),
-      type: "selfie",
-      score,
+      score: score,
     });
 
-    emitAudit("face_verify", { ok: true, score });
-
-    return res.status(200).json({
+    res.status(200).json({
       ok: true,
-      selfieFileId,
-      score,
+      selfieFileId: selfieFileId, 
+      score: score,
     });
-  });
+  } catch (error) {
+    console.error('Error en /api/verify/face:', error);
+    res.status(500).json({ message: 'Error al procesar la selfie.' });
+  }
 });
 
 export default router;

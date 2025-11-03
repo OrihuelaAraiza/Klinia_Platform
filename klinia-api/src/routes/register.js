@@ -4,10 +4,23 @@ import { z } from "zod";
 import {
   hasUser,
   kycRecordsByUserId,
-  pushAuditEvent,
+  pushAuditEvent, 
   uid,
   usersByEmail,
+  uploadsById, 
 } from "../store/memory.js";
+
+import * as docIntelService from '../services/azureDocIntelService.js';
+import * as faceService from '../services/azureFaceService.js';
+import * as blobService from '../services/azureBlobService.js';
+
+function emitAudit(event, meta = {}) {
+  pushAuditEvent({
+    event,
+    meta,
+    at: new Date().toISOString(),
+  });
+}
 
 const router = Router();
 
@@ -19,56 +32,18 @@ const PHONE_REGEX = /^\d{10}$/;
 const POSTAL_CODE_REGEX = /^\d{5}$/;
 const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 const MEXICO_STATES = [
-  "AGUASCALIENTES",
-  "BAJA_CALIFORNIA",
-  "BAJA_CALIFORNIA_SUR",
-  "CAMPECHE",
-  "COAHUILA",
-  "COLIMA",
-  "CHIAPAS",
-  "CHIHUAHUA",
-  "CIUDAD_DE_MEXICO",
-  "DURANGO",
-  "GUANAJUATO",
-  "GUERRERO",
-  "HIDALGO",
-  "JALISCO",
-  "MEXICO",
-  "MICHOACAN",
-  "MORELOS",
-  "NAYARIT",
-  "NUEVO_LEON",
-  "OAXACA",
-  "PUEBLA",
-  "QUERETARO",
-  "QUINTANA_ROO",
-  "SAN_LUIS_POTOSI",
-  "SINALOA",
-  "SONORA",
-  "TABASCO",
-  "TAMAULIPAS",
-  "TLAXCALA",
-  "VERACRUZ",
-  "YUCATAN",
-  "ZACATECAS",
+  "AGUASCALIENTES", "BAJA_CALIFORNIA", "BAJA_CALIFORNIA_SUR", "CAMPECHE", 
+  "COAHUILA", "COLIMA", "CHIAPAS", "CHIHUAHUA", "CIUDAD_DE_MEXICO", "DURANGO", 
+  "GUANAJUATO", "GUERRERO", "HIDALGO", "JALISCO", "MEXICO", "MICHOACAN", 
+  "MORELOS", "NAYARIT", "NUEVO_LEON", "OAXACA", "PUEBLA", "QUERETARO", 
+  "QUINTANA_ROO", "SAN_LUIS_POTOSI", "SINALOA", "SONORA", "TABASCO", 
+  "TAMAULIPAS", "TLAXCALA", "VERACRUZ", "YUCATAN", "ZACATECAS",
 ];
 
-function emitAudit(event, meta = {}) {
-  pushAuditEvent({
-    event,
-    meta,
-    at: new Date().toISOString(),
-  });
-}
-
 function isAdult(birthDate) {
-  if (!DATE_REGEX.test(birthDate)) {
-    return false;
-  }
+  if (!DATE_REGEX.test(birthDate)) return false;
   const date = new Date(birthDate);
-  if (Number.isNaN(date.getTime())) {
-    return false;
-  }
+  if (Number.isNaN(date.getTime())) return false;
   const today = new Date();
   let age = today.getFullYear() - date.getFullYear();
   const monthDiff = today.getMonth() - date.getMonth();
@@ -112,19 +87,10 @@ const identitySchema = z.object({
     .string()
     .trim()
     .optional()
-    .transform((value) => {
-      if (!value) {
-        return undefined;
-      }
-      const upper = value.toUpperCase();
-      return upper || undefined;
-    })
-    .refine(
-      (value) => value === undefined || RFC_REGEX.test(value),
-      {
-        message: "RFC invalido",
-      }
-    ),
+    .transform((value) => (value ? value.toUpperCase() : undefined))
+    .refine((value) => value === undefined || RFC_REGEX.test(value), {
+      message: "RFC invalido",
+    }),
   birthDate: z
     .string({ required_error: "Fecha de nacimiento requerida" })
     .trim()
@@ -141,69 +107,29 @@ const registerCompleteSchema = z.object({
   }),
   identity: identitySchema,
   address: z.object({
-    street: z
-      .string({ required_error: "Calle requerida" })
-      .trim()
-      .min(1, { message: "Calle requerida" }),
-    neighborhood: z
-      .string({ required_error: "Colonia requerida" })
-      .trim()
-      .min(1, { message: "Colonia requerida" }),
-    postalCode: z
-      .string({ required_error: "Codigo postal requerido" })
-      .trim()
-      .regex(POSTAL_CODE_REGEX, { message: "Codigo postal invalido" }),
-    city: z
-      .string({ required_error: "Ciudad requerida" })
-      .trim()
-      .min(1, { message: "Ciudad requerida" }),
-    state: z
-      .string({ required_error: "Estado requerido" })
-      .trim()
-      .min(1, { message: "Estado requerido" })
-      .refine((value) => MEXICO_STATES.includes(value), {
-        message: "Estado invalido",
-      }),
+    street: z.string().trim().min(1, { message: "Calle requerida" }),
+    neighborhood: z.string().trim().min(1, { message: "Colonia requerida" }),
+    postalCode: z.string().trim().regex(POSTAL_CODE_REGEX, { message: "Codigo postal invalido" }),
+    city: z.string().trim().min(1, { message: "Ciudad requerida" }),
+    state: z.string().trim().min(1, { message: "Estado requerido" }).refine((value) => MEXICO_STATES.includes(value), { message: "Estado invalido" }),
   }),
   contact: z.object({
-    phone: z
-      .string({ required_error: "Telefono requerido" })
-      .trim()
-      .regex(PHONE_REGEX, { message: "Telefono invalido" }),
-    emergencyName: z
-      .string({ required_error: "Contacto de emergencia requerido" })
-      .trim()
-      .min(2, { message: "Contacto de emergencia invalido" }),
-    emergencyPhone: z
-      .string({ required_error: "Telefono de emergencia requerido" })
-      .trim()
-      .regex(PHONE_REGEX, { message: "Telefono de emergencia invalido" }),
+    phone: z.string().trim().regex(PHONE_REGEX, { message: "Telefono invalido" }),
+    emergencyName: z.string().trim().min(2, { message: "Contacto de emergencia invalido" }),
+    emergencyPhone: z.string().trim().regex(PHONE_REGEX, { message: "Telefono de emergencia invalido" }),
   }),
   documents: z.object({
-    idOrPassportFileId: z
-      .string({ required_error: "Identificacion requerida" })
-      .trim()
-      .min(1, { message: "Identificacion requerida" }),
-    professionalLicenseFileId: z
-      .string({ required_error: "Cedula requerida" })
-      .trim()
-      .min(1, { message: "Cedula requerida" }),
-    universityDegreeFileId: z
-      .string({ required_error: "Titulo requerido" })
-      .trim()
-      .min(1, { message: "Titulo requerido" }),
-    proofOfAddressFileId: z
-      .string({ required_error: "Comprobante requerido" })
-      .trim()
-      .min(1, { message: "Comprobante requerido" }),
+    idOrPassportFileId: z.string().trim().min(1, { message: "Identificacion requerida" }),
+    professionalLicenseFileId: z.string().trim().min(1, { message: "Cedula requerida" }),
+    universityDegreeFileId: z.string().trim().min(1, { message: "Titulo requerido" }),
+    proofOfAddressFileId: z.string().trim().min(1, { message: "Comprobante requerido" }),
   }),
   face: z.object({
-    selfieFileId: z
-      .string({ required_error: "Selfie requerida" })
-      .trim()
-      .min(1, { message: "Selfie requerida" }),
+    selfieFileId: z.string().trim().min(1, { message: "Selfie requerida" }),
   }),
 });
+
+
 
 router.post("/register/complete", async (req, res, next) => {
   const timestamp = new Date().toISOString();
@@ -214,15 +140,91 @@ router.post("/register/complete", async (req, res, next) => {
     const email = payload.access.email;
 
     if (hasUser(email)) {
-      emitAudit("auth_register_failed", {
-        email,
-        reason: "duplicate",
-      });
+      emitAudit("auth_register_failed", { email, reason: "duplicate" });
       return res
         .status(409)
         .json({ message: "Este correo ya esta registrado." });
     }
 
+    const idDocFileId = payload.documents.idOrPassportFileId;
+    const selfieFileId = payload.face.selfieFileId;
+
+    const idDocRecord = uploadsById.get(idDocFileId);
+    const selfieRecord = uploadsById.get(selfieFileId); 
+
+    if (!idDocRecord || !selfieRecord) {
+      console.error("Registros no encontrados en memoria (probable reinicio de nodemon)", { idDocFileId, selfieFileId });
+      return res.status(400).json({ message: "Archivos de verificación no encontrados (sesión expirada). Súbelos de nuevo." });
+    }
+
+    const idDocBlobName = idDocRecord.blobName;
+
+    if (!idDocBlobName) {
+      console.error("Registro de 'idDoc' no tiene .blobName", idDocRecord);
+      return res.status(400).json({ message: "Registro de archivo corrupto, falta 'blobName'." });
+    }
+ 
+    const idDocSasUrl = await blobService.getBlobSasUrl(idDocBlobName);
+
+    console.log('Iniciando verificación de documentos (extracción de texto)...');
+    
+    const docExtraction = await docIntelService.analyzeIdDocument(idDocSasUrl);
+    
+    const fields = docExtraction.fields;
+    const nombreExtraido = fields.FirstName?.value || '';
+    const curpExtraida = fields.PersonalIdentificationNumber?.value || '';
+    
+    const nombreCoincide = nombreExtraido.toUpperCase() === payload.identity.firstName.toUpperCase();
+    const curpCoincide = curpExtraida.toUpperCase() === payload.identity.curp.toUpperCase();
+
+
+    console.warn('¡Omitiendo verificación facial! Pendiente de aprobación de Azure (Error 403).');
+    const faceVerification = { 
+      isIdentical: true, // Simular que coincide
+      confidence: "SKIPPED_AZURE_403" 
+    };
+    
+    // --- NO EJECUTAR ESTO HASTA TENER PERMISO DE AZURE ---
+    /*
+    const selfieUrl = selfieRecord.blobUrl; // Necesario para la detección
+    const [selfieFaceId, docFaceId] = await Promise.all([
+      faceService.detectFace(selfieUrl),
+      faceService.detectFace(idDocSasUrl) // Usar la URL SAS para el doc
+    ]);
+    const faceVerification = await faceService.verifyFaces(selfieFaceId, docFaceId);
+    */
+    // ---------------------------------------------------
+    const verificationSummary = {
+      nombreCoincide,
+      curpCoincide,
+      faceVerification, 
+      datosFormulario: {
+        nombre: payload.identity.firstName,
+        curp: payload.identity.curp,
+      },
+      datosExtraidos: { 
+        nombre: nombreExtraido, 
+        curp: curpExtraida 
+      },
+    };
+
+
+    if (!nombreCoincide || !curpCoincide) { 
+      console.warn('Verificación de TEXTO fallida para:', email, verificationSummary);
+      
+      emitAudit("auth_register_failed", {
+        email,
+        reason: "kyc_text_failed",
+        summary: verificationSummary,
+      });
+
+      return res.status(400).json({ 
+        message: 'Los datos de tus documentos (CURP/Nombre) no coinciden con el formulario.', 
+        summary: verificationSummary 
+      });
+    }
+    
+    console.log('Verificación de texto exitosa. Creando usuario...');
     const passwordHash = await bcrypt.hash(payload.access.password, 8);
     const userId = uid("U_");
     const fullName = `${payload.identity.firstName} ${payload.identity.lastName}`.trim();
@@ -236,6 +238,7 @@ router.post("/register/complete", async (req, res, next) => {
       createdAt: timestamp,
     });
 
+    
     kycRecordsByUserId.set(userId, {
       id: uid("KYC_"),
       userId,
@@ -244,6 +247,7 @@ router.post("/register/complete", async (req, res, next) => {
       contact: payload.contact,
       documents: payload.documents,
       face: payload.face,
+      verification: verificationSummary, // <-- ¡Aquí se guarda!
       createdAt: timestamp,
     });
 

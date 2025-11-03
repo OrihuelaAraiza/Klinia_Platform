@@ -1,6 +1,7 @@
-import dotenv from "dotenv";
+import dotenv from 'dotenv';
+import path from 'path';
 
-dotenv.config();
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
 const DEFAULT_PORT = 8080;
 const DEFAULT_ALLOW_ORIGIN = "http://localhost:5173";
@@ -20,6 +21,13 @@ export const env = {
   AUTH_WINDOW_MS: Number(process.env.AUTH_WINDOW_MS) || DEFAULT_AUTH_WINDOW_MS,
   AUTH_COOLDOWN_MS:
     Number(process.env.AUTH_COOLDOWN_MS) || DEFAULT_AUTH_COOLDOWN_MS,
+
+  AZURE_DOCINTEL_ENDPOINT: process.env.AZURE_DOCINTEL_ENDPOINT,
+  AZURE_DOCINTEL_KEY: process.env.AZURE_DOCINTEL_KEY,
+  AZURE_STORAGE_CONNECTION_STRING: process.env.AZURE_STORAGE_CONNECTION_STRING,
+  AZURE_STORAGE_CONTAINER_NAME: process.env.AZURE_STORAGE_CONTAINER_NAME,
+  AZURE_FACE_ENDPOINT: process.env.AZURE_FACE_ENDPOINT,
+  AZURE_FACE_KEY: process.env.AZURE_FACE_KEY,
 };
 
 if (env.minDelayMs > env.maxDelayMs) {

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import multer from "multer";
 import { pushAuditEvent, uid, uploadsById } from "../store/memory.js";
+import * as blobService from '../services/azureBlobService.js'; // ¡Importante!
 
 const router = Router();
 
@@ -10,75 +11,56 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: MAX_FILE_SIZE },
-  fileFilter: (req, file, cb) => {
-    if (ACCEPTED_MIME.has(file.mimetype)) {
-      cb(null, true);
-      return;
-    }
-    const error = new Error("Formato invalido (solo PDF o JPG).");
-    error.status = 400;
-    cb(error);
-  },
 });
 
-function emitAudit(event, meta = {}) {
-  pushAuditEvent({
-    event,
-    meta,
-    at: new Date().toISOString(),
-  });
-}
+function emitAudit(event, meta = {}) { pushAuditEvent({ event, ...meta }); }
 
 router.post("/", (req, res) => {
-  upload.single("file")(req, res, (err) => {
+  upload.single("file")(req, res, async (err) => { 
     if (err) {
-      if (err.code === "LIMIT_FILE_SIZE") {
-        return res
-          .status(413)
-          .json({ message: "Documento demasiado grande (max 5 MB)." });
-      }
-      const status = err.status || 400;
-      const message =
-        err.message || "No pudimos subir el documento. Intenta nuevamente.";
-      return res.status(status).json({ message });
+      return res.status(400).json({ error: err.message || "File upload error" });
     }
 
     try {
       const file = req.file;
-
       if (!file) {
-        return res
-          .status(400)
-          .json({ message: "Debes adjuntar un archivo (PDF o JPG)." });
+        return res.status(400).json({ error: "No file provided" });
+      }
+
+      if (!ACCEPTED_MIME.has(file.mimetype)) {
+        return res.status(415).json({ error: "Unsupported media type" });
       }
 
       const fileId = uid("UPL_");
+      const userId = 'temp-user-id';
+      const blobName = `auditoria/${userId}/doc-${fileId}-${file.originalname}`;
+
+      const blobUrl = await blobService.uploadImageBuffer(
+        file.buffer,
+        blobName,
+        file.mimetype
+      );
+
       uploadsById.set(fileId, {
         id: fileId,
         name: file.originalname,
         mime: file.mimetype,
         size: file.size,
-        buffer: file.buffer,
+        blobUrl: blobUrl,
+        blobName: blobName, 
         uploadedAt: new Date().toISOString(),
       });
 
-      emitAudit("files_upload", {
-        fileId,
-        mime: file.mimetype,
-        size: file.size,
-      });
+      emitAudit("files_upload", { fileId, blobName });
 
       return res.status(201).json({
-        fileId,
+        fileId, 
         name: file.originalname,
-        mime: file.mimetype,
-        size: file.size,
       });
-    } catch (unknownError) {
-      console.error("[uploads] unexpected error", unknownError);
-      return res
-        .status(500)
-        .json({ message: "No pudimos subir el documento. Intenta nuevamente." });
+    } catch (error) {
+      console.error("Upload error:", error);
+      emitAudit("files_upload_error", { error: error.message });
+      return res.status(500).json({ error: "Internal server error" });
     }
   });
 });
