@@ -19,31 +19,25 @@ const upload = multer({
   },
 });
 
-/**
- * POST /api/verify/face
- * Esta es la ruta que tu StepFace.jsx está buscando.
- */
+
 router.post('/face', upload.single('file'), async (req, res) => {
   const file = req.file;
   if (!file) {
     return res.status(400).json({ message: 'No se adjuntó ningún archivo.' });
   }
 
-  // TODO: Usar un userId real de la sesión
   const userId = 'temp-user-id';
-  const selfieFileId = uid('SELF_'); // Generas un ID único
+  const selfieFileId = uid('SELF_'); 
   const blobName = `auditoria/${userId}/selfie-${selfieFileId}.jpg`;
 
   try {
-    // 1. Subir la imagen al Blob Storage
     const blobUrl = await blobService.uploadImageBuffer(
       file.buffer,
       blobName,
       file.mimetype
     );
 
-    // 2. Validar que hay un rostro
-    let score = 0.9; // Puntuación simulada
+    let score = 0.9; 
     try {
       const faceId = await faceService.detectFace(blobUrl);
       score = faceId ? 0.95 : 0.0;
@@ -52,21 +46,20 @@ router.post('/face', upload.single('file'), async (req, res) => {
       console.warn('No se detectó un rostro en la selfie:', faceError.message);
     }
 
-    // 3. Guardar la referencia en memoria (¡sin el buffer!)
     uploadsById.set(selfieFileId, {
       id: selfieFileId,
       name: file.originalname,
       mime: file.mimetype,
       size: file.size,
-      blobUrl: blobUrl, // Guardamos la URL de Azure
+      blobUrl: blobUrl,
+        blobName: blobName, 
       uploadedAt: new Date().toISOString(),
       score: score,
     });
 
-    // 4. Responder al frontend con el formato que espera
     res.status(200).json({
       ok: true,
-      selfieFileId: selfieFileId, // Esto es lo que StepFace.jsx guarda
+      selfieFileId: selfieFileId, 
       score: score,
     });
   } catch (error) {

@@ -11,60 +11,56 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: MAX_FILE_SIZE },
-  // ... (tu fileFilter está bien)
 });
 
-function emitAudit(event, meta = {}) { /* ... */ }
+function emitAudit(event, meta = {}) { pushAuditEvent({ event, ...meta }); }
 
 router.post("/", (req, res) => {
-  upload.single("file")(req, res, async (err) => { // ¡Convertido a async!
+  upload.single("file")(req, res, async (err) => { 
     if (err) {
-      // ... (tu manejo de errores está bien)
+      return res.status(400).json({ error: err.message || "File upload error" });
     }
 
     try {
       const file = req.file;
       if (!file) {
-        // ... (tu manejo de 'no file' está bien)
+        return res.status(400).json({ error: "No file provided" });
+      }
+
+      if (!ACCEPTED_MIME.has(file.mimetype)) {
+        return res.status(415).json({ error: "Unsupported media type" });
       }
 
       const fileId = uid("UPL_");
-      // TODO: Usar un userId real de la sesión
-      const userId = 'temp-user-id'; 
+      const userId = 'temp-user-id';
       const blobName = `auditoria/${userId}/doc-${fileId}-${file.originalname}`;
 
-      // --- ¡LÓGICA NUEVA! ---
-      // 1. Subir el buffer a Azure Blob
       const blobUrl = await blobService.uploadImageBuffer(
         file.buffer,
         blobName,
         file.mimetype
       );
-      // ---------------------
 
-      // 2. Guardar la referencia en memoria (¡sin el buffer!)
       uploadsById.set(fileId, {
         id: fileId,
         name: file.originalname,
         mime: file.mimetype,
         size: file.size,
-        blobUrl: blobUrl, // Guardamos la URL de Azure
+        blobUrl: blobUrl,
+        blobName: blobName, 
         uploadedAt: new Date().toISOString(),
       });
 
-      emitAudit("files_upload", { fileId, mime: file.mimetype, size: file.size, blobUrl });
+      emitAudit("files_upload", { fileId, blobName });
 
-      // 3. Devolver el fileId (¡tu frontend lo espera!)
       return res.status(201).json({
-        fileId, // Esto es lo que StepDocs.jsx guarda en el estado
+        fileId, 
         name: file.originalname,
-        mime: file.mimetype,
-        size: file.size,
-        blobUrl: blobUrl, // Útil para debug
       });
-    } catch (unknownError) {
-      console.error("[uploads] unexpected error", unknownError);
-      return res.status(500).json({ message: "No pudimos subir el documento." });
+    } catch (error) {
+      console.error("Upload error:", error);
+      emitAudit("files_upload_error", { error: error.message });
+      return res.status(500).json({ error: "Internal server error" });
     }
   });
 });
