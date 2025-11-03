@@ -129,5 +129,5 @@ Por defecto escucha en `http://localhost:4000`. Ajusta `VITE_API_BASE_URL` para 
 
 ---
 
-¿Necesitas extender funcionalidades? Revisa los servicios existentes y mantén la auditoría y validaciones coherentes con los módulos actuales. ¡Feliz desarrollo! 💚
+
 
