@@ -1,90 +1,366 @@
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
-import { motion } from "framer-motion";
-import Card, { CardBody, CardHeader } from "../components/UI/Card";
-import Button from "../components/UI/Button";
+import { AnimatePresence, motion as Motion } from "framer-motion";
+import { Users, Calendar, Pill, BarChart, BarChart2, CheckCircle2 } from "lucide-react";
 import { ROUTES, ROLES } from "../utils/constants";
+import DashboardStats from "../components/DashboardStats";
+import Button from "../components/UI/Button";
+import Modal from "../components/UI/Modal";
 
-const CARD_VARIANTS = {
-  hidden: { opacity: 0, y: 12 },
-  visible: { opacity: 1, y: 0 },
-};
+const DASHBOARD_ACTIONS = [
+  {
+    title: "Pacientes",
+    description: "Consulta y crea expedientes clínicos.",
+    to: ROUTES.patients,
+    icon: Users,
+  },
+  {
+    title: "Sesiones",
+    description: "Gestiona tu agenda terapéutica.",
+    to: ROUTES.sessions,
+    icon: Calendar,
+  },
+  {
+    title: "Reportes",
+    description: "Exporta información NOM-024.",
+    to: ROUTES.reports,
+    icon: BarChart,
+  },
+  {
+    title: "Prescripciones",
+    description: "Genera y registra prescripciones controladas.",
+    to: ROUTES.prescriptions,
+    icon: Pill,
+    hiddenFor: [ROLES.ASSISTANT],
+  },
+];
+
+const STORAGE_KEY = "dashboard.quickActions";
+const SUGGESTIONS_KEY = "dashboard.suggestions";
+const SUGGESTIONS = [
+  {
+    id: "consents",
+    title: "Configura consentimientos digitales personalizados para tu equipo.",
+  },
+  {
+    id: "reminders",
+    title: "Conecta recordatorios SMS/Email para tus sesiones.",
+  },
+  {
+    id: "attachments",
+    title: "Centraliza adjuntos y notas heredadas en el expediente digital.",
+  },
+];
 
 export default function Dashboard() {
   const navigate = useNavigate();
   const { role } = useOutletContext() ?? {};
+  const storageKey = useMemo(() => `${STORAGE_KEY}:${role || "default"}`, [role]);
+  const stats = useMemo(() => {
+    const seed = new Date().getDate();
+    const formatter = new Intl.NumberFormat("es-MX", { maximumFractionDigits: 0 });
+    const base = [
+      {
+        icon: Users,
+        label: "Pacientes activos",
+        computeValue: () => 240 + ((seed * 3) % 18),
+        subtext: "+5% esta semana",
+      },
+      {
+        icon: Calendar,
+        label: "Sesiones programadas hoy",
+        computeValue: () => 14 + (seed % 6),
+        subtext: "3 canceladas",
+      },
+      {
+        icon: Pill,
+        label: "Prescripciones vigentes",
+        computeValue: () => 32 + (seed % 9),
+        subtext: "Última emisión hoy 08:00",
+      },
+      {
+        icon: BarChart2,
+        label: "Reportes generados",
+        computeValue: () => 8 + (seed % 5),
+        subtext: "Mensualidad al 78%",
+      },
+    ];
 
-  const actions = [
-    {
-      title: "Pacientes",
-      description: "Consulta y crea expedientes clínicos.",
-      to: ROUTES.patients,
-    },
-    {
-      title: "Sesiones",
-      description: "Gestiona tu agenda terapéutica.",
-      to: ROUTES.sessions,
-    },
-    {
-      title: "Reportes",
-      description: "Exporta información NOM-024.",
-      to: ROUTES.reports,
-    },
-  ];
+    return base.map((stat) => ({
+      icon: stat.icon,
+      label: stat.label,
+      value: formatter.format(stat.computeValue()),
+      subtext: stat.subtext,
+    }));
+  }, []);
 
-  if (role !== ROLES.ASSISTANT) {
-    actions.push({
-      title: "Prescripciones",
-      description: "Genera y registra prescripciones controladas.",
-      to: ROUTES.prescriptions,
+  const actions = useMemo(
+    () =>
+      DASHBOARD_ACTIONS.filter(({ hiddenFor = [] }) =>
+        role ? !hiddenFor.includes(role) : true
+      ),
+    [role]
+  );
+  const defaultSelection = useMemo(() => actions.map((action) => action.to), [actions]);
+  const [activeModules, setActiveModules] = useState(null);
+  const [isEditingShortcuts, setIsEditingShortcuts] = useState(false);
+  const [pendingSelection, setPendingSelection] = useState([]);
+  const [suggestionStates, setSuggestionStates] = useState({});
+  const [loadingAction, setLoadingAction] = useState(null);
+  const loadingTimer = useRef();
+
+  useEffect(() => {
+    if (!actions.length) {
+      setActiveModules([]);
+      return;
+    }
+
+    if (typeof window === "undefined") {
+      setActiveModules(defaultSelection);
+      return;
+    }
+
+    try {
+      const stored = window.localStorage.getItem(storageKey);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        const filtered = parsed.filter((route) => defaultSelection.includes(route));
+        setActiveModules(filtered.length ? filtered : defaultSelection);
+        return;
+      }
+    } catch (error) {
+      if (import.meta.env.DEV) {
+        console.warn("[Dashboard] Error leyendo accesos rápidos:", error);
+      }
+    }
+
+    setActiveModules(defaultSelection);
+  }, [actions, defaultSelection, storageKey]);
+
+  useEffect(() => {
+    if (!activeModules || typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(storageKey, JSON.stringify(activeModules));
+    } catch (error) {
+      if (import.meta.env.DEV) {
+        console.warn("[Dashboard] Error guardando accesos rápidos:", error);
+      }
+    }
+  }, [activeModules, storageKey]);
+
+  useEffect(() => {
+    if (!isEditingShortcuts) {
+      setPendingSelection(activeModules ?? []);
+    }
+  }, [activeModules, isEditingShortcuts]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const stored = window.localStorage.getItem(SUGGESTIONS_KEY);
+      if (stored) {
+        setSuggestionStates(JSON.parse(stored));
+        return;
+      }
+    } catch (error) {
+      if (import.meta.env.DEV) {
+        console.warn("[Dashboard] No se pudieron leer sugerencias:", error);
+      }
+    }
+    setSuggestionStates({});
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(SUGGESTIONS_KEY, JSON.stringify(suggestionStates));
+    } catch (error) {
+      if (import.meta.env.DEV) {
+        console.warn("[Dashboard] No se pudieron guardar sugerencias:", error);
+      }
+    }
+  }, [suggestionStates]);
+
+  const visibleActions =
+    activeModules === null
+      ? actions
+      : actions.filter((action) => activeModules.includes(action.to));
+
+  const togglePendingRoute = (route) => {
+    setPendingSelection((current) =>
+      current.includes(route) ? current.filter((value) => value !== route) : [...current, route]
+    );
+  };
+
+  const closeShortcutsModal = () => setIsEditingShortcuts(false);
+
+  const saveShortcuts = () => {
+    if (!pendingSelection.length) return;
+    setActiveModules(pendingSelection);
+    setIsEditingShortcuts(false);
+  };
+
+  const toggleSuggestion = (id) => {
+    setSuggestionStates((current) => {
+      const next = { ...current, [id]: !current[id] };
+      return next;
     });
-  }
+  };
+
+  const handleNavigate = (route) => {
+    setLoadingAction(route);
+    if (loadingTimer.current) clearTimeout(loadingTimer.current);
+    loadingTimer.current = window.setTimeout(() => {
+      navigate(route);
+      setLoadingAction(null);
+    }, 260);
+  };
+
+  useEffect(
+    () => () => {
+      if (loadingTimer.current) clearTimeout(loadingTimer.current);
+    },
+    []
+  );
 
   return (
-    <section className="page stack-5">
+    <section className="page stack-5 dashboard-page">
       <div className="page-header">
         <div className="stack-1">
-          <h1>Panel general</h1>
-          <p className="helper-text">Accesos rápidos a los módulos clínicos.</p>
+          <h1 className="dashboard-page__title">Panel general</h1>
+          <p className="dashboard-page__subtitle">
+            Accesos rápidos a los módulos clínicos.
+          </p>
+        </div>
+        <div className="dashboard-header__actions">
+          <Button variant="ghost" size="sm" onClick={() => setIsEditingShortcuts(true)}>
+            Editar accesos rápidos
+          </Button>
         </div>
       </div>
 
-      <div className="dashboard-grid">
-        {actions.map((action, index) => (
-          <motion.div
-            key={action.title}
-            variants={CARD_VARIANTS}
-            initial="hidden"
-            animate="visible"
-            transition={{ duration: 0.25, delay: index * 0.05, ease: "easeOut" }}
-          >
-            <Card hoverable onClick={() => navigate(action.to)} style={{ cursor: "pointer" }}>
-              <CardHeader>
-                <h2>{action.title}</h2>
-              </CardHeader>
-              <CardBody className="stack-2">
-                <p>{action.description}</p>
-                <Button variant="ghost" size="sm" onClick={() => navigate(action.to)}>
-                  Ir ahora
-                </Button>
-              </CardBody>
-            </Card>
-          </motion.div>
-        ))}
-      </div>
+      <DashboardStats stats={stats} />
 
-      <Card hoverable={false}>
-        <CardHeader>
-          <h2>Próximos pasos sugeridos</h2>
-        </CardHeader>
-        <CardBody className="stack-2">
-          <p className="helper-text">Optimiza tu flujo clínico con estas recomendaciones:</p>
-          <ul className="list">
-            <li>Configura consentimientos digitales personalizados para tu equipo.</li>
-            <li>Conecta recordatorios SMS/Email para tus sesiones.</li>
-            <li>Centraliza adjuntos y notas heredadas en el expediente digital.</li>
-          </ul>
-        </CardBody>
-      </Card>
+      <div className="grid grid-cols-2 gap-6">
+        {visibleActions.length === 0 ? (
+          <div className="dashboard-module dashboard-module--static">
+            <h2 className="dashboard-page__section-title">Sin accesos visibles</h2>
+            <p className="dashboard-page__body-text">
+              Selecciona los módulos que deseas mostrar usando “Editar accesos rápidos”.
+            </p>
+            <Button variant="accent" size="sm" onClick={() => setIsEditingShortcuts(true)}>
+              Configurar accesos
+            </Button>
+          </div>
+        ) : (
+          visibleActions.map((action, index) => {
+            const Icon = action.icon;
+            const isLoading = loadingAction === action.to;
+
+            return (
+              <Motion.button
+                key={action.title}
+                type="button"
+                onClick={() => handleNavigate(action.to)}
+                className="dashboard-module"
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05, duration: 0.35, ease: "easeOut" }}
+                whileHover={{ scale: 1.01 }}
+                whileTap={{ scale: 0.995 }}
+              >
+                <div className="dashboard-module__header">
+                  <div className="dashboard-module__icon">
+                    <Icon aria-hidden="true" />
+                  </div>
+                  <h2 className="dashboard-page__section-title">{action.title}</h2>
+                </div>
+                <p className="dashboard-page__body-text">{action.description}</p>
+                <span
+                  className={`dashboard-module__cta-button${isLoading ? " is-loading" : ""}`}
+                  aria-live="polite"
+                >
+                  <span className="dashboard-module__cta-label">
+                    {isLoading ? "Abriendo..." : "Ir ahora"}
+                  </span>
+                  <span className="dashboard-module__cta-icon" aria-hidden="true">
+                    {isLoading ? <span className="dashboard-module__spinner" /> : "→"}
+                  </span>
+                </span>
+              </Motion.button>
+            );
+          })
+        )}
+      </div>
+      <div className="dashboard-module dashboard-module--static">
+        <h2 className="dashboard-page__section-title">Próximos pasos sugeridos</h2>
+        <p className="dashboard-page__subtitle">
+          Optimiza tu flujo clínico con estas recomendaciones:
+        </p>
+        <ul className="dashboard-suggestions">
+          <AnimatePresence>
+            {SUGGESTIONS.map((item) => {
+              const completed = Boolean(suggestionStates[item.id]);
+              return (
+                <Motion.li
+                  key={item.id}
+                  initial={{ opacity: 0, x: -15 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 15 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <label className="dashboard-suggestion">
+                    <input
+                      type="checkbox"
+                      checked={completed}
+                      onChange={() => toggleSuggestion(item.id)}
+                    />
+                    <span className="dashboard-suggestion__status" data-completed={completed}>
+                      {completed ? <CheckCircle2 aria-hidden="true" /> : null}
+                    </span>
+                    <span className="dashboard-suggestion__text">{item.title}</span>
+                  </label>
+                </Motion.li>
+              );
+            })}
+          </AnimatePresence>
+        </ul>
+      </div>
+      <Modal
+        open={isEditingShortcuts}
+        onClose={closeShortcutsModal}
+        title="Editar accesos rápidos"
+        footer={
+          <div className="cluster">
+            <Button variant="ghost" onClick={closeShortcutsModal}>
+              Cancelar
+            </Button>
+            <Button
+              variant="primary"
+              onClick={saveShortcuts}
+              disabled={!pendingSelection.length}
+            >
+              Guardar cambios
+            </Button>
+          </div>
+        }
+      >
+        <div className="dashboard-quick-edit">
+          {actions.map((action) => (
+            <label key={action.to} className="dashboard-quick-edit__option">
+              <input
+                type="checkbox"
+                checked={pendingSelection.includes(action.to)}
+                onChange={() => togglePendingRoute(action.to)}
+              />
+              <div>
+                <span className="dashboard-quick-edit__label">{action.title}</span>
+                <p className="dashboard-quick-edit__description">{action.description}</p>
+              </div>
+            </label>
+          ))}
+        </div>
+      </Modal>
     </section>
   );
 }
