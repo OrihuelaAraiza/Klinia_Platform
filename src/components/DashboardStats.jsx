@@ -1,30 +1,22 @@
 import { memo } from "react";
-
-function DashboardStatCard({ icon: Icon, label, value, subtext }) {
-  return (
-    <article className="stat-card">
-      <div className="stat-icon">
-        {Icon ? <Icon size={24} aria-hidden="true" /> : null}
-      </div>
-      <div className="stat-content">
-        <p className="stat-label">{label}</p>
-        <p className="stat-value">{value}</p>
-        <p className="stat-subtext">{subtext}</p>
-      </div>
-    </article>
-  );
-}
+import DashboardCard from "./DashboardCard";
 
 const DashboardStats = memo(function DashboardStats({ stats = [] }) {
   return (
     <section className="dashboard-grid">
-      {stats.map((stat) => (
-        <DashboardStatCard key={stat.label} {...stat} />
+      {stats.map((stat, index) => (
+        <DashboardCard
+          key={stat.label}
+          variant="stat"
+          icon={stat.icon}
+          title={stat.label}
+          value={stat.value}
+          subtext={stat.subtext}
+          delay={index * 0.05}
+        />
       ))}
     </section>
   );
 });
 
 export default DashboardStats;
-export { DashboardStatCard };
-

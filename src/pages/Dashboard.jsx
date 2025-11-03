@@ -6,6 +6,8 @@ import { ROUTES, ROLES } from "../utils/constants";
 import DashboardStats from "../components/DashboardStats";
 import Button from "../components/UI/Button";
 import Modal from "../components/UI/Modal";
+import DashboardCard from "../components/DashboardCard";
+import DashboardHeader from "../components/DashboardHeader";
 
 const DASHBOARD_ACTIONS = [
   {
@@ -225,14 +227,8 @@ export default function Dashboard() {
 
   return (
     <section className="page stack-5 dashboard-page">
-      <div className="page-header">
-        <div className="stack-1">
-          <h1 className="dashboard-page__title">Panel general</h1>
-          <p className="dashboard-page__subtitle">
-            Accesos rápidos a los módulos clínicos.
-          </p>
-        </div>
-        <div className="dashboard-header__actions">
+      <DashboardHeader title="Panel general" subtitle="Accesos rápidos a los módulos clínicos.">
+        <>
           {isMobile ? (
             <Button
               variant="ghost"
@@ -247,8 +243,8 @@ export default function Dashboard() {
           <Button variant="ghost" size="sm" onClick={() => setIsEditingShortcuts(true)}>
             Editar accesos rápidos
           </Button>
-        </div>
-      </div>
+        </>
+      </DashboardHeader>
 
       <DashboardStats stats={stats} />
 
@@ -264,43 +260,18 @@ export default function Dashboard() {
             </Button>
           </div>
         ) : (
-          visibleActions.map((action, index) => {
-            const Icon = action.icon;
-            const isLoading = loadingAction === action.to;
-
-            return (
-              <Motion.button
-                key={action.title}
-                type="button"
-                onClick={() => handleNavigate(action.to)}
-                className="dashboard-module"
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05, duration: 0.35, ease: "easeOut" }}
-                whileHover={{ scale: 1.01 }}
-                whileTap={{ scale: 0.995 }}
-              >
-                <div className="dashboard-module__header">
-                  <div className="dashboard-module__icon">
-                    <Icon aria-hidden="true" />
-                  </div>
-                  <h2 className="dashboard-page__section-title">{action.title}</h2>
-                </div>
-                <p className="dashboard-page__body-text">{action.description}</p>
-                <span
-                  className={`dashboard-module__cta-button${isLoading ? " is-loading" : ""}`}
-                  aria-live="polite"
-                >
-                  <span className="dashboard-module__cta-label">
-                    {isLoading ? "Abriendo..." : "Ir ahora"}
-                  </span>
-                  <span className="dashboard-module__cta-icon" aria-hidden="true">
-                    {isLoading ? <span className="dashboard-module__spinner" /> : "→"}
-                  </span>
-                </span>
-              </Motion.button>
-            );
-          })
+          visibleActions.map((action, index) => (
+            <DashboardCard
+              key={action.title}
+              variant="shortcut"
+              icon={action.icon}
+              title={action.title}
+              description={action.description}
+              onClick={() => handleNavigate(action.to)}
+              loading={loadingAction === action.to}
+              delay={index * 0.05}
+            />
+          ))
         )}
       </div>
       <div className="dashboard-module dashboard-module--static">
