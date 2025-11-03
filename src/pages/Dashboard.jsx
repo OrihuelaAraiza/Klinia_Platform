@@ -63,7 +63,7 @@ export default function Dashboard() {
               </CardHeader>
               <CardBody className="stack-2">
                 <p>{action.description}</p>
-                <Button variant="ghost" size="sm" onClick={() => navigate(action.to)}>
+                <Button variant="accent" size="sm" onClick={() => navigate(action.to)}>
                   Ir ahora
                 </Button>
               </CardBody>
