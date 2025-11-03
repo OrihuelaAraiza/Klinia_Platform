@@ -1,14 +1,6 @@
 import { useNavigate, useOutletContext } from "react-router-dom";
-import { motion } from "framer-motion";
 import { Users, Calendar, Pill, BarChart } from "lucide-react";
-import Card, { CardBody, CardHeader } from "../components/UI/Card";
-import Button from "../components/UI/Button";
 import { ROUTES, ROLES } from "../utils/constants";
-
-const CARD_VARIANTS = {
-  hidden: { opacity: 0, y: 12 },
-  visible: { opacity: 1, y: 0 },
-};
 
 const DASHBOARD_ACTIONS = [
   {
@@ -57,52 +49,40 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="dashboard-grid">
-        {actions.map((action, index) => {
+      <div className="grid grid-cols-2 gap-6">
+        {actions.map((action) => {
           const Icon = action.icon;
 
           return (
-            <motion.div
+            <button
               key={action.title}
-              variants={CARD_VARIANTS}
-              initial="hidden"
-              animate="visible"
-              transition={{ duration: 0.25, delay: index * 0.05, ease: "easeOut" }}
+              type="button"
+              onClick={() => navigate(action.to)}
+              className="dashboard-module"
             >
-              <Card hoverable onClick={() => navigate(action.to)} style={{ cursor: "pointer" }}>
-                <CardHeader>
-                  <div className="dashboard-page__card-title">
-                    <Icon className="dashboard-page__icon" aria-hidden="true" />
-                    <h2 className="dashboard-page__section-title">{action.title}</h2>
-                  </div>
-                </CardHeader>
-                <CardBody className="stack-2">
-                  <p className="dashboard-page__body-text">{action.description}</p>
-                  <Button variant="accent" size="sm" onClick={() => navigate(action.to)}>
-                    Ir ahora
-                  </Button>
-                </CardBody>
-              </Card>
-            </motion.div>
+              <div className="dashboard-module__header">
+                <div className="dashboard-module__icon">
+                  <Icon aria-hidden="true" />
+                </div>
+                <h2 className="dashboard-page__section-title">{action.title}</h2>
+              </div>
+              <p className="dashboard-page__body-text">{action.description}</p>
+              <span className="dashboard-module__cta">Ir ahora</span>
+            </button>
           );
         })}
       </div>
-
-      <Card hoverable={false}>
-        <CardHeader>
-          <h2 className="dashboard-page__section-title">Próximos pasos sugeridos</h2>
-        </CardHeader>
-        <CardBody className="stack-2">
-          <p className="dashboard-page__subtitle">
-            Optimiza tu flujo clínico con estas recomendaciones:
-          </p>
-          <ul className="list dashboard-page__list">
-            <li>Configura consentimientos digitales personalizados para tu equipo.</li>
-            <li>Conecta recordatorios SMS/Email para tus sesiones.</li>
-            <li>Centraliza adjuntos y notas heredadas en el expediente digital.</li>
-          </ul>
-        </CardBody>
-      </Card>
+      <div className="dashboard-module dashboard-module--static">
+        <h2 className="dashboard-page__section-title">Próximos pasos sugeridos</h2>
+        <p className="dashboard-page__subtitle">
+          Optimiza tu flujo clínico con estas recomendaciones:
+        </p>
+        <ul className="list dashboard-page__list">
+          <li>Configura consentimientos digitales personalizados para tu equipo.</li>
+          <li>Conecta recordatorios SMS/Email para tus sesiones.</li>
+          <li>Centraliza adjuntos y notas heredadas en el expediente digital.</li>
+        </ul>
+      </div>
     </section>
   );
 }
