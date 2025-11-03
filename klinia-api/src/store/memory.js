@@ -1,3 +1,5 @@
+import bcrypt from "bcryptjs";
+
 export const usersByEmail = new Map();
 export const loginBuckets = new Map();
 const auditEvents = [];
@@ -11,25 +13,37 @@ export const uploadsById = new Map();
 export const kycRecordsByUserId = new Map();
 
 function seed() {
-  if (patients.size > 0) {
-    return;
+  if (patients.size === 0) {
+    const demoId = uid("pat_");
+    const now = new Date().toISOString();
+    const demoPatient = {
+      id: demoId,
+      curp: "DEMO890101HDFABC01",
+      firstName: "Paciente",
+      lastName: "Demo",
+      birthDate: "1989-01-01",
+      sex: "M",
+      phone: "+52 5555555555",
+      email: "paciente.demo@example.com",
+      attachments: [],
+      createdAt: now,
+      updatedAt: now,
+    };
+    patients.set(demoId, demoPatient);
   }
-  const demoId = uid("pat_");
-  const now = new Date().toISOString();
-  const demoPatient = {
-    id: demoId,
-    curp: "DEMO890101HDFABC01",
-    firstName: "Paciente",
-    lastName: "Demo",
-    birthDate: "1989-01-01",
-    sex: "M",
-    phone: "+52 5555555555",
-    email: "paciente.demo@example.com",
-    attachments: [],
-    createdAt: now,
-    updatedAt: now,
-  };
-  patients.set(demoId, demoPatient);
+
+  const devEmail = "dev@klinialabs.mx";
+  if (!usersByEmail.has(devEmail)) {
+    const passwordHash = bcrypt.hashSync("DevPass123", 8);
+    usersByEmail.set(devEmail, {
+      id: uid("U_"),
+      name: "Dev Admin",
+      email: devEmail,
+      role: "ADMIN",
+      passwordHash,
+      createdAt: new Date().toISOString(),
+    });
+  }
 }
 
 seed();
