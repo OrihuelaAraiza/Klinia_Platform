@@ -18,6 +18,7 @@ const Notes = lazy(() => import("../pages/Notes"));
 const NoteDetail = lazy(() => import("../pages/NoteDetail"));
 const Sessions = lazy(() => import("../pages/Sessions"));
 const PatientSessions = lazy(() => import("../pages/PatientSessions"));
+const SessionsCalendar = lazy(() => import("../pages/SessionsCalendar"));
 const Consents = lazy(() => import("../pages/Consents"));
 const Prescriptions = lazy(() => import("../pages/Prescriptions"));
 const Reports = lazy(() => import("../pages/Reports"));
@@ -80,6 +81,7 @@ export default function AppRoutes() {
             <Route path={ROUTES.patients} element={<Patients />} />
             <Route path={`${ROUTES.patients}/:id`} element={<PatientDetail />} />
             <Route path={ROUTES.sessions} element={<Sessions />} />
+            <Route path={ROUTES.sessionsCalendar} element={<SessionsCalendar />} />
             <Route path="/patients/:id/sessions" element={<PatientSessions />} />
             <Route path={ROUTES.consents} element={<Consents />} />
             <Route path={ROUTES.reports} element={<Reports />} />

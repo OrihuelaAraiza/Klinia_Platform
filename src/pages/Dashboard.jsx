@@ -3,6 +3,7 @@ import { useNavigate, useOutletContext } from "react-router-dom";
 import { AnimatePresence, motion as Motion } from "framer-motion";
 import { Users, Calendar, Pill, BarChart, BarChart2, CheckCircle2, Menu } from "lucide-react";
 import { ROUTES, ROLES } from "../utils/constants";
+import { getTodayCounts } from "../services/sessionsService";
 import DashboardStats from "../components/DashboardStats";
 import Button from "../components/UI/Button";
 import Modal from "../components/UI/Modal";
@@ -58,43 +59,70 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const { role, toggleSidebar: toggleSidebarGlobal, isMobile } = useOutletContext() ?? {};
   const storageKey = useMemo(() => `${STORAGE_KEY}:${role || "default"}`, [role]);
+  const [sessionCounts, setSessionCounts] = useState({ scheduled: 0, cancelled: 0, loading: true });
+
+  useEffect(() => {
+    let active = true;
+    async function loadCounts() {
+      try {
+        const data = await getTodayCounts();
+        if (!active) return;
+        setSessionCounts({
+          scheduled: Number(data?.scheduled ?? 0),
+          cancelled: Number(data?.cancelled ?? 0),
+          loading: false,
+        });
+      } catch (error) {
+        if (!active) return;
+        if (import.meta.env.DEV) {
+          console.warn("[Dashboard] No se pudieron leer métricas de sesiones:", error);
+        }
+        setSessionCounts((prev) => ({ ...prev, loading: false }));
+      }
+    }
+    loadCounts();
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const stats = useMemo(() => {
     const seed = new Date().getDate();
     const formatter = new Intl.NumberFormat("es-MX", { maximumFractionDigits: 0 });
-    const base = [
+    const scheduledValue = sessionCounts.loading
+      ? "—"
+      : formatter.format(sessionCounts.scheduled);
+    const cancelledSubtext = sessionCounts.loading
+      ? "Calculando..."
+      : `${formatter.format(sessionCounts.cancelled)} canceladas`;
+
+    return [
       {
         icon: Users,
         label: "Pacientes activos",
-        computeValue: () => 240 + ((seed * 3) % 18),
+        value: formatter.format(240 + ((seed * 3) % 18)),
         subtext: "+5% esta semana",
       },
       {
         icon: Calendar,
         label: "Sesiones programadas hoy",
-        computeValue: () => 14 + (seed % 6),
-        subtext: "3 canceladas",
+        value: scheduledValue,
+        subtext: cancelledSubtext,
       },
       {
         icon: Pill,
         label: "Prescripciones vigentes",
-        computeValue: () => 32 + (seed % 9),
+        value: formatter.format(32 + (seed % 9)),
         subtext: "Última emisión hoy 08:00",
       },
       {
         icon: BarChart2,
         label: "Reportes generados",
-        computeValue: () => 8 + (seed % 5),
+        value: formatter.format(8 + (seed % 5)),
         subtext: "Mensualidad al 78%",
       },
     ];
-
-    return base.map((stat) => ({
-      icon: stat.icon,
-      label: stat.label,
-      value: formatter.format(stat.computeValue()),
-      subtext: stat.subtext,
-    }));
-  }, []);
+  }, [sessionCounts]);
 
   const actions = useMemo(
     () =>
