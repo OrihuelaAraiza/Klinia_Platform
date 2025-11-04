@@ -270,6 +270,7 @@ export default function Dashboard() {
               onClick={() => handleNavigate(action.to)}
               loading={loadingAction === action.to}
               delay={index * 0.05}
+              ariaLabel={`Ir al módulo ${action.title}`}
             />
           ))
         )}
@@ -279,13 +280,14 @@ export default function Dashboard() {
         <p className="dashboard-page__subtitle">
           Optimiza tu flujo clínico con estas recomendaciones:
         </p>
-        <ul className="dashboard-suggestions">
+        <ul className="dashboard-suggestions" role="list">
           <AnimatePresence>
             {SUGGESTIONS.map((item) => {
               const completed = Boolean(suggestionStates[item.id]);
               return (
                 <Motion.li
                   key={item.id}
+                  role="listitem"
                   initial={{ opacity: 0, x: -15 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: 15 }}

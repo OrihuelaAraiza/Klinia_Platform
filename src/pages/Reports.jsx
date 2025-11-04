@@ -182,8 +182,10 @@ export default function Reports() {
 
   return (
     <section className="page stack-5">
-      <div className="page-header">
+      <div className="page-breadcrumbs">
         <Breadcrumbs items={breadcrumbs} />
+      </div>
+      <div className="page-header page-header--single">
         <div className="stack-1">
           <h1>Reportes y exportaciones</h1>
           <p className="helper-text">

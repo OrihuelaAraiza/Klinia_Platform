@@ -1,4 +1,6 @@
-export default function DashboardHeader({ title, subtitle, children }) {
+import { memo } from "react";
+
+function DashboardHeader({ title, subtitle, children }) {
   return (
     <div className="page-header">
       <div className="stack-1">
@@ -10,3 +12,4 @@ export default function DashboardHeader({ title, subtitle, children }) {
   );
 }
 
+export default memo(DashboardHeader);

@@ -1,6 +1,7 @@
+import { memo } from "react";
 import { NavLink } from "react-router-dom";
 
-export default function SidebarLink({
+function SidebarLink({
   to,
   label,
   icon: Icon,
@@ -25,3 +26,4 @@ export default function SidebarLink({
   );
 }
 
+export default memo(SidebarLink);

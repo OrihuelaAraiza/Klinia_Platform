@@ -1,10 +1,11 @@
+import { memo } from "react";
 import { motion } from "framer-motion";
 
 function Spinner() {
   return <span className="dashboard-module__spinner" aria-hidden="true" />;
 }
 
-export default function DashboardCard({
+function DashboardCardComponent({
   variant = "shortcut",
   icon: Icon,
   title,
@@ -15,6 +16,7 @@ export default function DashboardCard({
   onClick,
   loading = false,
   delay = 0,
+  ariaLabel,
 }) {
   if (variant === "stat") {
     return (
@@ -39,12 +41,15 @@ export default function DashboardCard({
   }
 
   const MotionComponent = onClick ? motion.button : motion.article;
+  const computedAriaLabel =
+    ariaLabel || (ctaLabel ? `${ctaLabel} ${title}` : title || undefined);
 
   return (
     <MotionComponent
       type={onClick ? "button" : undefined}
       className="dashboard-module"
       onClick={onClick}
+      aria-label={computedAriaLabel}
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay, duration: 0.35, ease: "easeOut" }}
@@ -77,3 +82,22 @@ export default function DashboardCard({
   );
 }
 
+function cardPropsAreEqual(prev, next) {
+  return (
+    prev.variant === next.variant &&
+    prev.icon === next.icon &&
+    prev.title === next.title &&
+    prev.description === next.description &&
+    prev.value === next.value &&
+    prev.subtext === next.subtext &&
+    prev.loading === next.loading &&
+    prev.delay === next.delay &&
+    prev.ctaLabel === next.ctaLabel &&
+    prev.onClick === next.onClick &&
+    prev.ariaLabel === next.ariaLabel
+  );
+}
+
+const DashboardCard = memo(DashboardCardComponent, cardPropsAreEqual);
+
+export default DashboardCard;
