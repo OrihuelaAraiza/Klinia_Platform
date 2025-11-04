@@ -4,7 +4,7 @@ import Field from "./UI/Field";
 import Button from "./UI/Button";
 import { listPatients } from "../services/patientsService";
 import { useToast } from "./UI/Toast";
-import { SESSION_STATUS } from "../utils/constants";
+import { SESSION_MODALITY, SESSION_MODALITY_LABEL, SESSION_STATUS } from "../utils/constants";
 
 const DEFAULT_FORM = {
   patientId: "",
@@ -13,8 +13,18 @@ const DEFAULT_FORM = {
   professionalId: "",
   professionalName: "",
   status: SESSION_STATUS.PROGRAMADA,
+  modality: SESSION_MODALITY.PRESENCIAL,
+  location: "",
   notes: "",
 };
+
+function nowLocalInputValue() {
+  const now = new Date();
+  now.setSeconds(0, 0);
+  const offset = now.getTimezoneOffset();
+  const local = new Date(now.getTime() - offset * 60 * 1000);
+  return local.toISOString().slice(0, 16);
+}
 
 function toLocalInput(value) {
   if (!value) return "";
@@ -53,6 +63,8 @@ export default function SessionForm({
     professionalId: initialValue?.professionalId || defaultProfessionalId || "",
     professionalName: initialValue?.professionalName || defaultProfessional || "",
     patientId: presetPatientId || initialValue?.patientId || "",
+    modality: initialValue?.modality || DEFAULT_FORM.modality,
+    location: initialValue?.location || "",
   }));
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
@@ -91,6 +103,8 @@ export default function SessionForm({
       ...prev,
       ...(initialValue || {}),
       datetime: toLocalInput(initialValue?.datetime),
+      modality: initialValue?.modality || DEFAULT_FORM.modality,
+      location: initialValue?.location || "",
     }));
   }, [initialValue]);
 
@@ -116,12 +130,39 @@ export default function SessionForm({
     }
     if (!form.datetime) {
       nextErrors.datetime = "Define fecha y hora.";
+    } else {
+      const selectedDate = new Date(form.datetime);
+      if (Number.isNaN(selectedDate.getTime())) {
+        nextErrors.datetime = "Fecha inválida.";
+      } else if (selectedDate.getTime() <= Date.now()) {
+        nextErrors.datetime = "Elige una fecha futura.";
+      }
     }
-    if (!form.durationMin || Number(form.durationMin) <= 0) {
+    const durationValue = Number(form.durationMin);
+    if (!durationValue) {
       nextErrors.durationMin = "Ingresa la duración en minutos.";
+    } else if (durationValue < 15 || durationValue > 180) {
+      nextErrors.durationMin = "La duración debe estar entre 15 y 180 minutos.";
     }
     if (!form.professionalId && !form.professionalName) {
       nextErrors.professionalName = "Ingresa el profesional responsable.";
+    }
+    if (!form.modality) {
+      nextErrors.modality = "Selecciona la modalidad.";
+    }
+    if (form.modality === SESSION_MODALITY.VIRTUAL) {
+      if (!form.location) {
+        nextErrors.location = "Ingresa el link de la videollamada.";
+      } else {
+        try {
+          const url = new URL(form.location);
+          if (!["http:", "https:"].includes(url.protocol)) {
+            nextErrors.location = "El link debe comenzar con http(s).";
+          }
+        } catch {
+          nextErrors.location = "Ingresa una URL válida.";
+        }
+      }
     }
     return nextErrors;
   };
@@ -143,6 +184,8 @@ export default function SessionForm({
         status: form.status || SESSION_STATUS.PROGRAMADA,
         professionalId: form.professionalId || defaultProfessionalId || "",
         professionalName: form.professionalName || defaultProfessional || "",
+        modality: form.modality || SESSION_MODALITY.PRESENCIAL,
+        location: form.location?.trim() || undefined,
         notes: form.notes?.trim() || undefined,
       };
       await onSubmit?.(payload);
@@ -185,6 +228,7 @@ export default function SessionForm({
         required
         error={errors.datetime}
         disabled={readOnly}
+        min={nowLocalInputValue()}
       />
 
       <InputField
@@ -196,7 +240,41 @@ export default function SessionForm({
         required
         error={errors.durationMin}
         disabled={readOnly}
-        min={10}
+        min={15}
+        max={180}
+      />
+
+      <Field label="Modalidad" required error={errors.modality}>
+        {({ fieldId }) => (
+          <select
+            id={fieldId}
+            name="modality"
+            className={`role-select${errors.modality ? " has-error" : ""}`}
+            value={form.modality}
+            onChange={handleChange}
+            disabled={readOnly}
+            aria-invalid={Boolean(errors.modality)}
+          >
+            {Object.values(SESSION_MODALITY).map((value) => (
+              <option key={value} value={value}>
+                {SESSION_MODALITY_LABEL[value]}
+              </option>
+            ))}
+          </select>
+        )}
+      </Field>
+
+      <InputField
+        label={form.modality === SESSION_MODALITY.VIRTUAL ? "Link de conexión" : "Ubicación (opcional)"}
+        type={form.modality === SESSION_MODALITY.VIRTUAL ? "url" : "text"}
+        name="location"
+        value={form.location}
+        onChange={handleChange}
+        error={errors.location}
+        disabled={readOnly}
+        required={form.modality === SESSION_MODALITY.VIRTUAL}
+        placeholder={form.modality === SESSION_MODALITY.VIRTUAL ? "https://meet..." : "Consultorio 4B"}
+        assistiveText={form.modality === SESSION_MODALITY.VIRTUAL ? "Solo enlaces seguros (https)." : "Puedes indicar consultorio o link de respaldo."}
       />
 
       <InputField
