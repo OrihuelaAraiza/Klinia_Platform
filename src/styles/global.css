@@ -183,12 +183,22 @@ main {
   display: grid;
 }
 
+.grid-cols-1 {
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+}
+
 .grid-cols-2 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .gap-6 {
   gap: 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .md\:grid-cols-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 [class*="stack-"] {
@@ -973,6 +983,15 @@ main {
   box-shadow: 0 1px 0 rgba(15, 23, 42, 0.06);
 }
 
+.page-header--single {
+  grid-template-columns: 1fr;
+  justify-items: flex-start;
+}
+
+.page-breadcrumbs {
+  margin-bottom: var(--s-3);
+}
+
 .patients-header__actions {
   gap: var(--s-3);
 }
@@ -1119,6 +1138,73 @@ main {
   color: var(--muted);
   margin-top: auto;
   margin-bottom: 0;
+}
+
+.page-skeleton {
+  gap: var(--s-4);
+}
+
+.skeleton {
+  width: 100%;
+  border-radius: var(--r-sm);
+  background: color-mix(in srgb, var(--surface-2) 60%, transparent);
+}
+
+.shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(110deg, transparent 0%, rgba(255, 255, 255, 0.75) 50%, transparent 100%);
+  animation: shimmer 1.3s linear infinite;
+}
+
+.skeleton--title {
+  height: 32px;
+}
+
+.skeleton--subtitle {
+  height: 20px;
+  max-width: 320px;
+}
+
+.skeleton-grid {
+  display: grid;
+  gap: var(--s-4);
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.skeleton-card {
+  border-radius: 1rem;
+  padding: var(--s-4);
+  background: color-mix(in srgb, var(--surface) 96%, transparent);
+  display: grid;
+  gap: var(--s-3);
+}
+
+.skeleton--icon {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--r-md);
+}
+
+.skeleton--line {
+  height: 14px;
+}
+
+.skeleton--line.short {
+  width: 60%;
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
 }
 
 .dashboard-quick-edit {
@@ -1284,6 +1370,7 @@ main {
   font-weight: 600;
   transition: all 0.2s ease;
   border: 1px solid color-mix(in srgb, var(--focus) 30%, transparent);
+  outline: none;
 }
 
 .dashboard-module__cta-button:hover {
@@ -1295,6 +1382,10 @@ main {
   color: var(--text);
   background: color-mix(in srgb, var(--focus) 10%, transparent);
   transform: scale(0.98);
+}
+
+.dashboard-module__cta-button:focus-visible {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 40%, transparent);
 }
 
 .dashboard-module__cta-icon {
@@ -2101,12 +2192,26 @@ main {
   font-size: 0.85rem;
 }
 
+.sessions-header__intro h1 {
+  margin: 0;
+}
+
+.sessions-header__subtitle {
+  margin: 0.35rem 0 0;
+  color: var(--muted);
+}
+
 .sessions-filters {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: var(--s-3);
-  align-items: end;
-  flex: 1;
+  align-items: flex-end;
+  margin-bottom: var(--s-5);
+}
+
+.sessions-filters__field {
+  flex: 1 1 200px;
+  min-width: 180px;
 }
 
 .sessions-filters__actions {
@@ -2114,6 +2219,25 @@ main {
   gap: 0.5rem;
   justify-content: flex-end;
   align-items: center;
+}
+
+.sessions-filters__new {
+  margin-left: auto;
+}
+
+@media (max-width: 768px) {
+  .sessions-filters__new {
+    width: 100%;
+  }
+
+  .sessions-filters__actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .sessions-header__intro {
+    width: 100%;
+  }
 }
 
 .link-note-dialog {

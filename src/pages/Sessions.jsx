@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion as Motion } from "framer-motion";
 import Drawer from "../components/UI/Drawer";
 import Modal from "../components/UI/Modal";
 import Button from "../components/UI/Button";
@@ -173,64 +173,72 @@ export default function Sessions() {
 
   return (
     <section className="page stack-5">
-      <div className="page-header">
-        <div className="stack-2">
+      <div className="page-header sessions-header">
+        <div className="sessions-header__intro">
           <h1>Sesiones y agenda</h1>
-          <p className="helper-text">Administra sesiones programadas, confirma asistencia y vincula notas clínicas.</p>
-        </div>
-        <div className="cluster" style={{ justifyContent: "space-between" }}>
-          <form className="sessions-filters" onSubmit={handleFilterSubmit}>
-            <InputField
-              label="Buscar"
-              placeholder="Paciente o profesional"
-              name="q"
-              value={filters.q}
-              onChange={handleFilterChange}
-            />
-            <InputField
-              label="Desde"
-              type="date"
-              name="from"
-              value={filters.from}
-              onChange={handleFilterChange}
-            />
-            <InputField
-              label="Hasta"
-              type="date"
-              name="to"
-              value={filters.to}
-              onChange={handleFilterChange}
-            />
-            <Field label="Estado">
-              {({ fieldId }) => (
-                <select id={fieldId} name="status" className="role-select" value={filters.status} onChange={handleFilterChange}>
-                  {STATUS_OPTIONS.map((option) => (
-                    <option key={option.value || "all"} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </Field>
-            <div className="sessions-filters__actions">
-              <Button variant="secondary" type="submit" size="sm" disabled={loading}>
-                Filtrar
-              </Button>
-              <Button variant="ghost" type="button" size="sm" onClick={handleFilterReset}>
-                Limpiar
-              </Button>
-            </div>
-          </form>
-
-          {!isAssistant ? (
-            <Button size="sm" onClick={() => setDrawerOpen(true)}>
-              Nueva sesión
-            </Button>
-          ) : null}
+          <p className="sessions-header__subtitle">
+            Administra sesiones programadas, confirma asistencia y vincula notas clínicas.
+          </p>
         </div>
       </div>
 
-      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+      <form className="sessions-filters" onSubmit={handleFilterSubmit}>
+        <div className="sessions-filters__field">
+          <InputField
+            label="Buscar"
+            placeholder="Paciente o profesional"
+            name="q"
+            value={filters.q}
+            onChange={handleFilterChange}
+          />
+        </div>
+        <div className="sessions-filters__field">
+          <InputField
+            label="Desde"
+            type="date"
+            name="from"
+            value={filters.from}
+            onChange={handleFilterChange}
+          />
+        </div>
+        <div className="sessions-filters__field">
+          <InputField
+            label="Hasta"
+            type="date"
+            name="to"
+            value={filters.to}
+            onChange={handleFilterChange}
+          />
+        </div>
+        <div className="sessions-filters__field sessions-filters__field--select">
+          <Field label="Estado">
+            {({ fieldId }) => (
+              <select id={fieldId} name="status" className="role-select" value={filters.status} onChange={handleFilterChange}>
+                {STATUS_OPTIONS.map((option) => (
+                  <option key={option.value || "all"} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            )}
+          </Field>
+        </div>
+        <div className="sessions-filters__actions">
+          <Button variant="secondary" type="submit" size="sm" disabled={loading}>
+            Filtrar
+          </Button>
+          <Button variant="ghost" type="button" size="sm" onClick={handleFilterReset}>
+            Limpiar
+          </Button>
+        </div>
+        {!isAssistant ? (
+          <Button size="sm" className="sessions-filters__new" onClick={() => setDrawerOpen(true)}>
+            Nueva sesión
+          </Button>
+        ) : null}
+      </form>
+
+      <Motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
         <Table density="compact">
           <thead>
             <tr>
@@ -295,7 +303,7 @@ export default function Sessions() {
             })}
           </tbody>
         </Table>
-      </motion.div>
+      </Motion.div>
 
       <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)} title="Programar sesión">
         <SessionForm

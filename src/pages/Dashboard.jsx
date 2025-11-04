@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import { AnimatePresence, motion as Motion } from "framer-motion";
-import { Users, Calendar, Pill, BarChart, BarChart2, CheckCircle2 } from "lucide-react";
+import { Users, Calendar, Pill, BarChart, BarChart2, CheckCircle2, Menu } from "lucide-react";
 import { ROUTES, ROLES } from "../utils/constants";
 import DashboardStats from "../components/DashboardStats";
 import Button from "../components/UI/Button";
 import Modal from "../components/UI/Modal";
+import DashboardCard from "../components/DashboardCard";
+import DashboardHeader from "../components/DashboardHeader";
 
 const DASHBOARD_ACTIONS = [
   {
@@ -54,7 +56,7 @@ const SUGGESTIONS = [
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { role } = useOutletContext() ?? {};
+  const { role, toggleSidebar: toggleSidebarGlobal, isMobile } = useOutletContext() ?? {};
   const storageKey = useMemo(() => `${STORAGE_KEY}:${role || "default"}`, [role]);
   const stats = useMemo(() => {
     const seed = new Date().getDate();
@@ -225,23 +227,28 @@ export default function Dashboard() {
 
   return (
     <section className="page stack-5 dashboard-page">
-      <div className="page-header">
-        <div className="stack-1">
-          <h1 className="dashboard-page__title">Panel general</h1>
-          <p className="dashboard-page__subtitle">
-            Accesos rápidos a los módulos clínicos.
-          </p>
-        </div>
-        <div className="dashboard-header__actions">
+      <DashboardHeader title="Panel general" subtitle="Accesos rápidos a los módulos clínicos.">
+        <>
+          {isMobile ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="dashboard-header__hamburger"
+              onClick={() => toggleSidebarGlobal?.()}
+            >
+              <Menu aria-hidden="true" />
+              <span>Menú</span>
+            </Button>
+          ) : null}
           <Button variant="ghost" size="sm" onClick={() => setIsEditingShortcuts(true)}>
             Editar accesos rápidos
           </Button>
-        </div>
-      </div>
+        </>
+      </DashboardHeader>
 
       <DashboardStats stats={stats} />
 
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {visibleActions.length === 0 ? (
           <div className="dashboard-module dashboard-module--static">
             <h2 className="dashboard-page__section-title">Sin accesos visibles</h2>
@@ -253,43 +260,19 @@ export default function Dashboard() {
             </Button>
           </div>
         ) : (
-          visibleActions.map((action, index) => {
-            const Icon = action.icon;
-            const isLoading = loadingAction === action.to;
-
-            return (
-              <Motion.button
-                key={action.title}
-                type="button"
-                onClick={() => handleNavigate(action.to)}
-                className="dashboard-module"
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05, duration: 0.35, ease: "easeOut" }}
-                whileHover={{ scale: 1.01 }}
-                whileTap={{ scale: 0.995 }}
-              >
-                <div className="dashboard-module__header">
-                  <div className="dashboard-module__icon">
-                    <Icon aria-hidden="true" />
-                  </div>
-                  <h2 className="dashboard-page__section-title">{action.title}</h2>
-                </div>
-                <p className="dashboard-page__body-text">{action.description}</p>
-                <span
-                  className={`dashboard-module__cta-button${isLoading ? " is-loading" : ""}`}
-                  aria-live="polite"
-                >
-                  <span className="dashboard-module__cta-label">
-                    {isLoading ? "Abriendo..." : "Ir ahora"}
-                  </span>
-                  <span className="dashboard-module__cta-icon" aria-hidden="true">
-                    {isLoading ? <span className="dashboard-module__spinner" /> : "→"}
-                  </span>
-                </span>
-              </Motion.button>
-            );
-          })
+          visibleActions.map((action, index) => (
+            <DashboardCard
+              key={action.title}
+              variant="shortcut"
+              icon={action.icon}
+              title={action.title}
+              description={action.description}
+              onClick={() => handleNavigate(action.to)}
+              loading={loadingAction === action.to}
+              delay={index * 0.05}
+              ariaLabel={`Ir al módulo ${action.title}`}
+            />
+          ))
         )}
       </div>
       <div className="dashboard-module dashboard-module--static">
@@ -297,13 +280,14 @@ export default function Dashboard() {
         <p className="dashboard-page__subtitle">
           Optimiza tu flujo clínico con estas recomendaciones:
         </p>
-        <ul className="dashboard-suggestions">
+        <ul className="dashboard-suggestions" role="list">
           <AnimatePresence>
             {SUGGESTIONS.map((item) => {
               const completed = Boolean(suggestionStates[item.id]);
               return (
                 <Motion.li
                   key={item.id}
+                  role="listitem"
                   initial={{ opacity: 0, x: -15 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: 15 }}

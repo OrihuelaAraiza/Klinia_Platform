@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ThemeContext } from "./themeContext";
+import { ThemeContext } from "./theme-context";
 
 function getInitialTheme() {
   if (typeof window === "undefined") {
