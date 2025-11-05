@@ -1,16 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
-import { AnimatePresence, motion as Motion } from "framer-motion";
-import {
-  Users,
-  Calendar,
-  Pill,
-  BarChart,
-  BarChart2,
-  CheckCircle2,
-  Menu,
-  Settings,
-} from "lucide-react";
+import { Users, Calendar, Pill, BarChart, BarChart2, Menu, Settings } from "lucide-react";
 import { ROUTES, ROLES, SESSION_STATUS_LABEL } from "../utils/constants";
 import auditService from "../services/auditService";
 import authService from "../services/authService";
@@ -28,6 +18,7 @@ import DashboardHeader from "../components/DashboardHeader";
 import WidgetTodaySessions from "../components/WidgetTodaySessions";
 import WidgetRecentNotes from "../components/WidgetRecentNotes";
 import WidgetRecentPrescriptions from "../components/WidgetRecentPrescriptions";
+import NextSteps from "../components/NextSteps";
 
 const ADMINISTRATION_ROUTE = ROUTES.administration || ROUTES.admin || null;
 
@@ -86,22 +77,6 @@ if (ADMINISTRATION_ROUTE) {
 }
 
 const STORAGE_KEY = "dashboard.quickActions";
-const SUGGESTIONS_KEY = "dashboard.suggestions";
-const SUGGESTIONS = [
-  {
-    id: "consents",
-    title: "Configura consentimientos digitales personalizados para tu equipo.",
-  },
-  {
-    id: "reminders",
-    title: "Conecta recordatorios SMS/Email para tus sesiones.",
-  },
-  {
-    id: "attachments",
-    title: "Centraliza adjuntos y notas heredadas en el expediente digital.",
-  },
-];
-
 export default function Dashboard() {
   const navigate = useNavigate();
   const {
@@ -126,6 +101,7 @@ export default function Dashboard() {
     prescriptions: { items: [], loading: true, error: null },
   });
   const [reloadKey, setReloadKey] = useState(0);
+  const hasLoggedDashboardOpen = useRef(false);
   const dashboardLoaders = useMemo(
     () => ({
       sessions: () => getTodaySessions(),
@@ -134,6 +110,15 @@ export default function Dashboard() {
     }),
     []
   );
+
+  useEffect(() => {
+    if (hasLoggedDashboardOpen.current) {
+      return;
+    }
+    hasLoggedDashboardOpen.current = true;
+    const resolvedRole = role || outletRole || authService.currentRole() || null;
+    auditService.logAudit("dashboard_open", { role: resolvedRole || "unknown" });
+  }, [role, outletRole]);
 
   useEffect(() => {
     let active = true;
@@ -210,6 +195,10 @@ export default function Dashboard() {
           data: null,
           loading: false,
           error: lastError || new Error("No se pudieron cargar las métricas."),
+        });
+        auditService.logAudit("dashboard_stats_error", {
+          code: lastError?.status || lastError?.code || "unknown_error",
+          message: lastError?.message || "No se pudieron cargar las métricas.",
         });
         auditService.logAudit("dashboard_stats_load", {
           ok: false,
@@ -323,7 +312,7 @@ export default function Dashboard() {
 
     const definitions = [
       {
-        id: "patients",
+        id: "patientsActive",
         icon: Users,
         label: "Pacientes activos",
         value: formatNumber(data.patientsActive ?? 0),
@@ -331,7 +320,7 @@ export default function Dashboard() {
         roles: [ROLES.ADMIN, ROLES.PROFESSIONAL, ROLES.ASSISTANT],
       },
       {
-        id: "sessions",
+        id: "sessionsToday",
         icon: Calendar,
         label: "Sesiones hoy",
         value: sessionCount,
@@ -339,7 +328,7 @@ export default function Dashboard() {
         roles: [ROLES.ADMIN, ROLES.PROFESSIONAL, ROLES.ASSISTANT],
       },
       {
-        id: "prescriptions",
+        id: "prescriptionsActive",
         icon: Pill,
         label: "Prescripciones vigentes",
         value: formatNumber(data.prescriptionsActive ?? 0),
@@ -349,7 +338,7 @@ export default function Dashboard() {
         roles: [ROLES.ADMIN, ROLES.PROFESSIONAL],
       },
       {
-        id: "reports",
+        id: "reportsGenerated",
         icon: BarChart2,
         label: "Reportes generados",
         value: formatNumber(data.reportsGenerated ?? 0),
@@ -388,6 +377,13 @@ export default function Dashboard() {
     }
     return dateTimeFormatter.format(parsed);
   };
+
+  const handleStatClick = useCallback((stat) => {
+    if (!stat?.id) {
+      return;
+    }
+    auditService.logAudit("dashboard_stat_click", { stat: stat.id });
+  }, []);
 
   const handleReload = (origin = "manual", meta = {}) => {
     setReloadKey((current) => current + 1);
@@ -450,6 +446,7 @@ export default function Dashboard() {
     auditService.logAudit("dashboard_widget_row_click", {
       widget: widgetKey,
       id: item?.id ?? null,
+      patientId: item?.patientId ?? null,
     });
 
     navigateTo(destination, state);
@@ -471,7 +468,6 @@ export default function Dashboard() {
   const [activeModules, setActiveModules] = useState(null);
   const [isEditingShortcuts, setIsEditingShortcuts] = useState(false);
   const [pendingSelection, setPendingSelection] = useState([]);
-  const [suggestionStates, setSuggestionStates] = useState({});
   const [loadingAction, setLoadingAction] = useState(null);
   const loadingTimer = useRef();
 
@@ -520,33 +516,6 @@ export default function Dashboard() {
     }
   }, [activeModules, isEditingShortcuts]);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      const stored = window.localStorage.getItem(SUGGESTIONS_KEY);
-      if (stored) {
-        setSuggestionStates(JSON.parse(stored));
-        return;
-      }
-    } catch (error) {
-      if (import.meta.env.DEV) {
-        console.warn("[Dashboard] No se pudieron leer sugerencias:", error);
-      }
-    }
-    setSuggestionStates({});
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      window.localStorage.setItem(SUGGESTIONS_KEY, JSON.stringify(suggestionStates));
-    } catch (error) {
-      if (import.meta.env.DEV) {
-        console.warn("[Dashboard] No se pudieron guardar sugerencias:", error);
-      }
-    }
-  }, [suggestionStates]);
-
   const visibleActions =
     activeModules === null
       ? actions
@@ -584,25 +553,17 @@ export default function Dashboard() {
     setIsEditingShortcuts(false);
   };
 
-  const toggleSuggestion = (id) => {
-    setSuggestionStates((current) => {
-      const next = { ...current, [id]: !current[id] };
-      return next;
-    });
-  };
-
   const handleNavigate = (route, action) => {
     if (!route) return;
+    if (action?.id) {
+      auditService.logAudit("dashboard_quicklink_click", {
+        to: action.id,
+        route,
+      });
+    }
     setLoadingAction(route);
     if (loadingTimer.current) clearTimeout(loadingTimer.current);
     loadingTimer.current = window.setTimeout(() => {
-      if (action?.id) {
-        auditService.logAudit("dashboard_quick_link", {
-          route,
-          id: action.id,
-          role: role || "unknown",
-        });
-      }
       navigate(route);
       setLoadingAction(null);
     }, 260);
@@ -645,6 +606,7 @@ export default function Dashboard() {
         stats={stats}
         loading={statsState.loading}
         emptyMessage={statsState.error ? "" : "No hay métricas disponibles."}
+        onStatClick={handleStatClick}
       />
 
       {statsState.error ? (
@@ -728,41 +690,7 @@ export default function Dashboard() {
         loadingAction={loadingAction}
         onEditShortcuts={() => setIsEditingShortcuts(true)}
       />
-      <div className="dashboard-module dashboard-module--static">
-        <h2 className="dashboard-page__section-title">Próximos pasos sugeridos</h2>
-        <p className="dashboard-page__subtitle">
-          Optimiza tu flujo clínico con estas recomendaciones:
-        </p>
-        <ul className="dashboard-suggestions" role="list">
-          <AnimatePresence>
-            {SUGGESTIONS.map((item) => {
-              const completed = Boolean(suggestionStates[item.id]);
-              return (
-                <Motion.li
-                  key={item.id}
-                  role="listitem"
-                  initial={{ opacity: 0, x: -15 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 15 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <label className="dashboard-suggestion">
-                    <input
-                      type="checkbox"
-                      checked={completed}
-                      onChange={() => toggleSuggestion(item.id)}
-                    />
-                    <span className="dashboard-suggestion__status" data-completed={completed}>
-                      {completed ? <CheckCircle2 aria-hidden="true" /> : null}
-                    </span>
-                    <span className="dashboard-suggestion__text">{item.title}</span>
-                  </label>
-                </Motion.li>
-              );
-            })}
-          </AnimatePresence>
-        </ul>
-      </div>
+      <NextSteps />
       <Modal
         open={isEditingShortcuts}
         onClose={closeShortcutsModal}

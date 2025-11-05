@@ -8,6 +8,7 @@ const DashboardStats = memo(function DashboardStats({
   loading = false,
   skeletonCount = DEFAULT_SKELETONS,
   emptyMessage = "No hay métricas disponibles.",
+  onStatClick,
 }) {
   const totalSkeletons = skeletonCount || DEFAULT_SKELETONS;
 
@@ -37,6 +38,7 @@ const DashboardStats = memo(function DashboardStats({
               subtext={stat.subtext}
               delay={index * 0.05}
               dataTestId={stat.testId}
+              onStatClick={onStatClick ? () => onStatClick(stat) : undefined}
             />
           ))
         : emptyMessage

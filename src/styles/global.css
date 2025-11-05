@@ -1092,6 +1092,17 @@ main {
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
 }
 
+.stat-card--clickable {
+  cursor: pointer;
+  border: none;
+  text-align: left;
+}
+
+.stat-card--clickable:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 35%, transparent);
+}
+
 .stat-icon {
   display: inline-flex;
   align-items: center;
@@ -1447,6 +1458,17 @@ main {
   flex: 1;
   color: var(--text);
   font-size: 0.95rem;
+}
+
+.dashboard-suggestion__link {
+  color: var(--focus);
+  font-weight: 600;
+  text-decoration: none;
+  margin-left: 0.25rem;
+}
+
+.dashboard-suggestion__link:hover {
+  text-decoration: underline;
 }
 
 .dashboard-module {

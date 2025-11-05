@@ -25,6 +25,44 @@ function safeRemove(key) {
   window.localStorage.removeItem(key);
 }
 
+export function getItem(key) {
+  return safeGet(key);
+}
+
+export function setItem(key, value) {
+  safeSet(key, value);
+}
+
+export function removeItem(key) {
+  safeRemove(key);
+}
+
+export function getObject(key, fallback = null) {
+  const raw = safeGet(key);
+  if (!raw) {
+    return fallback;
+  }
+  try {
+    return JSON.parse(raw);
+  } catch (error) {
+    console.warn("[storage] Unable to parse stored value for", key, error);
+    safeRemove(key);
+    return fallback;
+  }
+}
+
+export function setObject(key, value) {
+  if (value === undefined || value === null) {
+    safeRemove(key);
+    return;
+  }
+  try {
+    safeSet(key, JSON.stringify(value));
+  } catch (error) {
+    console.warn("[storage] Unable to persist value for", key, error);
+  }
+}
+
 export function setToken(token) {
   safeSet(TOKEN_KEY, token);
 }
@@ -92,4 +130,9 @@ export default {
   getUser,
   clearUser,
   clearAll,
+  getItem,
+  setItem,
+  removeItem,
+  getObject,
+  setObject,
 };
