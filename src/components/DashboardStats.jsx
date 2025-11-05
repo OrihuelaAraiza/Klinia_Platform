@@ -12,13 +12,14 @@ const DashboardStats = memo(function DashboardStats({
   const totalSkeletons = skeletonCount || DEFAULT_SKELETONS;
 
   return (
-    <section className="dashboard-grid" aria-live="polite">
+    <section className="dashboard-grid" aria-live="polite" data-testid="dashboard-stats">
       {loading
         ? Array.from({ length: totalSkeletons }).map((_, index) => (
             <article
               key={`stat-skeleton-${index}`}
               className="stat-card skeleton-card shimmer"
               aria-hidden="true"
+              data-testid="dashboard-stats-skeleton"
             >
               <span className="skeleton skeleton--icon" />
               <span className="skeleton skeleton--line" />
@@ -28,18 +29,21 @@ const DashboardStats = memo(function DashboardStats({
         : stats.length > 0
         ? stats.map((stat, index) => (
             <DashboardCard
-              key={stat.label}
+              key={stat.id || stat.label}
               variant="stat"
               icon={stat.icon}
               title={stat.label}
               value={stat.value}
               subtext={stat.subtext}
               delay={index * 0.05}
+              dataTestId={stat.testId}
             />
           ))
         : emptyMessage
         ? (
-            <p className="dashboard-stats__empty">{emptyMessage}</p>
+            <p className="dashboard-stats__empty" data-testid="dashboard-stats-empty">
+              {emptyMessage}
+            </p>
           )
         : null}
     </section>

@@ -1,9 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import { AnimatePresence, motion as Motion } from "framer-motion";
-import { Users, Calendar, Pill, BarChart, BarChart2, CheckCircle2, Menu } from "lucide-react";
+import {
+  Users,
+  Calendar,
+  Pill,
+  BarChart,
+  BarChart2,
+  CheckCircle2,
+  Menu,
+  Settings,
+} from "lucide-react";
 import { ROUTES, ROLES, SESSION_STATUS_LABEL } from "../utils/constants";
 import auditService from "../services/auditService";
+import authService from "../services/authService";
 import {
   getStats as fetchDashboardStats,
   getTodaySessions,
@@ -13,36 +23,64 @@ import {
 import DashboardStats from "../components/DashboardStats";
 import Button from "../components/UI/Button";
 import Modal from "../components/UI/Modal";
-import DashboardCard from "../components/DashboardCard";
+import DashboardQuickLinks from "../components/DashboardQuickLinks";
 import DashboardHeader from "../components/DashboardHeader";
+
+const ADMINISTRATION_ROUTE = ROUTES.administration || ROUTES.admin || null;
 
 const DASHBOARD_ACTIONS = [
   {
+    id: "patients",
     title: "Pacientes",
     description: "Consulta y crea expedientes clínicos.",
     to: ROUTES.patients,
     icon: Users,
+    roles: [ROLES.ADMIN, ROLES.PROFESSIONAL, ROLES.ASSISTANT],
+    ctaLabel: "Gestionar",
+    assistantCtaLabel: "Ver",
   },
   {
+    id: "sessions",
     title: "Sesiones",
     description: "Gestiona tu agenda terapéutica.",
     to: ROUTES.sessions,
     icon: Calendar,
+    roles: [ROLES.ADMIN, ROLES.PROFESSIONAL, ROLES.ASSISTANT],
+    ctaLabel: "Gestionar",
+    assistantCtaLabel: "Ver",
   },
   {
+    id: "reports",
     title: "Reportes",
     description: "Exporta información NOM-024.",
     to: ROUTES.reports,
     icon: BarChart,
+    roles: [ROLES.ADMIN, ROLES.PROFESSIONAL],
+    ctaLabel: "Generar",
   },
   {
+    id: "prescriptions",
     title: "Prescripciones",
     description: "Genera y registra prescripciones controladas.",
     to: ROUTES.prescriptions,
     icon: Pill,
-    hiddenFor: [ROLES.ASSISTANT],
+    roles: [ROLES.ADMIN, ROLES.PROFESSIONAL],
+    ctaLabel: "Emitir",
+    assistantCtaLabel: "Ver",
   },
 ];
+
+if (ADMINISTRATION_ROUTE) {
+  DASHBOARD_ACTIONS.push({
+    id: "administration",
+    title: "Administración",
+    description: "Configura parámetros operativos y accesos del equipo.",
+    to: ADMINISTRATION_ROUTE,
+    icon: Settings,
+    roles: [ROLES.ADMIN],
+    ctaLabel: "Abrir",
+  });
+}
 
 const STORAGE_KEY = "dashboard.quickActions";
 const SUGGESTIONS_KEY = "dashboard.suggestions";
@@ -63,7 +101,16 @@ const SUGGESTIONS = [
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { role, toggleSidebar: toggleSidebarGlobal, isMobile } = useOutletContext() ?? {};
+  const {
+    role: outletRole,
+    toggleSidebar: toggleSidebarGlobal,
+    isMobile,
+  } = useOutletContext() ?? {};
+  const [role, setRole] = useState(() => outletRole || authService.currentRole() || null);
+  useEffect(() => {
+    const resolvedRole = outletRole || authService.currentRole() || null;
+    setRole(resolvedRole);
+  }, [outletRole]);
   const storageKey = useMemo(() => `${STORAGE_KEY}:${role || "default"}`, [role]);
   const [statsState, setStatsState] = useState({
     data: null,
@@ -260,35 +307,55 @@ export default function Dashboard() {
         : Math.round(rawProgress);
     const clampedProgress = Math.min(100, Math.max(0, normalizedProgress));
 
-    return [
+    const definitions = [
       {
+        id: "patients",
         icon: Users,
         label: "Pacientes activos",
         value: formatNumber(data.patientsActive ?? 0),
         subtext: "Seguimiento activo",
+        roles: [ROLES.ADMIN, ROLES.PROFESSIONAL, ROLES.ASSISTANT],
       },
       {
+        id: "sessions",
         icon: Calendar,
         label: "Sesiones hoy",
         value: sessionCount,
         subtext: `${cancelledCount} canceladas`,
+        roles: [ROLES.ADMIN, ROLES.PROFESSIONAL, ROLES.ASSISTANT],
       },
       {
+        id: "prescriptions",
         icon: Pill,
         label: "Prescripciones vigentes",
         value: formatNumber(data.prescriptionsActive ?? 0),
         subtext: lastPrescription
           ? `Última emisión ${lastPrescription}`
           : "Sin emisiones recientes",
+        roles: [ROLES.ADMIN, ROLES.PROFESSIONAL],
       },
       {
+        id: "reports",
         icon: BarChart2,
         label: "Reportes generados",
         value: formatNumber(data.reportsGenerated ?? 0),
         subtext: `Avance al ${clampedProgress}%`,
+        roles: [ROLES.ADMIN, ROLES.PROFESSIONAL],
       },
     ];
-  }, [numberFormatter, statsState.data, timeFormatter]);
+
+    return definitions
+      .filter((item) => {
+        if (!item.roles?.length || !role) {
+          return true;
+        }
+        return item.roles.includes(role);
+      })
+      .map((item) => ({
+        ...item,
+        testId: `dashboard-stat-${item.id}`,
+      }));
+  }, [numberFormatter, role, statsState.data, timeFormatter]);
 
   const formatTimeValue = (value) => {
     if (!value) return "Horario no registrado";
@@ -372,8 +439,12 @@ export default function Dashboard() {
     navigateTo(destination, state);
   };
 
-  const renderLoadingRows = (rows = 3) => (
-    <div className="dashboard-widget__skeleton" aria-hidden="true">
+  const renderLoadingRows = (rows = 3, testId) => (
+    <div
+      className="dashboard-widget__skeleton"
+      aria-hidden="true"
+      data-testid={testId || "dashboard-widget-skeleton"}
+    >
       {Array.from({ length: rows }).map((_, index) => (
         <div key={`widget-skeleton-${index}`} className="dashboard-widget__skeleton-row shimmer">
           <span className="skeleton skeleton--line" />
@@ -383,8 +454,8 @@ export default function Dashboard() {
     </div>
   );
 
-  const renderWidgetError = (message) => (
-    <div className="dashboard-widget__empty">
+  const renderWidgetError = (message, testId) => (
+    <div className="dashboard-widget__empty" data-testid={testId}>
       <p>{message}</p>
       <Button variant="ghost" size="sm" onClick={handleRetry} disabled={statsState.loading}>
         Reintentar
@@ -395,13 +466,17 @@ export default function Dashboard() {
   const renderSessionsContent = () => {
     const state = widgetsState.sessions;
     if (state.loading) {
-      return renderLoadingRows();
+      return renderLoadingRows(3, "dashboard-widget-sessions-loading");
     }
     if (state.error) {
-      return renderWidgetError("No se pudieron cargar las sesiones de hoy.");
+      return renderWidgetError("No se pudieron cargar las sesiones de hoy.", "dashboard-widget-sessions-error");
     }
     if (!state.items.length) {
-      return <p className="dashboard-widget__empty">No hay sesiones registradas para hoy.</p>;
+      return (
+        <p className="dashboard-widget__empty" data-testid="dashboard-widget-sessions-empty">
+          No hay sesiones registradas para hoy.
+        </p>
+      );
     }
     return (
       <ul className="dashboard-widget__list" role="list">
@@ -437,13 +512,17 @@ export default function Dashboard() {
   const renderNotesContent = () => {
     const state = widgetsState.notes;
     if (state.loading) {
-      return renderLoadingRows();
+      return renderLoadingRows(3, "dashboard-widget-notes-loading");
     }
     if (state.error) {
-      return renderWidgetError("No se pudieron cargar las notas recientes.");
+      return renderWidgetError("No se pudieron cargar las notas recientes.", "dashboard-widget-notes-error");
     }
     if (!state.items.length) {
-      return <p className="dashboard-widget__empty">No hay notas cerradas recientemente.</p>;
+      return (
+        <p className="dashboard-widget__empty" data-testid="dashboard-widget-notes-empty">
+          No hay notas cerradas recientemente.
+        </p>
+      );
     }
     return (
       <ul className="dashboard-widget__list" role="list">
@@ -476,14 +555,22 @@ export default function Dashboard() {
   const renderPrescriptionsContent = () => {
     const state = widgetsState.prescriptions;
     if (state.loading) {
-      return renderLoadingRows();
+      return renderLoadingRows(3, "dashboard-widget-prescriptions-loading");
     }
     if (state.error) {
-      return renderWidgetError("No se pudieron cargar las prescripciones recientes.");
+      return renderWidgetError(
+        "No se pudieron cargar las prescripciones recientes.",
+        "dashboard-widget-prescriptions-error"
+      );
     }
     if (!state.items.length) {
       return (
-        <p className="dashboard-widget__empty">No hay prescripciones registradas recientemente.</p>
+        <p
+          className="dashboard-widget__empty"
+          data-testid="dashboard-widget-prescriptions-empty"
+        >
+          No hay prescripciones registradas recientemente.
+        </p>
       );
     }
     return (
@@ -515,13 +602,18 @@ export default function Dashboard() {
     );
   };
 
-  const actions = useMemo(
-    () =>
-      DASHBOARD_ACTIONS.filter(({ hiddenFor = [] }) =>
-        role ? !hiddenFor.includes(role) : true
-      ),
-    [role]
-  );
+  const actions = useMemo(() => {
+    return DASHBOARD_ACTIONS.filter((action) => {
+      const allowedRoles = Array.isArray(action.roles) ? action.roles : null;
+      if (!allowedRoles || !allowedRoles.length) {
+        return true;
+      }
+      if (!role) {
+        return true;
+      }
+      return allowedRoles.includes(role);
+    });
+  }, [role]);
   const defaultSelection = useMemo(() => actions.map((action) => action.to), [actions]);
   const [activeModules, setActiveModules] = useState(null);
   const [isEditingShortcuts, setIsEditingShortcuts] = useState(false);
@@ -607,6 +699,24 @@ export default function Dashboard() {
       ? actions
       : actions.filter((action) => activeModules.includes(action.to));
 
+  const isAssistant = role === ROLES.ASSISTANT;
+
+  const quickLinkItems = useMemo(
+    () =>
+      visibleActions.map((action) => {
+        const label = isAssistant
+          ? action.assistantCtaLabel || "Ver"
+          : action.ctaLabel || "Ir ahora";
+        const ariaVerb = isAssistant ? "Ver" : label;
+        return {
+          ...action,
+          ctaLabel: label,
+          ariaLabel: `${ariaVerb} ${action.title}`,
+        };
+      }),
+    [isAssistant, visibleActions]
+  );
+
   const togglePendingRoute = (route) => {
     setPendingSelection((current) =>
       current.includes(route) ? current.filter((value) => value !== route) : [...current, route]
@@ -628,10 +738,18 @@ export default function Dashboard() {
     });
   };
 
-  const handleNavigate = (route) => {
+  const handleNavigate = (route, action) => {
+    if (!route) return;
     setLoadingAction(route);
     if (loadingTimer.current) clearTimeout(loadingTimer.current);
     loadingTimer.current = window.setTimeout(() => {
+      if (action?.id) {
+        auditService.logAudit("dashboard_quick_link", {
+          route,
+          id: action.id,
+          role: role || "unknown",
+        });
+      }
       navigate(route);
       setLoadingAction(null);
     }, 260);
@@ -659,7 +777,12 @@ export default function Dashboard() {
               <span>Menú</span>
             </Button>
           ) : null}
-          <Button variant="ghost" size="sm" onClick={() => setIsEditingShortcuts(true)}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsEditingShortcuts(true)}
+            data-testid="dashboard-edit-shortcuts"
+          >
             Editar accesos rápidos
           </Button>
         </>
@@ -672,7 +795,7 @@ export default function Dashboard() {
       />
 
       {statsState.error ? (
-        <div className="alert alert--error" role="alert">
+        <div className="alert alert--error" role="alert" data-testid="dashboard-stats-error">
           <div className="alert__content">
             <h3 className="alert__title">No se pudieron cargar las métricas</h3>
             <p className="alert__message">
@@ -684,6 +807,7 @@ export default function Dashboard() {
             size="sm"
             onClick={handleRetry}
             disabled={statsState.loading}
+            data-testid="dashboard-stats-retry"
           >
             Reintentar
           </Button>
@@ -691,7 +815,11 @@ export default function Dashboard() {
       ) : null}
 
       <div className="dashboard-widgets">
-        <section className="dashboard-widget" aria-labelledby="dashboard-widget-sessions">
+        <section
+          className="dashboard-widget"
+          aria-labelledby="dashboard-widget-sessions"
+          data-testid="dashboard-widget-sessions"
+        >
           <div className="dashboard-widget__header">
             <h2 id="dashboard-widget-sessions" className="dashboard-widget__title">
               Sesiones de hoy
@@ -703,7 +831,11 @@ export default function Dashboard() {
           {renderSessionsContent()}
         </section>
 
-        <section className="dashboard-widget" aria-labelledby="dashboard-widget-notes">
+        <section
+          className="dashboard-widget"
+          aria-labelledby="dashboard-widget-notes"
+          data-testid="dashboard-widget-notes"
+        >
           <div className="dashboard-widget__header">
             <h2 id="dashboard-widget-notes" className="dashboard-widget__title">
               Notas recientes
@@ -718,6 +850,7 @@ export default function Dashboard() {
         <section
           className="dashboard-widget"
           aria-labelledby="dashboard-widget-prescriptions"
+          data-testid="dashboard-widget-prescriptions"
         >
           <div className="dashboard-widget__header">
             <h2 id="dashboard-widget-prescriptions" className="dashboard-widget__title">
@@ -735,33 +868,12 @@ export default function Dashboard() {
         </section>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {visibleActions.length === 0 ? (
-          <div className="dashboard-module dashboard-module--static">
-            <h2 className="dashboard-page__section-title">Sin accesos visibles</h2>
-            <p className="dashboard-page__body-text">
-              Selecciona los módulos que deseas mostrar usando “Editar accesos rápidos”.
-            </p>
-            <Button variant="accent" size="sm" onClick={() => setIsEditingShortcuts(true)}>
-              Configurar accesos
-            </Button>
-          </div>
-        ) : (
-          visibleActions.map((action, index) => (
-            <DashboardCard
-              key={action.title}
-              variant="shortcut"
-              icon={action.icon}
-              title={action.title}
-              description={action.description}
-              onClick={() => handleNavigate(action.to)}
-              loading={loadingAction === action.to}
-              delay={index * 0.05}
-              ariaLabel={`Ir al módulo ${action.title}`}
-            />
-          ))
-        )}
-      </div>
+      <DashboardQuickLinks
+        actions={quickLinkItems}
+        onNavigate={handleNavigate}
+        loadingAction={loadingAction}
+        onEditShortcuts={() => setIsEditingShortcuts(true)}
+      />
       <div className="dashboard-module dashboard-module--static">
         <h2 className="dashboard-page__section-title">Próximos pasos sugeridos</h2>
         <p className="dashboard-page__subtitle">

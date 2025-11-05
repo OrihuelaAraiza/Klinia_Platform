@@ -1153,6 +1153,10 @@ main {
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
 }
 
+.dashboard-quick-links {
+  display: contents;
+}
+
 .dashboard-widget {
   display: flex;
   flex-direction: column;

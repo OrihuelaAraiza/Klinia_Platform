@@ -17,11 +17,13 @@ function DashboardCardComponent({
   loading = false,
   delay = 0,
   ariaLabel,
+  dataTestId,
 }) {
   if (variant === "stat") {
     return (
       <motion.article
         className="stat-card"
+        data-testid={dataTestId}
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3, delay }}
@@ -50,6 +52,7 @@ function DashboardCardComponent({
       className="dashboard-module"
       onClick={onClick}
       aria-label={computedAriaLabel}
+      data-testid={dataTestId}
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay, duration: 0.35, ease: "easeOut" }}
@@ -94,7 +97,8 @@ function cardPropsAreEqual(prev, next) {
     prev.delay === next.delay &&
     prev.ctaLabel === next.ctaLabel &&
     prev.onClick === next.onClick &&
-    prev.ariaLabel === next.ariaLabel
+    prev.ariaLabel === next.ariaLabel &&
+    prev.dataTestId === next.dataTestId
   );
 }
 
