@@ -2,8 +2,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import { AnimatePresence, motion as Motion } from "framer-motion";
 import { Users, Calendar, Pill, BarChart, BarChart2, CheckCircle2, Menu } from "lucide-react";
-import { ROUTES, ROLES } from "../utils/constants";
-import { getTodayCounts } from "../services/sessionsService";
+import { ROUTES, ROLES, SESSION_STATUS_LABEL } from "../utils/constants";
+import auditService from "../services/auditService";
+import {
+  getStats as fetchDashboardStats,
+  getTodaySessions,
+  getRecentNotes,
+  getRecentPrescriptions,
+} from "../services/dashboardService";
 import DashboardStats from "../components/DashboardStats";
 import Button from "../components/UI/Button";
 import Modal from "../components/UI/Modal";
@@ -59,70 +65,455 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const { role, toggleSidebar: toggleSidebarGlobal, isMobile } = useOutletContext() ?? {};
   const storageKey = useMemo(() => `${STORAGE_KEY}:${role || "default"}`, [role]);
-  const [sessionCounts, setSessionCounts] = useState({ scheduled: 0, cancelled: 0, loading: true });
+  const [statsState, setStatsState] = useState({
+    data: null,
+    loading: true,
+    error: null,
+  });
+  const [widgetsState, setWidgetsState] = useState({
+    sessions: { items: [], loading: true, error: null },
+    notes: { items: [], loading: true, error: null },
+    prescriptions: { items: [], loading: true, error: null },
+  });
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let active = true;
-    async function loadCounts() {
-      try {
-        const data = await getTodayCounts();
-        if (!active) return;
-        setSessionCounts({
-          scheduled: Number(data?.scheduled ?? 0),
-          cancelled: Number(data?.cancelled ?? 0),
-          loading: false,
-        });
-      } catch (error) {
-        if (!active) return;
-        if (import.meta.env.DEV) {
-          console.warn("[Dashboard] No se pudieron leer métricas de sesiones:", error);
+    const timeouts = new Set();
+
+    const schedule = (fn, delay) => {
+      const id = setTimeout(() => {
+        timeouts.delete(id);
+        fn();
+      }, delay);
+      timeouts.add(id);
+      return id;
+    };
+
+    const clearAll = () => {
+      timeouts.forEach((id) => clearTimeout(id));
+      timeouts.clear();
+    };
+
+    setStatsState((prev) => ({ ...prev, loading: true, error: null }));
+
+    const skeletonDelay = 300 + Math.random() * 300;
+    const runStartedAt = performance.now();
+
+    const finalize = (apply) => {
+      const elapsed = performance.now() - runStartedAt;
+      const wait = Math.max(0, skeletonDelay - elapsed);
+      const runner = () => {
+        if (!active) {
+          return;
         }
-        setSessionCounts((prev) => ({ ...prev, loading: false }));
+        apply();
+      };
+      if (wait > 0) {
+        schedule(runner, wait);
+      } else {
+        runner();
       }
-    }
-    loadCounts();
+    };
+
+    const waitFor = (ms) =>
+      new Promise((resolve) => {
+        schedule(resolve, ms);
+      });
+
+    (async () => {
+      const startedAt = performance.now();
+      let attempt = 0;
+      let lastError;
+
+      while (attempt < 3 && active) {
+        try {
+          const data = await fetchDashboardStats();
+          finalize(() => {
+            setStatsState({ data, loading: false, error: null });
+            auditService.logAudit("dashboard_stats_load", {
+              ok: true,
+              durationMs: Math.round(performance.now() - startedAt),
+            });
+          });
+          return;
+        } catch (error) {
+          lastError = error;
+          attempt += 1;
+          if (attempt < 3) {
+            const delay = 300 * 2 ** (attempt - 1);
+            await waitFor(delay);
+          }
+        }
+      }
+
+      finalize(() => {
+        setStatsState({
+          data: null,
+          loading: false,
+          error: lastError || new Error("No se pudieron cargar las métricas."),
+        });
+        auditService.logAudit("dashboard_stats_load", {
+          ok: false,
+          durationMs: Math.round(performance.now() - startedAt),
+          error: lastError?.message || "unknown_error",
+        });
+      });
+    })();
+
+    return () => {
+      active = false;
+      clearAll();
+    };
+  }, [reloadKey]);
+
+  useEffect(() => {
+    let active = true;
+
+    setWidgetsState((prev) => ({
+      sessions: { ...prev.sessions, loading: true, error: null },
+      notes: { ...prev.notes, loading: true, error: null },
+      prescriptions: { ...prev.prescriptions, loading: true, error: null },
+    }));
+
+    (async () => {
+      const [sessionsResult, notesResult, prescriptionsResult] = await Promise.allSettled([
+        getTodaySessions(),
+        getRecentNotes(),
+        getRecentPrescriptions(),
+      ]);
+
+      if (!active) return;
+
+      setWidgetsState({
+        sessions: {
+          items: sessionsResult.status === "fulfilled" ? sessionsResult.value : [],
+          loading: false,
+          error: sessionsResult.status === "rejected" ? sessionsResult.reason : null,
+        },
+        notes: {
+          items: notesResult.status === "fulfilled" ? notesResult.value : [],
+          loading: false,
+          error: notesResult.status === "rejected" ? notesResult.reason : null,
+        },
+        prescriptions: {
+          items:
+            prescriptionsResult.status === "fulfilled" ? prescriptionsResult.value : [],
+          loading: false,
+          error:
+            prescriptionsResult.status === "rejected" ? prescriptionsResult.reason : null,
+        },
+      });
+    })();
+
     return () => {
       active = false;
     };
-  }, []);
+  }, [reloadKey]);
+
+  const numberFormatter = useMemo(
+    () => new Intl.NumberFormat("es-MX", { maximumFractionDigits: 0 }),
+    []
+  );
+  const timeFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat("es-MX", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    []
+  );
+  const dateTimeFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat("es-MX", {
+        dateStyle: "short",
+        timeStyle: "short",
+      }),
+    []
+  );
 
   const stats = useMemo(() => {
-    const seed = new Date().getDate();
-    const formatter = new Intl.NumberFormat("es-MX", { maximumFractionDigits: 0 });
-    const scheduledValue = sessionCounts.loading
-      ? "—"
-      : formatter.format(sessionCounts.scheduled);
-    const cancelledSubtext = sessionCounts.loading
-      ? "Calculando..."
-      : `${formatter.format(sessionCounts.cancelled)} canceladas`;
+    const data = statsState.data;
+    if (!data) return [];
+
+    const toNumeric = (value) => {
+      const numeric = Number(value);
+      return Number.isFinite(numeric) ? numeric : 0;
+    };
+    const formatNumber = (value) => numberFormatter.format(toNumeric(value));
+    const sessionCount = formatNumber(data.sessionsToday ?? 0);
+    const cancelledCount = formatNumber(data.sessionsCancelledToday ?? 0);
+
+    const lastPrescription = (() => {
+      if (!data.lastPrescriptionTime) return null;
+      const parsed = new Date(data.lastPrescriptionTime);
+      if (Number.isNaN(parsed.getTime())) {
+        return data.lastPrescriptionTime;
+      }
+      return timeFormatter.format(parsed);
+    })();
+
+    const rawProgress = toNumeric(data.reportsProgress ?? 0);
+    const normalizedProgress =
+      Number.isFinite(rawProgress) && rawProgress <= 1
+        ? Math.round(rawProgress * 100)
+        : Math.round(rawProgress);
+    const clampedProgress = Math.min(100, Math.max(0, normalizedProgress));
 
     return [
       {
         icon: Users,
         label: "Pacientes activos",
-        value: formatter.format(240 + ((seed * 3) % 18)),
-        subtext: "+5% esta semana",
+        value: formatNumber(data.patientsActive ?? 0),
+        subtext: "Seguimiento activo",
       },
       {
         icon: Calendar,
-        label: "Sesiones programadas hoy",
-        value: scheduledValue,
-        subtext: cancelledSubtext,
+        label: "Sesiones hoy",
+        value: sessionCount,
+        subtext: `${cancelledCount} canceladas`,
       },
       {
         icon: Pill,
         label: "Prescripciones vigentes",
-        value: formatter.format(32 + (seed % 9)),
-        subtext: "Última emisión hoy 08:00",
+        value: formatNumber(data.prescriptionsActive ?? 0),
+        subtext: lastPrescription
+          ? `Última emisión ${lastPrescription}`
+          : "Sin emisiones recientes",
       },
       {
         icon: BarChart2,
         label: "Reportes generados",
-        value: formatter.format(8 + (seed % 5)),
-        subtext: "Mensualidad al 78%",
+        value: formatNumber(data.reportsGenerated ?? 0),
+        subtext: `Avance al ${clampedProgress}%`,
       },
     ];
-  }, [sessionCounts]);
+  }, [numberFormatter, statsState.data, timeFormatter]);
+
+  const formatTimeValue = (value) => {
+    if (!value) return "Horario no registrado";
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+      return value;
+    }
+    return timeFormatter.format(parsed);
+  };
+
+  const formatDateTimeValue = (value) => {
+    if (!value) return "Sin registro";
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+      return value;
+    }
+    return dateTimeFormatter.format(parsed);
+  };
+
+  const handleRetry = () => {
+    setReloadKey((current) => current + 1);
+    auditService.logAudit("dashboard_stats_retry", {
+      reason: statsState.error?.message || "manual_retry",
+    });
+  };
+
+  const navigateTo = (path, state) => {
+    if (!path) return;
+    if (state) {
+      navigate(path, { state });
+      return;
+    }
+    navigate(path);
+  };
+
+  const handleWidgetNavigate = (widgetKey) => {
+    let destination = null;
+    switch (widgetKey) {
+      case "sessions":
+        destination = ROUTES.sessions;
+        break;
+      case "notes":
+        destination = ROUTES.patients;
+        break;
+      case "prescriptions":
+        destination = ROUTES.prescriptions;
+        break;
+      default:
+        break;
+    }
+    auditService.logAudit("dashboard_widget_open", { widget: widgetKey });
+    navigateTo(destination);
+  };
+
+  const handleWidgetItemClick = (widgetKey, item) => {
+    let destination = null;
+    let state;
+
+    if (widgetKey === "sessions") {
+      destination = ROUTES.sessions;
+      state = item?.id ? { focusSessionId: item.id } : undefined;
+    } else if (widgetKey === "notes") {
+      if (item?.patientId) {
+        destination = `/patients/${item.patientId}${item?.id ? `/notes/${item.id}` : "/notes"}`;
+      } else {
+        destination = ROUTES.patients;
+      }
+    } else if (widgetKey === "prescriptions") {
+      if (item?.patientId) {
+        destination = `/patients/${item.patientId}`;
+      } else {
+        destination = ROUTES.prescriptions;
+      }
+    }
+
+    auditService.logAudit("dashboard_widget_item", {
+      widget: widgetKey,
+      id: item?.id ?? null,
+    });
+
+    navigateTo(destination, state);
+  };
+
+  const renderLoadingRows = (rows = 3) => (
+    <div className="dashboard-widget__skeleton" aria-hidden="true">
+      {Array.from({ length: rows }).map((_, index) => (
+        <div key={`widget-skeleton-${index}`} className="dashboard-widget__skeleton-row shimmer">
+          <span className="skeleton skeleton--line" />
+          <span className="skeleton skeleton--line short" />
+        </div>
+      ))}
+    </div>
+  );
+
+  const renderWidgetError = (message) => (
+    <div className="dashboard-widget__empty">
+      <p>{message}</p>
+      <Button variant="ghost" size="sm" onClick={handleRetry} disabled={statsState.loading}>
+        Reintentar
+      </Button>
+    </div>
+  );
+
+  const renderSessionsContent = () => {
+    const state = widgetsState.sessions;
+    if (state.loading) {
+      return renderLoadingRows();
+    }
+    if (state.error) {
+      return renderWidgetError("No se pudieron cargar las sesiones de hoy.");
+    }
+    if (!state.items.length) {
+      return <p className="dashboard-widget__empty">No hay sesiones registradas para hoy.</p>;
+    }
+    return (
+      <ul className="dashboard-widget__list" role="list">
+        {state.items.map((session, index) => {
+          const key = session.id ?? `session-${index}`;
+          const statusLabel = session.status
+            ? SESSION_STATUS_LABEL[session.status] || session.status
+            : "Sin estado";
+          return (
+            <li key={key}>
+              <button
+                type="button"
+                className="dashboard-widget__item"
+                onClick={() => handleWidgetItemClick("sessions", session)}
+              >
+                <span className="dashboard-widget__item-main">
+                  <span className="dashboard-widget__item-title">{session.patientName}</span>
+                  <span className="dashboard-widget__item-meta">
+                    {formatTimeValue(session.time)} · {statusLabel}
+                  </span>
+                </span>
+                <span className="dashboard-widget__item-icon" aria-hidden="true">
+                  →
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    );
+  };
+
+  const renderNotesContent = () => {
+    const state = widgetsState.notes;
+    if (state.loading) {
+      return renderLoadingRows();
+    }
+    if (state.error) {
+      return renderWidgetError("No se pudieron cargar las notas recientes.");
+    }
+    if (!state.items.length) {
+      return <p className="dashboard-widget__empty">No hay notas cerradas recientemente.</p>;
+    }
+    return (
+      <ul className="dashboard-widget__list" role="list">
+        {state.items.map((note, index) => {
+          const key = note.id ?? `note-${index}`;
+          return (
+            <li key={key}>
+              <button
+                type="button"
+                className="dashboard-widget__item"
+                onClick={() => handleWidgetItemClick("notes", note)}
+              >
+                <span className="dashboard-widget__item-main">
+                  <span className="dashboard-widget__item-title">{note.patientName}</span>
+                  <span className="dashboard-widget__item-meta">
+                    Cerrada {formatDateTimeValue(note.closedAt)}
+                  </span>
+                </span>
+                <span className="dashboard-widget__item-icon" aria-hidden="true">
+                  →
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    );
+  };
+
+  const renderPrescriptionsContent = () => {
+    const state = widgetsState.prescriptions;
+    if (state.loading) {
+      return renderLoadingRows();
+    }
+    if (state.error) {
+      return renderWidgetError("No se pudieron cargar las prescripciones recientes.");
+    }
+    if (!state.items.length) {
+      return (
+        <p className="dashboard-widget__empty">No hay prescripciones registradas recientemente.</p>
+      );
+    }
+    return (
+      <ul className="dashboard-widget__list" role="list">
+        {state.items.map((prescription, index) => {
+          const key = prescription.id ?? `prescription-${index}`;
+          const folioLabel = prescription.folio ? `Folio ${prescription.folio}` : "Sin folio";
+          return (
+            <li key={key}>
+              <button
+                type="button"
+                className="dashboard-widget__item"
+                onClick={() => handleWidgetItemClick("prescriptions", prescription)}
+              >
+                <span className="dashboard-widget__item-main">
+                  <span className="dashboard-widget__item-title">{prescription.patientName}</span>
+                  <span className="dashboard-widget__item-meta">
+                    {folioLabel} · {formatDateTimeValue(prescription.signedAt)}
+                  </span>
+                </span>
+                <span className="dashboard-widget__item-icon" aria-hidden="true">
+                  →
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    );
+  };
 
   const actions = useMemo(
     () =>
@@ -274,7 +665,75 @@ export default function Dashboard() {
         </>
       </DashboardHeader>
 
-      <DashboardStats stats={stats} />
+      <DashboardStats
+        stats={stats}
+        loading={statsState.loading}
+        emptyMessage={statsState.error ? "" : "No hay métricas disponibles."}
+      />
+
+      {statsState.error ? (
+        <div className="alert alert--error" role="alert">
+          <div className="alert__content">
+            <h3 className="alert__title">No se pudieron cargar las métricas</h3>
+            <p className="alert__message">
+              {statsState.error?.message || "Intenta nuevamente en unos momentos."}
+            </p>
+          </div>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={handleRetry}
+            disabled={statsState.loading}
+          >
+            Reintentar
+          </Button>
+        </div>
+      ) : null}
+
+      <div className="dashboard-widgets">
+        <section className="dashboard-widget" aria-labelledby="dashboard-widget-sessions">
+          <div className="dashboard-widget__header">
+            <h2 id="dashboard-widget-sessions" className="dashboard-widget__title">
+              Sesiones de hoy
+            </h2>
+            <Button variant="ghost" size="sm" onClick={() => handleWidgetNavigate("sessions")}>
+              Ver agenda
+            </Button>
+          </div>
+          {renderSessionsContent()}
+        </section>
+
+        <section className="dashboard-widget" aria-labelledby="dashboard-widget-notes">
+          <div className="dashboard-widget__header">
+            <h2 id="dashboard-widget-notes" className="dashboard-widget__title">
+              Notas recientes
+            </h2>
+            <Button variant="ghost" size="sm" onClick={() => handleWidgetNavigate("notes")}>
+              Ver pacientes
+            </Button>
+          </div>
+          {renderNotesContent()}
+        </section>
+
+        <section
+          className="dashboard-widget"
+          aria-labelledby="dashboard-widget-prescriptions"
+        >
+          <div className="dashboard-widget__header">
+            <h2 id="dashboard-widget-prescriptions" className="dashboard-widget__title">
+              Prescripciones recientes
+            </h2>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleWidgetNavigate("prescriptions")}
+            >
+              Ver historial
+            </Button>
+          </div>
+          {renderPrescriptionsContent()}
+        </section>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {visibleActions.length === 0 ? (
