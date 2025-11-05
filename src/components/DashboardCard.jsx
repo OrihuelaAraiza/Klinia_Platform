@@ -17,11 +17,17 @@ function DashboardCardComponent({
   loading = false,
   delay = 0,
   ariaLabel,
+  dataTestId,
+  onStatClick,
 }) {
   if (variant === "stat") {
+    const StatComponent = onStatClick ? motion.button : motion.article;
     return (
-      <motion.article
-        className="stat-card"
+      <StatComponent
+        type={onStatClick ? "button" : undefined}
+        className={`stat-card${onStatClick ? " stat-card--clickable" : ""}`}
+        data-testid={dataTestId}
+        onClick={onStatClick}
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3, delay }}
@@ -36,7 +42,7 @@ function DashboardCardComponent({
           {value ? <p className="stat-value">{value}</p> : null}
           {subtext ? <p className="stat-subtext">{subtext}</p> : null}
         </div>
-      </motion.article>
+      </StatComponent>
     );
   }
 
@@ -50,6 +56,7 @@ function DashboardCardComponent({
       className="dashboard-module"
       onClick={onClick}
       aria-label={computedAriaLabel}
+      data-testid={dataTestId}
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay, duration: 0.35, ease: "easeOut" }}
@@ -94,7 +101,9 @@ function cardPropsAreEqual(prev, next) {
     prev.delay === next.delay &&
     prev.ctaLabel === next.ctaLabel &&
     prev.onClick === next.onClick &&
-    prev.ariaLabel === next.ariaLabel
+    prev.ariaLabel === next.ariaLabel &&
+    prev.dataTestId === next.dataTestId &&
+    prev.onStatClick === next.onStatClick
   );
 }
 

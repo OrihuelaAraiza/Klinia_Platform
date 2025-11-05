@@ -1,141 +1,473 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
-import { AnimatePresence, motion as Motion } from "framer-motion";
-import { Users, Calendar, Pill, BarChart, BarChart2, CheckCircle2, Menu } from "lucide-react";
-import { ROUTES, ROLES } from "../utils/constants";
-import { getTodayCounts } from "../services/sessionsService";
+import { Users, Calendar, Pill, BarChart, BarChart2, Menu, Settings } from "lucide-react";
+import { ROUTES, ROLES, SESSION_STATUS_LABEL } from "../utils/constants";
+import auditService from "../services/auditService";
+import authService from "../services/authService";
+import {
+  getStats as fetchDashboardStats,
+  getTodaySessions,
+  getRecentNotes,
+  getRecentPrescriptions,
+} from "../services/dashboardService";
 import DashboardStats from "../components/DashboardStats";
 import Button from "../components/UI/Button";
 import Modal from "../components/UI/Modal";
-import DashboardCard from "../components/DashboardCard";
+import DashboardQuickLinks from "../components/DashboardQuickLinks";
 import DashboardHeader from "../components/DashboardHeader";
+import WidgetTodaySessions from "../components/WidgetTodaySessions";
+import WidgetRecentNotes from "../components/WidgetRecentNotes";
+import WidgetRecentPrescriptions from "../components/WidgetRecentPrescriptions";
+import NextSteps from "../components/NextSteps";
+
+const ADMINISTRATION_ROUTE = ROUTES.administration || ROUTES.admin || null;
 
 const DASHBOARD_ACTIONS = [
   {
+    id: "patients",
     title: "Pacientes",
     description: "Consulta y crea expedientes clínicos.",
     to: ROUTES.patients,
     icon: Users,
+    roles: [ROLES.ADMIN, ROLES.PROFESSIONAL, ROLES.ASSISTANT],
+    ctaLabel: "Gestionar",
+    assistantCtaLabel: "Ver",
   },
   {
+    id: "sessions",
     title: "Sesiones",
     description: "Gestiona tu agenda terapéutica.",
     to: ROUTES.sessions,
     icon: Calendar,
+    roles: [ROLES.ADMIN, ROLES.PROFESSIONAL, ROLES.ASSISTANT],
+    ctaLabel: "Gestionar",
+    assistantCtaLabel: "Ver",
   },
   {
+    id: "reports",
     title: "Reportes",
     description: "Exporta información NOM-024.",
     to: ROUTES.reports,
     icon: BarChart,
+    roles: [ROLES.ADMIN, ROLES.PROFESSIONAL],
+    ctaLabel: "Generar",
   },
   {
+    id: "prescriptions",
     title: "Prescripciones",
     description: "Genera y registra prescripciones controladas.",
     to: ROUTES.prescriptions,
     icon: Pill,
-    hiddenFor: [ROLES.ASSISTANT],
+    roles: [ROLES.ADMIN, ROLES.PROFESSIONAL],
+    ctaLabel: "Emitir",
+    assistantCtaLabel: "Ver",
   },
 ];
+
+if (ADMINISTRATION_ROUTE) {
+  DASHBOARD_ACTIONS.push({
+    id: "administration",
+    title: "Administración",
+    description: "Configura parámetros operativos y accesos del equipo.",
+    to: ADMINISTRATION_ROUTE,
+    icon: Settings,
+    roles: [ROLES.ADMIN],
+    ctaLabel: "Abrir",
+  });
+}
 
 const STORAGE_KEY = "dashboard.quickActions";
-const SUGGESTIONS_KEY = "dashboard.suggestions";
-const SUGGESTIONS = [
-  {
-    id: "consents",
-    title: "Configura consentimientos digitales personalizados para tu equipo.",
-  },
-  {
-    id: "reminders",
-    title: "Conecta recordatorios SMS/Email para tus sesiones.",
-  },
-  {
-    id: "attachments",
-    title: "Centraliza adjuntos y notas heredadas en el expediente digital.",
-  },
-];
-
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { role, toggleSidebar: toggleSidebarGlobal, isMobile } = useOutletContext() ?? {};
+  const {
+    role: outletRole,
+    toggleSidebar: toggleSidebarGlobal,
+    isMobile,
+  } = useOutletContext() ?? {};
+  const [role, setRole] = useState(() => outletRole || authService.currentRole() || null);
+  useEffect(() => {
+    const resolvedRole = outletRole || authService.currentRole() || null;
+    setRole(resolvedRole);
+  }, [outletRole]);
   const storageKey = useMemo(() => `${STORAGE_KEY}:${role || "default"}`, [role]);
-  const [sessionCounts, setSessionCounts] = useState({ scheduled: 0, cancelled: 0, loading: true });
+  const [statsState, setStatsState] = useState({
+    data: null,
+    loading: true,
+    error: null,
+  });
+  const [widgetsState, setWidgetsState] = useState({
+    sessions: { items: [], loading: true, error: null },
+    notes: { items: [], loading: true, error: null },
+    prescriptions: { items: [], loading: true, error: null },
+  });
+  const [reloadKey, setReloadKey] = useState(0);
+  const hasLoggedDashboardOpen = useRef(false);
+  const dashboardLoaders = useMemo(
+    () => ({
+      sessions: () => getTodaySessions(),
+      notes: () => getRecentNotes(),
+      prescriptions: () => getRecentPrescriptions(),
+    }),
+    []
+  );
+
+  useEffect(() => {
+    if (hasLoggedDashboardOpen.current) {
+      return;
+    }
+    hasLoggedDashboardOpen.current = true;
+    const resolvedRole = role || outletRole || authService.currentRole() || null;
+    auditService.logAudit("dashboard_open", { role: resolvedRole || "unknown" });
+  }, [role, outletRole]);
 
   useEffect(() => {
     let active = true;
-    async function loadCounts() {
-      try {
-        const data = await getTodayCounts();
-        if (!active) return;
-        setSessionCounts({
-          scheduled: Number(data?.scheduled ?? 0),
-          cancelled: Number(data?.cancelled ?? 0),
-          loading: false,
-        });
-      } catch (error) {
-        if (!active) return;
-        if (import.meta.env.DEV) {
-          console.warn("[Dashboard] No se pudieron leer métricas de sesiones:", error);
+    const timeouts = new Set();
+
+    const schedule = (fn, delay) => {
+      const id = setTimeout(() => {
+        timeouts.delete(id);
+        fn();
+      }, delay);
+      timeouts.add(id);
+      return id;
+    };
+
+    const clearAll = () => {
+      timeouts.forEach((id) => clearTimeout(id));
+      timeouts.clear();
+    };
+
+    setStatsState((prev) => ({ ...prev, loading: true, error: null }));
+
+    const skeletonDelay = 300 + Math.random() * 300;
+    const runStartedAt = performance.now();
+
+    const finalize = (apply) => {
+      const elapsed = performance.now() - runStartedAt;
+      const wait = Math.max(0, skeletonDelay - elapsed);
+      const runner = () => {
+        if (!active) {
+          return;
         }
-        setSessionCounts((prev) => ({ ...prev, loading: false }));
+        apply();
+      };
+      if (wait > 0) {
+        schedule(runner, wait);
+      } else {
+        runner();
       }
-    }
-    loadCounts();
+    };
+
+    const waitFor = (ms) =>
+      new Promise((resolve) => {
+        schedule(resolve, ms);
+      });
+
+    (async () => {
+      const startedAt = performance.now();
+      let attempt = 0;
+      let lastError;
+
+      while (attempt < 3 && active) {
+        try {
+          const data = await fetchDashboardStats();
+          finalize(() => {
+            setStatsState({ data, loading: false, error: null });
+            auditService.logAudit("dashboard_stats_load", {
+              ok: true,
+              durationMs: Math.round(performance.now() - startedAt),
+            });
+          });
+          return;
+        } catch (error) {
+          lastError = error;
+          attempt += 1;
+          if (attempt < 3) {
+            const delay = 300 * 2 ** (attempt - 1);
+            await waitFor(delay);
+          }
+        }
+      }
+
+      finalize(() => {
+        setStatsState({
+          data: null,
+          loading: false,
+          error: lastError || new Error("No se pudieron cargar las métricas."),
+        });
+        auditService.logAudit("dashboard_stats_error", {
+          code: lastError?.status || lastError?.code || "unknown_error",
+          message: lastError?.message || "No se pudieron cargar las métricas.",
+        });
+        auditService.logAudit("dashboard_stats_load", {
+          ok: false,
+          durationMs: Math.round(performance.now() - startedAt),
+          error: lastError?.message || "unknown_error",
+        });
+      });
+    })();
+
+    return () => {
+      active = false;
+      clearAll();
+    };
+  }, [reloadKey]);
+
+  useEffect(() => {
+    let active = true;
+
+    setWidgetsState((prev) => ({
+      sessions: { ...prev.sessions, loading: true, error: null },
+      notes: { ...prev.notes, loading: true, error: null },
+      prescriptions: { ...prev.prescriptions, loading: true, error: null },
+    }));
+
+    (async () => {
+      const [sessionsResult, notesResult, prescriptionsResult] = await Promise.allSettled([
+        dashboardLoaders.sessions(),
+        dashboardLoaders.notes(),
+        dashboardLoaders.prescriptions(),
+      ]);
+
+      if (!active) return;
+
+      const limitItems = (value) =>
+        Array.isArray(value) ? value.slice(0, 5) : [];
+
+      setWidgetsState({
+        sessions: {
+          items: sessionsResult.status === "fulfilled" ? limitItems(sessionsResult.value) : [],
+          loading: false,
+          error: sessionsResult.status === "rejected" ? sessionsResult.reason : null,
+        },
+        notes: {
+          items: notesResult.status === "fulfilled" ? limitItems(notesResult.value) : [],
+          loading: false,
+          error: notesResult.status === "rejected" ? notesResult.reason : null,
+        },
+        prescriptions: {
+          items:
+            prescriptionsResult.status === "fulfilled" ? limitItems(prescriptionsResult.value) : [],
+          loading: false,
+          error:
+            prescriptionsResult.status === "rejected" ? prescriptionsResult.reason : null,
+        },
+      });
+    })();
+
     return () => {
       active = false;
     };
-  }, []);
+  }, [dashboardLoaders, reloadKey]);
+
+  const numberFormatter = useMemo(
+    () => new Intl.NumberFormat("es-MX", { maximumFractionDigits: 0 }),
+    []
+  );
+  const timeFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat("es-MX", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    []
+  );
+  const dateTimeFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat("es-MX", {
+        dateStyle: "short",
+        timeStyle: "short",
+      }),
+    []
+  );
 
   const stats = useMemo(() => {
-    const seed = new Date().getDate();
-    const formatter = new Intl.NumberFormat("es-MX", { maximumFractionDigits: 0 });
-    const scheduledValue = sessionCounts.loading
-      ? "—"
-      : formatter.format(sessionCounts.scheduled);
-    const cancelledSubtext = sessionCounts.loading
-      ? "Calculando..."
-      : `${formatter.format(sessionCounts.cancelled)} canceladas`;
+    const data = statsState.data;
+    if (!data) return [];
 
-    return [
+    const toNumeric = (value) => {
+      const numeric = Number(value);
+      return Number.isFinite(numeric) ? numeric : 0;
+    };
+    const formatNumber = (value) => numberFormatter.format(toNumeric(value));
+    const sessionCount = formatNumber(data.sessionsToday ?? 0);
+    const cancelledCount = formatNumber(data.sessionsCancelledToday ?? 0);
+
+    const lastPrescription = (() => {
+      if (!data.lastPrescriptionTime) return null;
+      const parsed = new Date(data.lastPrescriptionTime);
+      if (Number.isNaN(parsed.getTime())) {
+        return data.lastPrescriptionTime;
+      }
+      return timeFormatter.format(parsed);
+    })();
+
+    const rawProgress = toNumeric(data.reportsProgress ?? 0);
+    const normalizedProgress =
+      Number.isFinite(rawProgress) && rawProgress <= 1
+        ? Math.round(rawProgress * 100)
+        : Math.round(rawProgress);
+    const clampedProgress = Math.min(100, Math.max(0, normalizedProgress));
+
+    const definitions = [
       {
+        id: "patientsActive",
         icon: Users,
         label: "Pacientes activos",
-        value: formatter.format(240 + ((seed * 3) % 18)),
-        subtext: "+5% esta semana",
+        value: formatNumber(data.patientsActive ?? 0),
+        subtext: "Seguimiento activo",
+        roles: [ROLES.ADMIN, ROLES.PROFESSIONAL, ROLES.ASSISTANT],
       },
       {
+        id: "sessionsToday",
         icon: Calendar,
-        label: "Sesiones programadas hoy",
-        value: scheduledValue,
-        subtext: cancelledSubtext,
+        label: "Sesiones hoy",
+        value: sessionCount,
+        subtext: `${cancelledCount} canceladas`,
+        roles: [ROLES.ADMIN, ROLES.PROFESSIONAL, ROLES.ASSISTANT],
       },
       {
+        id: "prescriptionsActive",
         icon: Pill,
         label: "Prescripciones vigentes",
-        value: formatter.format(32 + (seed % 9)),
-        subtext: "Última emisión hoy 08:00",
+        value: formatNumber(data.prescriptionsActive ?? 0),
+        subtext: lastPrescription
+          ? `Última emisión ${lastPrescription}`
+          : "Sin emisiones recientes",
+        roles: [ROLES.ADMIN, ROLES.PROFESSIONAL],
       },
       {
+        id: "reportsGenerated",
         icon: BarChart2,
         label: "Reportes generados",
-        value: formatter.format(8 + (seed % 5)),
-        subtext: "Mensualidad al 78%",
+        value: formatNumber(data.reportsGenerated ?? 0),
+        subtext: `Avance al ${clampedProgress}%`,
+        roles: [ROLES.ADMIN, ROLES.PROFESSIONAL],
       },
     ];
-  }, [sessionCounts]);
 
-  const actions = useMemo(
-    () =>
-      DASHBOARD_ACTIONS.filter(({ hiddenFor = [] }) =>
-        role ? !hiddenFor.includes(role) : true
-      ),
-    [role]
+    return definitions
+      .filter((item) => {
+        if (!item.roles?.length || !role) {
+          return true;
+        }
+        return item.roles.includes(role);
+      })
+      .map((item) => ({
+        ...item,
+        testId: `dashboard-stat-${item.id}`,
+      }));
+  }, [numberFormatter, role, statsState.data, timeFormatter]);
+
+  const formatTimeValue = (value) => {
+    if (!value) return "Horario no registrado";
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+      return value;
+    }
+    return timeFormatter.format(parsed);
+  };
+
+  const formatDateTimeValue = (value) => {
+    if (!value) return "Sin registro";
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+      return value;
+    }
+    return dateTimeFormatter.format(parsed);
+  };
+
+  const handleStatClick = useCallback((stat) => {
+    if (!stat?.id) {
+      return;
+    }
+    auditService.logAudit("dashboard_stat_click", { stat: stat.id });
+  }, []);
+
+  const handleReload = (origin = "manual", meta = {}) => {
+    setReloadKey((current) => current + 1);
+    auditService.logAudit("dashboard_stats_retry", {
+      origin,
+      reason:
+        meta.reason ||
+        statsState.error?.message ||
+        widgetsState[origin]?.error?.message ||
+        "manual_retry",
+    });
+  };
+
+  const navigateTo = (path, state) => {
+    if (!path) return;
+    if (state) {
+      navigate(path, { state });
+      return;
+    }
+    navigate(path);
+  };
+
+  const widgetRoutes = useMemo(
+    () => ({
+      sessions: ROUTES.sessions,
+      notes: ROUTES.patients,
+      prescriptions: ROUTES.prescriptions,
+    }),
+    []
   );
+
+  const handleWidgetViewAll = (widgetKey) => {
+    const destination = widgetRoutes[widgetKey];
+    if (!destination) return;
+    auditService.logAudit("dashboard_widget_open", { widget: widgetKey, scope: "all" });
+    navigateTo(destination);
+  };
+
+  const handleWidgetCreate = (widgetKey) => {
+    const destination = widgetRoutes[widgetKey];
+    if (!destination) return;
+    auditService.logAudit("dashboard_widget_open", { widget: widgetKey, scope: "create" });
+    navigateTo(destination);
+  };
+
+  const handleWidgetRowClick = (widgetKey, item) => {
+    let destination = widgetRoutes[widgetKey] || null;
+    let state;
+
+    if (widgetKey === "sessions") {
+      state = item?.id ? { focusSessionId: item.id } : undefined;
+    } else if (widgetKey === "notes") {
+      if (item?.patientId) {
+        destination = `/patients/${item.patientId}${item?.id ? `/notes/${item.id}` : "/notes"}`;
+      }
+    } else if (widgetKey === "prescriptions" && item?.patientId) {
+      destination = `/patients/${item.patientId}`;
+    }
+
+    auditService.logAudit("dashboard_widget_row_click", {
+      widget: widgetKey,
+      id: item?.id ?? null,
+      patientId: item?.patientId ?? null,
+    });
+
+    navigateTo(destination, state);
+  };
+
+  const actions = useMemo(() => {
+    return DASHBOARD_ACTIONS.filter((action) => {
+      const allowedRoles = Array.isArray(action.roles) ? action.roles : null;
+      if (!allowedRoles || !allowedRoles.length) {
+        return true;
+      }
+      if (!role) {
+        return true;
+      }
+      return allowedRoles.includes(role);
+    });
+  }, [role]);
   const defaultSelection = useMemo(() => actions.map((action) => action.to), [actions]);
   const [activeModules, setActiveModules] = useState(null);
   const [isEditingShortcuts, setIsEditingShortcuts] = useState(false);
   const [pendingSelection, setPendingSelection] = useState([]);
-  const [suggestionStates, setSuggestionStates] = useState({});
   const [loadingAction, setLoadingAction] = useState(null);
   const loadingTimer = useRef();
 
@@ -184,37 +516,28 @@ export default function Dashboard() {
     }
   }, [activeModules, isEditingShortcuts]);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      const stored = window.localStorage.getItem(SUGGESTIONS_KEY);
-      if (stored) {
-        setSuggestionStates(JSON.parse(stored));
-        return;
-      }
-    } catch (error) {
-      if (import.meta.env.DEV) {
-        console.warn("[Dashboard] No se pudieron leer sugerencias:", error);
-      }
-    }
-    setSuggestionStates({});
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      window.localStorage.setItem(SUGGESTIONS_KEY, JSON.stringify(suggestionStates));
-    } catch (error) {
-      if (import.meta.env.DEV) {
-        console.warn("[Dashboard] No se pudieron guardar sugerencias:", error);
-      }
-    }
-  }, [suggestionStates]);
-
   const visibleActions =
     activeModules === null
       ? actions
       : actions.filter((action) => activeModules.includes(action.to));
+
+  const isAssistant = role === ROLES.ASSISTANT;
+
+  const quickLinkItems = useMemo(
+    () =>
+      visibleActions.map((action) => {
+        const label = isAssistant
+          ? action.assistantCtaLabel || "Ver"
+          : action.ctaLabel || "Ir ahora";
+        const ariaVerb = isAssistant ? "Ver" : label;
+        return {
+          ...action,
+          ctaLabel: label,
+          ariaLabel: `${ariaVerb} ${action.title}`,
+        };
+      }),
+    [isAssistant, visibleActions]
+  );
 
   const togglePendingRoute = (route) => {
     setPendingSelection((current) =>
@@ -230,14 +553,14 @@ export default function Dashboard() {
     setIsEditingShortcuts(false);
   };
 
-  const toggleSuggestion = (id) => {
-    setSuggestionStates((current) => {
-      const next = { ...current, [id]: !current[id] };
-      return next;
-    });
-  };
-
-  const handleNavigate = (route) => {
+  const handleNavigate = (route, action) => {
+    if (!route) return;
+    if (action?.id) {
+      auditService.logAudit("dashboard_quicklink_click", {
+        to: action.id,
+        route,
+      });
+    }
     setLoadingAction(route);
     if (loadingTimer.current) clearTimeout(loadingTimer.current);
     loadingTimer.current = window.setTimeout(() => {
@@ -268,76 +591,106 @@ export default function Dashboard() {
               <span>Menú</span>
             </Button>
           ) : null}
-          <Button variant="ghost" size="sm" onClick={() => setIsEditingShortcuts(true)}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsEditingShortcuts(true)}
+            data-testid="dashboard-edit-shortcuts"
+          >
             Editar accesos rápidos
           </Button>
         </>
       </DashboardHeader>
 
-      <DashboardStats stats={stats} />
+      <DashboardStats
+        stats={stats}
+        loading={statsState.loading}
+        emptyMessage={statsState.error ? "" : "No hay métricas disponibles."}
+        onStatClick={handleStatClick}
+      />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {visibleActions.length === 0 ? (
-          <div className="dashboard-module dashboard-module--static">
-            <h2 className="dashboard-page__section-title">Sin accesos visibles</h2>
-            <p className="dashboard-page__body-text">
-              Selecciona los módulos que deseas mostrar usando “Editar accesos rápidos”.
+      {statsState.error ? (
+        <div className="alert alert--error" role="alert" data-testid="dashboard-stats-error">
+          <div className="alert__content">
+            <h3 className="alert__title">No se pudieron cargar las métricas</h3>
+            <p className="alert__message">
+              {statsState.error?.message || "Intenta nuevamente en unos momentos."}
             </p>
-            <Button variant="accent" size="sm" onClick={() => setIsEditingShortcuts(true)}>
-              Configurar accesos
-            </Button>
           </div>
-        ) : (
-          visibleActions.map((action, index) => (
-            <DashboardCard
-              key={action.title}
-              variant="shortcut"
-              icon={action.icon}
-              title={action.title}
-              description={action.description}
-              onClick={() => handleNavigate(action.to)}
-              loading={loadingAction === action.to}
-              delay={index * 0.05}
-              ariaLabel={`Ir al módulo ${action.title}`}
-            />
-          ))
-        )}
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() =>
+              handleReload("stats", {
+                reason: statsState.error?.message || "manual_retry",
+              })
+            }
+            disabled={statsState.loading}
+            data-testid="dashboard-stats-retry"
+          >
+            Reintentar
+          </Button>
+        </div>
+      ) : null}
+
+      <div className="dashboard-widgets">
+        <WidgetTodaySessions
+          loading={widgetsState.sessions.loading}
+          error={widgetsState.sessions.error}
+          items={widgetsState.sessions.items}
+          onRetry={() =>
+            handleReload("sessions", {
+              reason: widgetsState.sessions.error?.message || "manual_retry",
+            })
+          }
+          onViewAll={() => handleWidgetViewAll("sessions")}
+          onCreate={() => handleWidgetCreate("sessions")}
+          onItemClick={(item) => handleWidgetRowClick("sessions", item)}
+          formatTime={formatTimeValue}
+          getStatusLabel={(status) => SESSION_STATUS_LABEL[status] || status || "Sin estado"}
+          canCreate={!isAssistant}
+        />
+
+        <WidgetRecentNotes
+          loading={widgetsState.notes.loading}
+          error={widgetsState.notes.error}
+          items={widgetsState.notes.items}
+          onRetry={() =>
+            handleReload("notes", {
+              reason: widgetsState.notes.error?.message || "manual_retry",
+            })
+          }
+          onViewAll={() => handleWidgetViewAll("notes")}
+          onCreate={() => handleWidgetCreate("notes")}
+          onItemClick={(item) => handleWidgetRowClick("notes", item)}
+          formatDateTime={formatDateTimeValue}
+          canCreate={!isAssistant}
+        />
+
+        <WidgetRecentPrescriptions
+          loading={widgetsState.prescriptions.loading}
+          error={widgetsState.prescriptions.error}
+          items={widgetsState.prescriptions.items}
+          onRetry={() =>
+            handleReload("prescriptions", {
+              reason: widgetsState.prescriptions.error?.message || "manual_retry",
+            })
+          }
+          onViewAll={() => handleWidgetViewAll("prescriptions")}
+          onCreate={() => handleWidgetCreate("prescriptions")}
+          onItemClick={(item) => handleWidgetRowClick("prescriptions", item)}
+          formatDateTime={formatDateTimeValue}
+          canCreate={!isAssistant}
+        />
       </div>
-      <div className="dashboard-module dashboard-module--static">
-        <h2 className="dashboard-page__section-title">Próximos pasos sugeridos</h2>
-        <p className="dashboard-page__subtitle">
-          Optimiza tu flujo clínico con estas recomendaciones:
-        </p>
-        <ul className="dashboard-suggestions" role="list">
-          <AnimatePresence>
-            {SUGGESTIONS.map((item) => {
-              const completed = Boolean(suggestionStates[item.id]);
-              return (
-                <Motion.li
-                  key={item.id}
-                  role="listitem"
-                  initial={{ opacity: 0, x: -15 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 15 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <label className="dashboard-suggestion">
-                    <input
-                      type="checkbox"
-                      checked={completed}
-                      onChange={() => toggleSuggestion(item.id)}
-                    />
-                    <span className="dashboard-suggestion__status" data-completed={completed}>
-                      {completed ? <CheckCircle2 aria-hidden="true" /> : null}
-                    </span>
-                    <span className="dashboard-suggestion__text">{item.title}</span>
-                  </label>
-                </Motion.li>
-              );
-            })}
-          </AnimatePresence>
-        </ul>
-      </div>
+
+      <DashboardQuickLinks
+        actions={quickLinkItems}
+        onNavigate={handleNavigate}
+        loadingAction={loadingAction}
+        onEditShortcuts={() => setIsEditingShortcuts(true)}
+      />
+      <NextSteps />
       <Modal
         open={isEditingShortcuts}
         onClose={closeShortcutsModal}

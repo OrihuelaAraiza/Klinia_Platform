@@ -1,11 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import {
-  patients,
-  notesByPatient,
-  uid,
-  pushAuditEvent,
-} from "../store/memory.js";
+import { patients, notesByPatient, uid, pushAuditEvent } from "../store/memory.js";
 import {
   sessionCreateSchema,
   sessionUpdateSchema,
@@ -13,7 +8,7 @@ import {
   sessionLinkNoteSchema,
 } from "../validators/sessionSchemas.js";
 
-const SESSION_STATUS = {
+export const SESSION_STATUS = {
   PROGRAMADA: "programada",
   CONFIRMADA: "confirmada",
   ATENDIDA: "atendida",
@@ -44,7 +39,7 @@ const byPatientQuerySchema = z.object({
 
 const router = Router();
 
-function getSessionsArray() {
+export function getSessionsArray() {
   return Array.from(sessions.values());
 }
 
@@ -147,7 +142,7 @@ function ensureVirtualLocation(session) {
   session.location = parsed.toString();
 }
 
-function getTodayBounds(reference = new Date()) {
+export function getTodayBounds(reference = new Date()) {
   const start = new Date(reference);
   start.setHours(0, 0, 0, 0);
   const end = new Date(start);
