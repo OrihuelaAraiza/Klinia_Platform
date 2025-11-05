@@ -25,6 +25,9 @@ import Button from "../components/UI/Button";
 import Modal from "../components/UI/Modal";
 import DashboardQuickLinks from "../components/DashboardQuickLinks";
 import DashboardHeader from "../components/DashboardHeader";
+import WidgetTodaySessions from "../components/WidgetTodaySessions";
+import WidgetRecentNotes from "../components/WidgetRecentNotes";
+import WidgetRecentPrescriptions from "../components/WidgetRecentPrescriptions";
 
 const ADMINISTRATION_ROUTE = ROUTES.administration || ROUTES.admin || null;
 
@@ -123,6 +126,14 @@ export default function Dashboard() {
     prescriptions: { items: [], loading: true, error: null },
   });
   const [reloadKey, setReloadKey] = useState(0);
+  const dashboardLoaders = useMemo(
+    () => ({
+      sessions: () => getTodaySessions(),
+      notes: () => getRecentNotes(),
+      prescriptions: () => getRecentPrescriptions(),
+    }),
+    []
+  );
 
   useEffect(() => {
     let active = true;
@@ -225,27 +236,30 @@ export default function Dashboard() {
 
     (async () => {
       const [sessionsResult, notesResult, prescriptionsResult] = await Promise.allSettled([
-        getTodaySessions(),
-        getRecentNotes(),
-        getRecentPrescriptions(),
+        dashboardLoaders.sessions(),
+        dashboardLoaders.notes(),
+        dashboardLoaders.prescriptions(),
       ]);
 
       if (!active) return;
 
+      const limitItems = (value) =>
+        Array.isArray(value) ? value.slice(0, 5) : [];
+
       setWidgetsState({
         sessions: {
-          items: sessionsResult.status === "fulfilled" ? sessionsResult.value : [],
+          items: sessionsResult.status === "fulfilled" ? limitItems(sessionsResult.value) : [],
           loading: false,
           error: sessionsResult.status === "rejected" ? sessionsResult.reason : null,
         },
         notes: {
-          items: notesResult.status === "fulfilled" ? notesResult.value : [],
+          items: notesResult.status === "fulfilled" ? limitItems(notesResult.value) : [],
           loading: false,
           error: notesResult.status === "rejected" ? notesResult.reason : null,
         },
         prescriptions: {
           items:
-            prescriptionsResult.status === "fulfilled" ? prescriptionsResult.value : [],
+            prescriptionsResult.status === "fulfilled" ? limitItems(prescriptionsResult.value) : [],
           loading: false,
           error:
             prescriptionsResult.status === "rejected" ? prescriptionsResult.reason : null,
@@ -256,7 +270,7 @@ export default function Dashboard() {
     return () => {
       active = false;
     };
-  }, [reloadKey]);
+  }, [dashboardLoaders, reloadKey]);
 
   const numberFormatter = useMemo(
     () => new Intl.NumberFormat("es-MX", { maximumFractionDigits: 0 }),
@@ -375,10 +389,15 @@ export default function Dashboard() {
     return dateTimeFormatter.format(parsed);
   };
 
-  const handleRetry = () => {
+  const handleReload = (origin = "manual", meta = {}) => {
     setReloadKey((current) => current + 1);
     auditService.logAudit("dashboard_stats_retry", {
-      reason: statsState.error?.message || "manual_retry",
+      origin,
+      reason:
+        meta.reason ||
+        statsState.error?.message ||
+        widgetsState[origin]?.error?.message ||
+        "manual_retry",
     });
   };
 
@@ -391,215 +410,49 @@ export default function Dashboard() {
     navigate(path);
   };
 
-  const handleWidgetNavigate = (widgetKey) => {
-    let destination = null;
-    switch (widgetKey) {
-      case "sessions":
-        destination = ROUTES.sessions;
-        break;
-      case "notes":
-        destination = ROUTES.patients;
-        break;
-      case "prescriptions":
-        destination = ROUTES.prescriptions;
-        break;
-      default:
-        break;
-    }
-    auditService.logAudit("dashboard_widget_open", { widget: widgetKey });
+  const widgetRoutes = useMemo(
+    () => ({
+      sessions: ROUTES.sessions,
+      notes: ROUTES.patients,
+      prescriptions: ROUTES.prescriptions,
+    }),
+    []
+  );
+
+  const handleWidgetViewAll = (widgetKey) => {
+    const destination = widgetRoutes[widgetKey];
+    if (!destination) return;
+    auditService.logAudit("dashboard_widget_open", { widget: widgetKey, scope: "all" });
     navigateTo(destination);
   };
 
-  const handleWidgetItemClick = (widgetKey, item) => {
-    let destination = null;
+  const handleWidgetCreate = (widgetKey) => {
+    const destination = widgetRoutes[widgetKey];
+    if (!destination) return;
+    auditService.logAudit("dashboard_widget_open", { widget: widgetKey, scope: "create" });
+    navigateTo(destination);
+  };
+
+  const handleWidgetRowClick = (widgetKey, item) => {
+    let destination = widgetRoutes[widgetKey] || null;
     let state;
 
     if (widgetKey === "sessions") {
-      destination = ROUTES.sessions;
       state = item?.id ? { focusSessionId: item.id } : undefined;
     } else if (widgetKey === "notes") {
       if (item?.patientId) {
         destination = `/patients/${item.patientId}${item?.id ? `/notes/${item.id}` : "/notes"}`;
-      } else {
-        destination = ROUTES.patients;
       }
-    } else if (widgetKey === "prescriptions") {
-      if (item?.patientId) {
-        destination = `/patients/${item.patientId}`;
-      } else {
-        destination = ROUTES.prescriptions;
-      }
+    } else if (widgetKey === "prescriptions" && item?.patientId) {
+      destination = `/patients/${item.patientId}`;
     }
 
-    auditService.logAudit("dashboard_widget_item", {
+    auditService.logAudit("dashboard_widget_row_click", {
       widget: widgetKey,
       id: item?.id ?? null,
     });
 
     navigateTo(destination, state);
-  };
-
-  const renderLoadingRows = (rows = 3, testId) => (
-    <div
-      className="dashboard-widget__skeleton"
-      aria-hidden="true"
-      data-testid={testId || "dashboard-widget-skeleton"}
-    >
-      {Array.from({ length: rows }).map((_, index) => (
-        <div key={`widget-skeleton-${index}`} className="dashboard-widget__skeleton-row shimmer">
-          <span className="skeleton skeleton--line" />
-          <span className="skeleton skeleton--line short" />
-        </div>
-      ))}
-    </div>
-  );
-
-  const renderWidgetError = (message, testId) => (
-    <div className="dashboard-widget__empty" data-testid={testId}>
-      <p>{message}</p>
-      <Button variant="ghost" size="sm" onClick={handleRetry} disabled={statsState.loading}>
-        Reintentar
-      </Button>
-    </div>
-  );
-
-  const renderSessionsContent = () => {
-    const state = widgetsState.sessions;
-    if (state.loading) {
-      return renderLoadingRows(3, "dashboard-widget-sessions-loading");
-    }
-    if (state.error) {
-      return renderWidgetError("No se pudieron cargar las sesiones de hoy.", "dashboard-widget-sessions-error");
-    }
-    if (!state.items.length) {
-      return (
-        <p className="dashboard-widget__empty" data-testid="dashboard-widget-sessions-empty">
-          No hay sesiones registradas para hoy.
-        </p>
-      );
-    }
-    return (
-      <ul className="dashboard-widget__list" role="list">
-        {state.items.map((session, index) => {
-          const key = session.id ?? `session-${index}`;
-          const statusLabel = session.status
-            ? SESSION_STATUS_LABEL[session.status] || session.status
-            : "Sin estado";
-          return (
-            <li key={key}>
-              <button
-                type="button"
-                className="dashboard-widget__item"
-                onClick={() => handleWidgetItemClick("sessions", session)}
-              >
-                <span className="dashboard-widget__item-main">
-                  <span className="dashboard-widget__item-title">{session.patientName}</span>
-                  <span className="dashboard-widget__item-meta">
-                    {formatTimeValue(session.time)} · {statusLabel}
-                  </span>
-                </span>
-                <span className="dashboard-widget__item-icon" aria-hidden="true">
-                  →
-                </span>
-              </button>
-            </li>
-          );
-        })}
-      </ul>
-    );
-  };
-
-  const renderNotesContent = () => {
-    const state = widgetsState.notes;
-    if (state.loading) {
-      return renderLoadingRows(3, "dashboard-widget-notes-loading");
-    }
-    if (state.error) {
-      return renderWidgetError("No se pudieron cargar las notas recientes.", "dashboard-widget-notes-error");
-    }
-    if (!state.items.length) {
-      return (
-        <p className="dashboard-widget__empty" data-testid="dashboard-widget-notes-empty">
-          No hay notas cerradas recientemente.
-        </p>
-      );
-    }
-    return (
-      <ul className="dashboard-widget__list" role="list">
-        {state.items.map((note, index) => {
-          const key = note.id ?? `note-${index}`;
-          return (
-            <li key={key}>
-              <button
-                type="button"
-                className="dashboard-widget__item"
-                onClick={() => handleWidgetItemClick("notes", note)}
-              >
-                <span className="dashboard-widget__item-main">
-                  <span className="dashboard-widget__item-title">{note.patientName}</span>
-                  <span className="dashboard-widget__item-meta">
-                    Cerrada {formatDateTimeValue(note.closedAt)}
-                  </span>
-                </span>
-                <span className="dashboard-widget__item-icon" aria-hidden="true">
-                  →
-                </span>
-              </button>
-            </li>
-          );
-        })}
-      </ul>
-    );
-  };
-
-  const renderPrescriptionsContent = () => {
-    const state = widgetsState.prescriptions;
-    if (state.loading) {
-      return renderLoadingRows(3, "dashboard-widget-prescriptions-loading");
-    }
-    if (state.error) {
-      return renderWidgetError(
-        "No se pudieron cargar las prescripciones recientes.",
-        "dashboard-widget-prescriptions-error"
-      );
-    }
-    if (!state.items.length) {
-      return (
-        <p
-          className="dashboard-widget__empty"
-          data-testid="dashboard-widget-prescriptions-empty"
-        >
-          No hay prescripciones registradas recientemente.
-        </p>
-      );
-    }
-    return (
-      <ul className="dashboard-widget__list" role="list">
-        {state.items.map((prescription, index) => {
-          const key = prescription.id ?? `prescription-${index}`;
-          const folioLabel = prescription.folio ? `Folio ${prescription.folio}` : "Sin folio";
-          return (
-            <li key={key}>
-              <button
-                type="button"
-                className="dashboard-widget__item"
-                onClick={() => handleWidgetItemClick("prescriptions", prescription)}
-              >
-                <span className="dashboard-widget__item-main">
-                  <span className="dashboard-widget__item-title">{prescription.patientName}</span>
-                  <span className="dashboard-widget__item-meta">
-                    {folioLabel} · {formatDateTimeValue(prescription.signedAt)}
-                  </span>
-                </span>
-                <span className="dashboard-widget__item-icon" aria-hidden="true">
-                  →
-                </span>
-              </button>
-            </li>
-          );
-        })}
-      </ul>
-    );
   };
 
   const actions = useMemo(() => {
@@ -805,7 +658,11 @@ export default function Dashboard() {
           <Button
             variant="primary"
             size="sm"
-            onClick={handleRetry}
+            onClick={() =>
+              handleReload("stats", {
+                reason: statsState.error?.message || "manual_retry",
+              })
+            }
             disabled={statsState.loading}
             data-testid="dashboard-stats-retry"
           >
@@ -815,57 +672,54 @@ export default function Dashboard() {
       ) : null}
 
       <div className="dashboard-widgets">
-        <section
-          className="dashboard-widget"
-          aria-labelledby="dashboard-widget-sessions"
-          data-testid="dashboard-widget-sessions"
-        >
-          <div className="dashboard-widget__header">
-            <h2 id="dashboard-widget-sessions" className="dashboard-widget__title">
-              Sesiones de hoy
-            </h2>
-            <Button variant="ghost" size="sm" onClick={() => handleWidgetNavigate("sessions")}>
-              Ver agenda
-            </Button>
-          </div>
-          {renderSessionsContent()}
-        </section>
+        <WidgetTodaySessions
+          loading={widgetsState.sessions.loading}
+          error={widgetsState.sessions.error}
+          items={widgetsState.sessions.items}
+          onRetry={() =>
+            handleReload("sessions", {
+              reason: widgetsState.sessions.error?.message || "manual_retry",
+            })
+          }
+          onViewAll={() => handleWidgetViewAll("sessions")}
+          onCreate={() => handleWidgetCreate("sessions")}
+          onItemClick={(item) => handleWidgetRowClick("sessions", item)}
+          formatTime={formatTimeValue}
+          getStatusLabel={(status) => SESSION_STATUS_LABEL[status] || status || "Sin estado"}
+          canCreate={!isAssistant}
+        />
 
-        <section
-          className="dashboard-widget"
-          aria-labelledby="dashboard-widget-notes"
-          data-testid="dashboard-widget-notes"
-        >
-          <div className="dashboard-widget__header">
-            <h2 id="dashboard-widget-notes" className="dashboard-widget__title">
-              Notas recientes
-            </h2>
-            <Button variant="ghost" size="sm" onClick={() => handleWidgetNavigate("notes")}>
-              Ver pacientes
-            </Button>
-          </div>
-          {renderNotesContent()}
-        </section>
+        <WidgetRecentNotes
+          loading={widgetsState.notes.loading}
+          error={widgetsState.notes.error}
+          items={widgetsState.notes.items}
+          onRetry={() =>
+            handleReload("notes", {
+              reason: widgetsState.notes.error?.message || "manual_retry",
+            })
+          }
+          onViewAll={() => handleWidgetViewAll("notes")}
+          onCreate={() => handleWidgetCreate("notes")}
+          onItemClick={(item) => handleWidgetRowClick("notes", item)}
+          formatDateTime={formatDateTimeValue}
+          canCreate={!isAssistant}
+        />
 
-        <section
-          className="dashboard-widget"
-          aria-labelledby="dashboard-widget-prescriptions"
-          data-testid="dashboard-widget-prescriptions"
-        >
-          <div className="dashboard-widget__header">
-            <h2 id="dashboard-widget-prescriptions" className="dashboard-widget__title">
-              Prescripciones recientes
-            </h2>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => handleWidgetNavigate("prescriptions")}
-            >
-              Ver historial
-            </Button>
-          </div>
-          {renderPrescriptionsContent()}
-        </section>
+        <WidgetRecentPrescriptions
+          loading={widgetsState.prescriptions.loading}
+          error={widgetsState.prescriptions.error}
+          items={widgetsState.prescriptions.items}
+          onRetry={() =>
+            handleReload("prescriptions", {
+              reason: widgetsState.prescriptions.error?.message || "manual_retry",
+            })
+          }
+          onViewAll={() => handleWidgetViewAll("prescriptions")}
+          onCreate={() => handleWidgetCreate("prescriptions")}
+          onItemClick={(item) => handleWidgetRowClick("prescriptions", item)}
+          formatDateTime={formatDateTimeValue}
+          canCreate={!isAssistant}
+        />
       </div>
 
       <DashboardQuickLinks
