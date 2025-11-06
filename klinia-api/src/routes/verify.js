@@ -1,8 +1,9 @@
 import { Router } from 'express';
 import multer from 'multer';
 import * as blobService from '../services/azureBlobService.js';
-import * as faceService from '../services/azureFaceService.js'; 
-import { uid, uploadsById } from '../store/memory.js'; // Asegúrate de importar esto
+import * as faceService from '../services/azureFaceService.js';
+import { prisma } from '../services/dbClient.js';
+import { uid } from '../store/memory.js';
 
 const router = Router();
 
@@ -46,15 +47,15 @@ router.post('/face', upload.single('file'), async (req, res) => {
       console.warn('No se detectó un rostro en la selfie:', faceError.message);
     }
 
-    uploadsById.set(selfieFileId, {
-      id: selfieFileId,
-      name: file.originalname,
-      mime: file.mimetype,
-      size: file.size,
-      blobUrl: blobUrl,
-        blobName: blobName, 
-      uploadedAt: new Date().toISOString(),
-      score: score,
+   const newUpload = await prisma.upload.create({
+      data: {
+        id: selfieFileId,
+        name: file.originalname,
+        mime: file.mimetype,
+        size: file.size,
+        blobName: blobName,
+        blobUrl: blobUrl,
+      }
     });
 
     res.status(200).json({

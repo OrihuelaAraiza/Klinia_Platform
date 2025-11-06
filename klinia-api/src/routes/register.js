@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { prisma } from '../services/dbClient.js';
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import {
@@ -139,7 +140,10 @@ router.post("/register/complete", async (req, res, next) => {
     const payload = registerCompleteSchema.parse(req.body);
     const email = payload.access.email;
 
-    if (hasUser(email)) {
+   const existingUser = await prisma.user.findUnique({
+      where: { email: email }
+    });
+    if (existingUser) {
       emitAudit("auth_register_failed", { email, reason: "duplicate" });
       return res
         .status(409)
@@ -148,9 +152,8 @@ router.post("/register/complete", async (req, res, next) => {
 
     const idDocFileId = payload.documents.idOrPassportFileId;
     const selfieFileId = payload.face.selfieFileId;
-
-    const idDocRecord = uploadsById.get(idDocFileId);
-    const selfieRecord = uploadsById.get(selfieFileId); 
+    const idDocRecord = await prisma.upload.findUnique({ where: { id: idDocFileId } });
+    const selfieRecord = await prisma.upload.findUnique({ where: { id: selfieFileId } });
 
     if (!idDocRecord || !selfieRecord) {
       console.error("Registros no encontrados en memoria (probable reinicio de nodemon)", { idDocFileId, selfieFileId });
@@ -169,11 +172,9 @@ router.post("/register/complete", async (req, res, next) => {
     console.log('Iniciando verificación de documentos (extracción de texto)...');
     
     const docExtraction = await docIntelService.analyzeIdDocument(idDocSasUrl);
-    
     const fields = docExtraction.fields;
     const nombreExtraido = fields.FirstName?.value || '';
     const curpExtraida = fields.PersonalIdentificationNumber?.value || '';
-    
     const nombreCoincide = nombreExtraido.toUpperCase() === payload.identity.firstName.toUpperCase();
     const curpCoincide = curpExtraida.toUpperCase() === payload.identity.curp.toUpperCase();
 
@@ -229,37 +230,71 @@ router.post("/register/complete", async (req, res, next) => {
     const userId = uid("U_");
     const fullName = `${payload.identity.firstName} ${payload.identity.lastName}`.trim();
 
-    usersByEmail.set(email, {
-      id: userId,
-      email,
-      name: fullName,
-      role: "PROFESSIONAL",
-      passwordHash,
-      createdAt: timestamp,
-    });
+    const allFileIds = [
+      payload.documents.idOrPassportFileId,
+      payload.documents.professionalLicenseFileId,
+      payload.documents.universityDegreeFileId,
+      payload.documents.proofOfAddressFileId,
+      payload.face.selfieFileId
+    ];
+    
+    try {
+      const newUser = await prisma.$transaction(async (tx) => {
+        const createdUser = await tx.user.create({
+          data: {
+            id: userId,
+            email: email,
+            name: fullName,
+            role: "PROFESSIONAL",
+            passwordHash: passwordHash,
+            createdAt: timestamp,
+          }
+        });
 
     
-    kycRecordsByUserId.set(userId, {
-      id: uid("KYC_"),
-      userId,
-      identity: payload.identity,
-      address: payload.address,
-      contact: payload.contact,
-      documents: payload.documents,
-      face: payload.face,
-      verification: verificationSummary, // <-- ¡Aquí se guarda!
-      createdAt: timestamp,
-    });
+   await tx.kycRecord.create({
+          data: {
+            id: uid("KYC_"),
+            userId: createdUser.id, // Vincula al usuario recién creado
+            identity: payload.identity, // Prisma guarda el JSON
+            address: payload.address,
+            contact: payload.contact,
+            documents: payload.documents,
+            face: payload.face,
+            verification: verificationSummary 
+          }
+        });
+        
 
-    const responseBody = {
-      userId,
-      email,
-      role: "PROFESSIONAL",
-    };
+        await tx.upload.updateMany({
+          where: {
+            id: { in: allFileIds }
+          },
+          data: {
+            userId: createdUser.id
+          }
+        });
 
+        return createdUser;
+      });
+
+      const responseBody = {
+        userId: newUser.id,
+        email: newUser.email,
+        role: newUser.role,
+      };
     emitAudit("auth_register_success", responseBody);
 
     return res.status(201).json(responseBody);
+    } catch (error) { 
+      emitAudit("auth_register_failed", {
+        email: emailForAudit,
+        reason: error instanceof z.ZodError ? "validation" : "error",
+        message: error?.message,
+      });
+      return next(error);
+    }
+
   } catch (error) {
     emitAudit("auth_register_failed", {
       email: emailForAudit,
