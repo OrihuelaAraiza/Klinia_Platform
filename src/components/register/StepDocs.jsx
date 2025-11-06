@@ -1,12 +1,19 @@
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  useRef, 
+  useCallback, 
+} from "react";
 import Field from "../UI/Field";
 import uploadService from "../../services/uploadService";
+import { CameraModal } from "./CameraModal"; 
 
 const DOCUMENT_FIELDS = [
   {
     key: "idOrPassport",
     label: "INE o Pasaporte",
-    helper: "PDF o JPG (max 5 MB)",
+    helper: "Captura el frente y reverso", 
   },
   {
     key: "professionalLicense",
@@ -30,16 +37,6 @@ const ACCEPTED_TYPES = ["application/pdf", "image/jpeg"];
 const ACCEPT_ATTR = ".pdf,.jpg,.jpeg";
 
 function formatSize(bytes) {
-  if (!Number.isFinite(bytes)) {
-    return "";
-  }
-  if (bytes >= 1024 * 1024) {
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  }
-  if (bytes >= 1024) {
-    return `${(bytes / 1024).toFixed(0)} KB`;
-  }
-  return `${bytes} B`;
 }
 
 export default function StepDocs({
@@ -52,45 +49,111 @@ export default function StepDocs({
   const [localErrors, setLocalErrors] = useState({});
   const [uploadingMap, setUploadingMap] = useState({});
 
+
+  const [frontImage, setFrontImage] = useState(null); 
+  const [backImage, setBackImage] = useState(null);   
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [capturingFor, setCapturingFor] = useState(null); 
+  const [isCombining, setIsCombining] = useState(false);
+  const combinedCanvasRef = useRef(null);
+
   const isUploading = useMemo(
-    () => Object.values(uploadingMap).some(Boolean),
-    [uploadingMap]
+    () => Object.values(uploadingMap).some(Boolean) || isCombining, 
+    [uploadingMap, isCombining]
   );
 
   useEffect(() => {
     onBusyChange?.(isUploading);
   }, [isUploading, onBusyChange]);
 
+  const handleTakePhoto = (side) => {
+    if (disabled) return;
+    setCapturingFor(side);
+    setIsModalOpen(true);
+  };
+
+  const handleCapture = (blob) => {
+    const previewUrl = URL.createObjectURL(blob);
+    if (capturingFor === 'front') {
+      setFrontImage({ blob, previewUrl });
+    } else if (capturingFor === 'back') {
+      setBackImage({ blob, previewUrl });
+    }
+    setIsModalOpen(false);
+    setLocalErrors((prev) => ({ ...prev, idOrPassport: "" })); 
+  };
+  
+  const handleRetake = (side) => {
+    if (side === 'front' && frontImage) {
+      URL.revokeObjectURL(frontImage.previewUrl); 
+      setFrontImage(null);
+    } else if (side === 'back' && backImage) {
+      URL.revokeObjectURL(backImage.previewUrl);
+      setBackImage(null);
+    }
+    onDocumentChange('idOrPassport', null);
+  };
+
+  const combineAndUpload = useCallback(async () => {
+    const storedId = documents?.idOrPassport;
+    if (!frontImage || !backImage || isCombining || storedId) return;
+
+    setIsCombining(true);
+    setUploadingMap((prev) => ({ ...prev, idOrPassport: true })); 
+    setLocalErrors((prev) => ({ ...prev, idOrPassport: "" }));
+
+    try {
+      const canvas = combinedCanvasRef.current;
+      const ctx = canvas.getContext('2d');
+
+      const frontImg = await createImageBitmap(frontImage.blob);
+      const backImg = await createImageBitmap(backImage.blob);
+
+      canvas.width = Math.max(frontImg.width, backImg.width);
+      canvas.height = frontImg.height + backImg.height;
+
+      ctx.drawImage(frontImg, 0, 0);
+      ctx.drawImage(backImg, 0, frontImg.height);
+
+      canvas.toBlob(async (combinedBlob) => {
+        try {
+          const response = await uploadService.uploadDocument(
+            combinedBlob,
+            { kind: 'idOrPassport' } 
+          );
+          onDocumentChange('idOrPassport', {
+            fileId: response?.fileId,
+            name: "ID_Combinado.jpg",
+            size: combinedBlob.size,
+            mime: combinedBlob.type,
+          });
+        } catch (uploadError) {
+          const message = uploadError?.message || "No pudimos subir la ID. Intenta de nuevo.";
+          setLocalErrors((prev) => ({ ...prev, idOrPassport: message }));
+          onDocumentChange('idOrPassport', null);
+        } finally {
+          setIsCombining(false);
+          setUploadingMap((prev) => ({ ...prev, idOrPassport: false }));
+        }
+      }, 'image/jpeg', 0.9);
+
+    } catch (err) {
+      console.error("Error al combinar imágenes:", err);
+      setLocalErrors((prev) => ({ ...prev, idOrPassport: "Error al combinar fotos." }));
+      setIsCombining(false);
+      setUploadingMap((prev) => ({ ...prev, idOrPassport: false }));
+    }
+  }, [frontImage, backImage, isCombining, onDocumentChange, documents]);
+
+  useEffect(() => {
+    combineAndUpload();
+  }, [combineAndUpload]);
+
   const handleFileChange = async (key, event) => {
     const file = event.target.files?.[0];
     if (!file || disabled) {
       return;
     }
-
-    if (file.size > MAX_SIZE) {
-      setLocalErrors((prev) => ({
-        ...prev,
-        [key]: "Documento demasiado grande (≤ 5 MB).",
-      }));
-      onDocumentChange?.(key, null);
-      event.target.value = "";
-      return;
-    }
-
-    const extensionMatch = /\.(pdf|jpe?g)$/i.test(file.name);
-    const acceptedType =
-      ACCEPTED_TYPES.includes(file.type) || (file.type === "" && extensionMatch);
-
-    if (!acceptedType) {
-      setLocalErrors((prev) => ({
-        ...prev,
-        [key]: "Formato invalido (solo PDF/JPG).",
-      }));
-      onDocumentChange?.(key, null);
-      event.target.value = "";
-      return;
-    }
-
     setLocalErrors((prev) => ({ ...prev, [key]: "" }));
     setUploadingMap((prev) => ({ ...prev, [key]: true }));
 
@@ -99,21 +162,15 @@ export default function StepDocs({
         file,
         { kind: key }
       );
-
       onDocumentChange?.(key, {
         fileId: response?.fileId,
         name: response?.name || file.name,
         size: response?.size ?? file.size,
         mime: response?.mime || file.type || "",
       });
-      setLocalErrors((prev) => ({ ...prev, [key]: "" }));
     } catch (error) {
-      const message =
-        error?.message ||
-        "No pudimos subir el documento. Intenta de nuevo.";
-      setLocalErrors((prev) => ({ ...prev, [key]: message }));
-      onDocumentChange?.(key, null);
     } finally {
+
       setUploadingMap((prev) => ({ ...prev, [key]: false }));
       event.target.value = "";
     }
@@ -130,6 +187,68 @@ export default function StepDocs({
 
       <div className="register-step__body register-step__grid">
         {DOCUMENT_FIELDS.map((field) => {
+          
+          if (field.key === "idOrPassport") {
+            const stored = documents?.[field.key] || null;
+            const fieldError = localErrors[field.key] || errors[field.key];
+            const isUploadingId = uploadingMap[field.key];
+            
+            return (
+              <Field
+                key={field.key}
+                label={field.label}
+                required
+                hint={field.helper}
+                error={fieldError}
+                className="file-field"
+              >
+                <div className="id-capture-stack"> {}
+                  
+         
+                  {frontImage ? (
+                    <div className="photo-preview">
+                      <img src={frontImage.previewUrl} alt="Frente de INE" />
+                      <button class="file-upload__control" type="button" onClick={() => handleRetake('front')} disabled={disabled || isUploadingId}>
+                        Repetir (Frente)
+                      </button>
+                    </div>
+                  ) : (
+                    <button class="file-upload__control" type="button" onClick={() => handleTakePhoto('front')} disabled={disabled || isUploadingId}>
+                      Tomar Foto (Frente)
+                    </button>
+                  )}
+
+                  {backImage ? (
+                    <div className="photo-preview">
+                      <img src={backImage.previewUrl} alt="Reverso de INE" />
+                      <button class="file-upload__control" type="button" onClick={() => handleRetake('back')} disabled={disabled || isUploadingId}>
+                        Repetir (Reverso)
+                      </button>
+                    </div>
+                  ) : (
+                    <button class="file-upload__control" type="button" onClick={() => handleTakePhoto('back')} disabled={disabled || isUploadingId}>
+                      Tomar Foto (Reverso)
+                    </button>
+                  )}
+
+             
+                  <div className="file-upload__status" aria-live="polite">
+                    {isUploadingId ? (
+                      <span className="file-upload__uploading">Subiendo…</span>
+                    ) : stored ? (
+                      <div className="file-upload__meta">
+                        <span className="file-upload__name"> {stored.name}</span>
+                        <span className="file-upload__size">{formatSize(stored.size)}</span>
+                      </div>
+                    ) : (
+                      <span className="file-upload__hint">Ambas fotos son requeridas</span>
+                    )}
+                  </div>
+                </div>
+              </Field>
+            );
+          }
+         
           const stored = documents?.[field.key] || null;
           const fieldError = localErrors[field.key] || errors[field.key];
 
@@ -188,6 +307,15 @@ export default function StepDocs({
           );
         })}
       </div>
+      
+      <canvas ref={combinedCanvasRef} style={{ display: 'none' }} />
+      {isModalOpen && (
+        <CameraModal
+          onCapture={handleCapture}
+          onClose={() => setIsModalOpen(false)}
+        />
+      )}
+
     </div>
   );
 }
