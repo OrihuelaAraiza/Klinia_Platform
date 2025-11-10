@@ -38,14 +38,25 @@ model Upload {
 }
 
 model KycRecord {
-  id            String    @id 
-  createdAt     DateTime  @default(now())
-  userId        String    @unique
-  user          User      @relation(fields: [userId], references: [id])
-  identity      Json
-  address       Json
-  contact       Json
-  documents     Json
-  face          Json
-  verification  Json
+  id        String   @id
+  createdAt DateTime @default(now())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id])
+  firstName String
+  lastName  String
+  curp      String
+  birthDate String
+  certificateFolio String
+  phone String
+  emergencyName   String
+  emergencyPhone  String
+  street       String
+  neighborhood String
+  postalCode   String
+  city         String
+  state        String
+  nombreCoincide Boolean
+  curpCoincide   Boolean
+  faceMatch      Boolean @default(false) // Para el futuro
+  faceConfidence String  // Para guardar "SKIPPED_AZURE_403" o el score
 }

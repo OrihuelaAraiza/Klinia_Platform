@@ -80,7 +80,7 @@ function createInitialForm() {
     documents: {
       idOrPassport: null,
       professionalLicense: null,
-      universityDegree: null,
+      curpDocument: null,
       proofOfAddress: null,
     },
     face: {
@@ -234,9 +234,6 @@ function validateDocuments(documents) {
   if (!documents.professionalLicense?.fileId) {
     errors.professionalLicense = "Sube tu cedula profesional.";
   }
-  if (!documents.universityDegree?.fileId) {
-    errors.universityDegree = "Sube tu titulo universitario.";
-  }
   if (!documents.proofOfAddress?.fileId) {
     errors.proofOfAddress = "Sube tu comprobante de domicilio.";
   }
@@ -301,8 +298,8 @@ function buildPayload(form) {
       idOrPassportFileId: form.documents.idOrPassport?.fileId,
       professionalLicenseFileId:
         form.documents.professionalLicense?.fileId,
-      universityDegreeFileId:
-        form.documents.universityDegree?.fileId,
+      curpDocumentFileId:
+        form.documents.curpDocument?.fileId, 
       proofOfAddressFileId: form.documents.proofOfAddress?.fileId,
     },
     face: {
