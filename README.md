@@ -49,25 +49,30 @@ El proyecto ofrece autenticación, dashboards administrativos y flujos de operac
 
 ## Configuración de entorno
 
-Crea un archivo `.env.local` en la raíz del proyecto con las variables necesarias:
+Crea un archivo `.env.local` o configura tus variables en Vercel con los siguientes valores:
 
 ```bash
-# URL base del API (opcional; por defecto usa /api)
-VITE_API_BASE_URL=http://localhost:4000
+# API base (requerido en producción/preview)
+VITE_API_BASE_URL=https://api.klinia.mx
 
-# Autenticación Microsoft (obligatorio para habilitar MSAL)
-VITE_MSAL_CLIENT_ID=<tu_client_id>
+# MSAL (solo si se desea habilitar Microsoft Login)
+VITE_MSAL_CLIENT_ID=<GUID>
+VITE_MSAL_TENANT_ID=<TENANT_GUID>          # o bien VITE_MSAL_AUTHORITY=https://login.microsoftonline.com/<TENANT>
+VITE_MSAL_REDIRECT_URI=https://app.tu-dominio.com
+VITE_MSAL_POST_LOGOUT_REDIRECT_URI=https://app.tu-dominio.com
+# Opcionales
+VITE_MSAL_CACHE=localStorage               # por defecto usa sessionStorage
+VITE_MSAL_SCOPES="openid profile email"
 
-# Usa cualquiera de las dos opciones siguientes
-VITE_MSAL_TENANT_ID=<tenant_id>            # Ej. 'organizations' o GUID
-# o
-VITE_MSAL_AUTHORITY=https://login.microsoftonline.com/<tenant_id>
-
-# Opcional: redirección personalizada tras login MSAL
-VITE_MSAL_REDIRECT_URI=http://localhost:5173/
+# Observabilidad del despliegue
+VITE_APP_VERSION=<commit_sha>
+VITE_APP_COMMIT_MESSAGE="mensaje del commit"
+VITE_VERCEL_ENV=preview|production         # Vercel lo inyecta automáticamente
 ```
 
-> Si `VITE_MSAL_CLIENT_ID` o el tenant no están configurados, la UI mostrará mensajes de ayuda en el flujo Microsoft y los eventos quedarán deshabilitados.
+- **MSAL** se habilita únicamente cuando `VITE_MSAL_CLIENT_ID` y el `tenant/authority` están presentes. En *preview* sin esas variables, el botón de Microsoft no se muestra y no aparece ningún banner.
+- `VITE_APP_VERSION` y `VITE_APP_COMMIT_MESSAGE` alimentan el pie de página del layout y la página `/health` para inspeccionar builds desplegados.
+- El script de postbuild usa `VERCEL_ENV` para copiar el `robots.txt` correcto (`Allow` en producción, `Disallow` en previews) y se ejecuta automáticamente dentro de `npm run build`.
 
 ## Ejecución
 
@@ -85,8 +90,7 @@ La aplicación estará disponible en `http://localhost:5173/`.
 ```bash
 npm run build
 ```
-
-Genera los artefactos optimizados en `dist/`. Puedes hacer una vista previa con:
+Genera los artefactos optimizados en `dist/`, ejecuta el ajuste de `robots.txt` según `VERCEL_ENV` y deja los assets listos para Vercel. Puedes hacer una vista previa con:
 
 ```bash
 npm run preview
@@ -119,6 +123,15 @@ Por defecto escucha en `http://localhost:4000`. Ajusta `VITE_API_BASE_URL` para 
 - Registra eventos relevantes pasando por `auditService` para mantener el rastro de auditoría.
 - Los estilos globales definen tokens (`--brand`, `--bg`, etc.) y breakpoints usados por todos los módulos.
 - Las rutas públicas son Login (`/`) y Register (`/register`). Todo lo demás requiere sesión válida y rol autorizado.
+- `/health` está disponible sin autenticación y devuelve metadatos de la build para validar cabeceras en Vercel.
+
+## Despliegue en Vercel
+
+- El archivo `vercel.json` aplica **rewrites SPA**, fuerza `cleanUrls`, agrega cabeceras de seguridad (`X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options`, `Permissions-Policy`) y define la política de caché (HTML `no-store`, assets versionados cacheados un año).
+- Define las variables de entorno anteriores en **Production** y **Preview**. MSAL debería habilitarse solo cuando apuntes al dominio definitivo; en previews donde falten las envs el botón se oculta automáticamente.
+- Recuerda registrar las URLs de redirección (SPA) en Azure Portal para cada dominio público que exponga MSAL (`https://app.tu-dominio.com` y, si aplica, los dominios de staging).
+- `robots.prod.txt` / `robots.preview.txt` se copian al paquete final mediante `scripts/postbuild.mjs`, garantizando `Disallow: /` en previews.
+- El footer muestra `Build: <VITE_APP_VERSION>` y el último mensaje de commit cuando están disponibles, ayudando a auditar qué versión está desplegada.
 
 ## Recursos útiles
 
@@ -130,4 +143,3 @@ Por defecto escucha en `http://localhost:4000`. Ajusta `VITE_API_BASE_URL` para 
 ---
 
 ¿Necesitas extender funcionalidades? Revisa los servicios existentes y mantén la auditoría y validaciones coherentes con los módulos actuales. ¡Feliz desarrollo! 💚
-
