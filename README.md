@@ -128,10 +128,14 @@ Por defecto escucha en `http://localhost:4000`. Ajusta `VITE_API_BASE_URL` para 
 ## Despliegue en Vercel
 
 - El archivo `vercel.json` aplica **rewrites SPA**, fuerza `cleanUrls`, agrega cabeceras de seguridad (`X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options`, `Permissions-Policy`) y define la política de caché (HTML `no-store`, assets versionados cacheados un año).
+- El mismo archivo también realiza la canonización de dominio: cualquier visita a `https://klinia.ai` se redirige (308) hacia `https://www.klinia.ai`, asegurando que las cookies y redirects sean consistentes.
 - Define las variables de entorno anteriores en **Production** y **Preview**. MSAL debería habilitarse solo cuando apuntes al dominio definitivo; en previews donde falten las envs el botón se oculta automáticamente.
 - Recuerda registrar las URLs de redirección (SPA) en Azure Portal para cada dominio público que exponga MSAL (`https://app.tu-dominio.com` y, si aplica, los dominios de staging).
 - `robots.prod.txt` / `robots.preview.txt` se copian al paquete final mediante `scripts/postbuild.mjs`, garantizando `Disallow: /` en previews.
 - El footer muestra `Build: <VITE_APP_VERSION>` y el último mensaje de commit cuando están disponibles, ayudando a auditar qué versión está desplegada.
+- DNS recomendado para Vercel:
+  - `A @` → `216.198.79.1` (apex redirigido).
+  - `CNAME www` → `5466a987a9d4a9d3.vercel-dns-017.com.` (host principal servido por Vercel).
 
 ## Recursos útiles
 
