@@ -10,6 +10,7 @@ import PageSkeleton from "../components/PageSkeleton";
 const Login = lazy(() => import("../pages/Login"));
 const Register = lazy(() => import("../pages/Register"));
 const Dashboard = lazy(() => import("../pages/Dashboard"));
+const Health = lazy(() => import("../pages/Health"));
 const Patients = lazy(() => import("../pages/Patients"));
 const PatientDetail = lazy(() => import("../pages/PatientDetail"));
 const History = lazy(() => import("../pages/History"));
@@ -71,6 +72,7 @@ export default function AppRoutes() {
         <Routes>
           <Route path={ROUTES.login} element={<Login />} />
           <Route path={ROUTES.register} element={<Register />} />
+          <Route path="/health" element={<Health />} />
 
           <Route element={<ProtectedRoute allow={[ROLES.ADMIN]} />}>
             <Route path={ROUTES.dashboard} element={<Dashboard />} />

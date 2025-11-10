@@ -16,6 +16,8 @@ export default function ProtectedRoute({ allow, children }) {
   const allowedRoles = allow && allow.length ? allow : Object.values(ROLES);
   const shouldRedirectToLogin = !token || !role;
   const shouldRedirectToDashboard = !shouldRedirectToLogin && !allowedRoles.includes(role);
+  const buildVersion = import.meta.env.VITE_APP_VERSION || "dev";
+  const buildMessage = import.meta.env.VITE_APP_COMMIT_MESSAGE || "";
 
   const handleLogout = useCallback(async () => {
     try {
@@ -155,6 +157,10 @@ export default function ProtectedRoute({ allow, children }) {
         <main className="app-shell__content">
           {children ?? <Outlet context={outletContext} />}
         </main>
+        <footer className="app-shell__footer">
+          <span>Build: {buildVersion}</span>
+          {buildMessage ? <span>{buildMessage}</span> : null}
+        </footer>
       </div>
     </div>
   );

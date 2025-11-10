@@ -77,7 +77,11 @@ export default function NextSteps() {
                 checked={item.completed}
                 onChange={() => toggleStep(item.id)}
               />
-              <span className="dashboard-suggestion__status" data-completed={item.completed}>
+              <span
+                className="dashboard-suggestion__status"
+                data-completed={item.completed}
+                aria-hidden="true"
+              >
                 {item.completed ? "✓" : ""}
               </span>
               <span className="dashboard-suggestion__text">
