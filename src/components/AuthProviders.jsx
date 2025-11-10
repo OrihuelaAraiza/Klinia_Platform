@@ -105,7 +105,7 @@ export default function AuthProviders({
           }
         });
 
-      toast.danger(friendly);
+      toast.error(friendly);
 
       if (typeof onError === "function") {
         onError(error);

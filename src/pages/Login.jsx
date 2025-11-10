@@ -167,7 +167,7 @@ export default function Login() {
       const message = error?.message || fallbackMessage;
       setFormError(isBlocked ? "" : message);
 
-      toast.danger(message);
+      toast.error(message);
 
       await auditService.logAudit(
         "auth_login_failed",

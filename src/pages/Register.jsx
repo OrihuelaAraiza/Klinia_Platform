@@ -574,7 +574,7 @@ export default function Register() {
         error?.message ||
         "No pudimos completar el registro. Intenta nuevamente.";
       setFormError(message);
-      toast.danger(message);
+      toast.error(message);
 
       try {
         await auditService.logAudit(
