@@ -63,13 +63,14 @@ export default function StepIdentity({
           autoComplete="off"
         />
 
-        <InputField
-          label="RFC (opcional)"
-          name="rfc"
-          value={data.rfc}
+       <InputField
+          label="Folio de Certificado"
+          name="certificateFolio" 
+          value={data.certificateFolio} 
           onChange={handleChange}
-          placeholder="XXXX000000XXX"
-          error={errors.rfc}
+          required
+          placeholder="Folio de 7 o 36 caracteres"
+          error={errors.certificateFolio} 
           disabled={disabled}
           autoComplete="off"
         />

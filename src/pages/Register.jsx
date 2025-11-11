@@ -20,7 +20,6 @@ import {
   isValidMXPhone,
   isValidPassword,
   isValidPostalCode,
-  isValidRFC,
   minLength,
   required,
 } from "../utils/validators";
@@ -51,6 +50,7 @@ function resolveDestination(role) {
   }
 }
 
+
 function createInitialForm() {
   return {
     access: {
@@ -62,7 +62,7 @@ function createInitialForm() {
       firstName: "",
       lastName: "",
       curp: "",
-      rfc: "",
+      certificateFolio: "",
       birthDate: "",
     },
     address: {
@@ -76,6 +76,7 @@ function createInitialForm() {
       phone: "",
       emergencyName: "",
       emergencyPhone: "",
+      phoneIsVerified: false,
     },
     documents: {
       idOrPassport: null,
@@ -179,8 +180,8 @@ function validateIdentity(data) {
   if (!isValidCURP(data.curp)) {
     errors.curp = "CURP invalido.";
   }
-  if (sanitize(data.rfc) && !isValidRFC(data.rfc)) {
-    errors.rfc = "RFC invalido.";
+  if (!minLength(data.certificateFolio, 7)) {
+    errors.certificateFolio = "Ingresa un folio válido (mín. 7 o 36 caracteres).";
   }
   if (!isValidDateYYYYMMDD(data.birthDate)) {
     errors.birthDate = "Selecciona una fecha valida.";
@@ -215,13 +216,14 @@ function validateContact(data) {
   if (!isValidMXPhone(data.phone)) {
     errors.phone = "Ingresa un telefono movil de 10 digitos.";
   }
+  if (!data.phoneIsVerified) {
+    errors.phone = "Debes verificar tu número de teléfono.";
+  }
   if (!minLength(data.emergencyName, 2)) {
-    errors.emergencyName =
-      "Ingresa el nombre de tu contacto de emergencia.";
+    errors.emergencyName = "Ingresa el nombre de tu contacto de emergencia.";
   }
   if (!isValidMXPhone(data.emergencyPhone)) {
-    errors.emergencyPhone =
-      "Ingresa un telefono de emergencia de 10 digitos.";
+    errors.emergencyPhone = "Ingresa un telefono de emergencia de 10 digitos.";
   }
   return errors;
 }
@@ -277,9 +279,7 @@ function buildPayload(form) {
       firstName: sanitize(form.identity.firstName),
       lastName: sanitize(form.identity.lastName),
       curp: sanitizeUpper(form.identity.curp),
-      rfc: sanitize(form.identity.rfc)
-        ? sanitizeUpper(form.identity.rfc)
-        : undefined,
+      certificateFolio: sanitize(form.identity.certificateFolio),
       birthDate: form.identity.birthDate,
     },
     address: {
@@ -475,26 +475,31 @@ export default function Register() {
     }
   };
 
-  const handleFaceChange = (payload) => {
+ const handleStepDataChange = (stepId) => (payload) => {
     setForm((prev) => ({
       ...prev,
-      face: {
-        ...prev.face,
+      [stepId]: {
+        ...prev[stepId],
         ...payload,
       },
     }));
-    if (payload?.selfieFileId) {
+    if (stepId === 'face' && payload?.selfieFileId) {
       setErrors((prev) => {
         const faceErrors = prev.face || {};
-        if (!faceErrors.selfieFileId) {
-          return prev;
-        }
+        if (!faceErrors.selfieFileId) return prev;
         return {
           ...prev,
-          face: {
-            ...faceErrors,
-            selfieFileId: "",
-          },
+          face: { ...faceErrors, selfieFileId: "" },
+        };
+      });
+    }
+    if (stepId === 'contact' && payload?.phoneIsVerified) {
+       setErrors((prev) => {
+        const contactErrors = prev.contact || {};
+        if (!contactErrors.phone) return prev;
+        return {
+          ...prev,
+          contact: { ...contactErrors, phone: "" },
         };
       });
     }
@@ -502,7 +507,6 @@ export default function Register() {
       setFormError("");
     }
   };
-
   const handleBusyChange = (stepId) => (busy) => {
     setStepBusy((prev) => {
       const next = Boolean(busy);
@@ -632,11 +636,19 @@ export default function Register() {
     stepProps = {
       data: form.face,
       errors: errors.face || {},
-      onChange: handleFaceChange,
+      onChange: handleStepDataChange('face'),
       onBusyChange: handleBusyChange("face"),
       disabled: submitting,
     };
-  } else {
+    } else if (activeStep.id === "contact") { // <-- ¡NUEVO BLOQUE!
+    stepProps = {
+      data: form.contact,
+      errors: errors.contact || {},
+      onChange: handleStepDataChange('contact'), // <-- Usa el handler genérico
+      onBusyChange: handleBusyChange("contact"),
+      disabled: submitting,
+    };
+     } else {
     stepProps = {
       data: form[activeStep.id],
       errors: errors[activeStep.id] || {},

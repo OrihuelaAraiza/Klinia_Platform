@@ -21,6 +21,7 @@ function emitAudit(event, meta = {}) {
 
 const router = Router();
 
+// --- CONSTANTES Y VALIDADORES ---
 const PASSWORD_REGEX = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
 const CURP_REGEX =
   /^[A-Z][AEIOU][A-Z]{2}\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])[HM](AS|BC|BS|CC|CL|CM|CS|CH|DF|DG|GT|GR|HG|JC|MC|MN|MS|NT|NL|OC|PL|QT|QR|SP|SL|SR|TC|TS|TL|VZ|YN|ZS)[B-DF-HJ-NP-TV-Z]{3}[0-9A-Z]\d$/;
@@ -37,11 +38,21 @@ const MEXICO_STATES = [
   "TAMAULIPAS", "TLAXCALA", "VERACRUZ", "YUCATAN", "ZACATECAS",
 ];
 
-
+// --- FUNCIÓN 'isAdult' (CORREGIDA) ---
 function isAdult(birthDate) {
+  if (!DATE_REGEX.test(birthDate)) return false;
+  const date = new Date(birthDate);
+  if (Number.isNaN(date.getTime())) return false;
+  const today = new Date();
+  let age = today.getFullYear() - date.getFullYear();
+  const monthDiff = today.getMonth() - date.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < date.getDate())) {
+    age -= 1;
+  }
   return age >= 18;
 }
 
+// --- ESQUEMAS ZOD (CORREGIDOS) ---
 const emailSchema = z
   .string({ required_error: "Correo requerido" })
   .trim()
@@ -55,6 +66,7 @@ const passwordSchema = z
   .regex(PASSWORD_REGEX, {
     message: "Debe incluir al menos una letra y un numero",
   });
+
 const identitySchema = z.object({
   firstName: z.string().trim().min(2, { message: "Nombre muy corto" }),
   lastName: z.string().trim().min(2, { message: "Apellido muy corto" }),
@@ -66,6 +78,7 @@ const identitySchema = z.object({
   birthDate: z.string().trim().regex(DATE_REGEX, { message: "Fecha invalida" })
     .refine((value) => isAdult(value), { message: "Debe ser mayor de 18 años." }),
 });
+
 const registerCompleteSchema = z.object({
   access: z.object({
     email: emailSchema,
@@ -96,6 +109,7 @@ const registerCompleteSchema = z.object({
 });
 
 
+// --- RUTA COMPLETA ---
 router.post("/register/complete", async (req, res, next) => {
   const timestamp = new Date().toISOString();
   const emailForAudit = String(req.body?.access?.email || "").trim().toLowerCase();
@@ -132,7 +146,7 @@ router.post("/register/complete", async (req, res, next) => {
   
     const idDocSasUrl = await blobService.getBlobSasUrl(idDocBlobName);
 
- 
+  
     let docExtraction;
     try {
       console.log('Iniciando verificación de documentos (extracción de texto)...');
@@ -150,7 +164,32 @@ router.post("/register/complete", async (req, res, next) => {
     let curpExtraida = fields.PersonalIdentificationNumber?.value || '';
 
 
+    // --- LÓGICA DE RESPALDO DE CURP (CORREGIDA) ---
     if (!curpExtraida && payload.documents.curpDocumentFileId) {
+      console.warn('CURP no encontrada en INE. Buscando en documento CURP de respaldo...');
+      
+      const curpDocRecord = await prisma.upload.findUnique({
+        where: { id: payload.documents.curpDocumentFileId }
+      });
+      
+      if (curpDocRecord && curpDocRecord.blobName) {
+        try {
+          const curpDocSasUrl = await blobService.getBlobSasUrl(curpDocRecord.blobName);
+          const layoutResult = await docIntelService.analyzeDocumentLayout(curpDocSasUrl);
+          
+          const curpRegex = /[A-Z][AEIOU][A-Z]{2}\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])[HM][A-Z]{5}[0-9A-Z]\d/;
+          const match = layoutResult.content.match(curpRegex);
+          
+          if (match) {
+            curpExtraida = match[0];
+            console.log('CURP encontrada en documento de respaldo:', curpExtraida);
+          } else {
+            console.warn('Se subió documento CURP, pero no se encontró un patrón de CURP en él.');
+          }
+        } catch (curpError) {
+          console.error('Error al analizar el documento CURP de respaldo:', curpError.message);
+        }
+      }
     }
 
 
@@ -158,7 +197,9 @@ router.post("/register/complete", async (req, res, next) => {
     const curpCoincide = (curpExtraida?.toUpperCase() || '') === (payload.identity.curp?.toUpperCase() || '');
 
     console.warn('¡Omitiendo verificación facial! ...');
-    const faceVerification = { isIdentical: true, confidence: "SKIPPED_AZURE_403" };   
+    const faceVerification = { isIdentical: true, confidence: "SKIPPED_AZURE_403" }; 
+    
+    // --- VERIFICATION SUMMARY (CORREGIDO) ---
     const verificationSummary = {
       nombreCoincide,
       curpCoincide,
@@ -173,6 +214,7 @@ router.post("/register/complete", async (req, res, next) => {
       },
     };
 
+    // --- BLOQUE 'IF' DE RECHAZO (CORREGIDO) ---
     if (!nombreCoincide || !curpCoincide) { 
       console.warn('Verificación de TEXTO fallida para:', email, verificationSummary);
       emitAudit("auth_register_failed", {
@@ -199,7 +241,7 @@ router.post("/register/complete", async (req, res, next) => {
       payload.documents.proofOfAddressFileId,
       payload.face.selfieFileId
     ].filter(Boolean);
-   
+    
     try { 
       const newUser = await prisma.$transaction(async (tx) => {
         const createdUser = await tx.user.create({
@@ -213,24 +255,38 @@ router.post("/register/complete", async (req, res, next) => {
           }
         });
 
-      await tx.kycRecord.create({
+        // --- kycRecord.create (CORREGIDO) ---
+        // Ahora incluye los campos de emergencia
+        await tx.kycRecord.create({
           data: {
             id: uid("KYC_"),
             userId: createdUser.id,
+            
+            // Identidad
             firstName: payload.identity.firstName,
             lastName: payload.identity.lastName,
             curp: payload.identity.curp,
             birthDate: payload.identity.birthDate,
             certificateFolio: payload.identity.certificateFolio, 
+            
+            // Contacto (con emergencia)
             phone: payload.contact.phone,
+            emergencyName: payload.contact.emergencyName,
+            emergencyPhone: payload.contact.emergencyPhone,
+            phoneIsVerified: true, // Asumimos 'true' por ahora
+            
+            // Domicilio
             street: payload.address.street,
             neighborhood: payload.address.neighborhood,
             postalCode: payload.address.postalCode,
             city: payload.address.city,
             state: payload.address.state,
+            
+            // Verificación
             nombreCoincide: verificationSummary.nombreCoincide, 
             curpCoincide: verificationSummary.curpCoincide,   
-            faceConfidence: String(verificationSummary.faceVerification.confidence) // ej: "SKIPPED_AZURE_403"
+            faceMatch: verificationSummary.faceVerification.isIdentical,
+            faceConfidence: String(verificationSummary.faceVerification.confidence)
           }
         });
         

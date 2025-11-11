@@ -48,6 +48,7 @@ model KycRecord {
   birthDate String
   certificateFolio String
   phone String
+  phoneIsVerified Boolean @default(false)
   emergencyName   String
   emergencyPhone  String
   street       String
