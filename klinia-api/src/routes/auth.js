@@ -2,14 +2,13 @@ import { Router } from "express";
 import bcrypt from "bcryptjs";
 import { ZodError } from "zod";
 import { registerSchema, loginSchema, microsoftSchema } from "../validators/authSchemas.js";
+import jwt from 'jsonwebtoken'; 
+import { prisma } from '../services/dbClient.js'; 
+import { env } from '../config/env.js';
 import {
-  usersByEmail,
-  getUserByEmail,
-  hasUser,
   pushAuditEvent,
   uid,
-} from "../store/memory.js";
-import { makeFakeJwt } from "../utils/token.js";
+} from "../store/memory.js"; 
 import {
   isLocked,
   onLoginFail,
@@ -129,7 +128,8 @@ router.post("/register", async (req, res, next) => {
     const email = normalizeEmail(payload.email);
     emailForAudit = email;
 
-    if (hasUser(email)) {
+    const existingUser = await prisma.user.findUnique({ where: { email } });
+    if (existingUser) {
       emitAudit("auth_register_failed", { email, reason: "duplicate" });
       return res.status(409).json({ message: "Email already registered" });
     }
@@ -144,18 +144,22 @@ router.post("/register", async (req, res, next) => {
       createdAt: new Date().toISOString(),
     };
 
-    usersByEmail.set(email, userRecord);
+    const createdUser = await prisma.user.create({ data: userRecord });
 
-    const token = makeFakeJwt(buildTokenPayload(userRecord));
+    const token = jwt.sign(
+      buildTokenPayload(createdUser), 
+      env.JWT_SECRET, 
+      { expiresIn: '1d' }
+    );
 
     emitAudit("auth_register_success", {
       email,
-      role: userRecord.role,
+      role: createdUser.role, 
     });
 
     return res.status(201).json({
       token,
-      user: toPublicUser(userRecord),
+      user: toPublicUser(createdUser), 
     });
   } catch (error) {
     emitAudit("auth_register_failed", {
@@ -186,8 +190,11 @@ router.post("/login", async (req, res, next) => {
       });
     }
 
-    const stored = getUserByEmail(email);
-    if (!stored || !stored.passwordHash) {
+    const user = await prisma.user.findUnique({
+      where: { email: email }
+    });
+
+  if (!user || !user.passwordHash) {
       onLoginFail(email, req.ip);
       emitAudit("auth_login_failed", {
         method: "password",
@@ -197,7 +204,7 @@ router.post("/login", async (req, res, next) => {
       return res.status(401).json({ message: "Credenciales inválidas" });
     }
 
-    const isMatch = await bcrypt.compare(payload.password, stored.passwordHash);
+   const isMatch = await bcrypt.compare(payload.password, user.passwordHash);
     if (!isMatch) {
       onLoginFail(email, req.ip);
       emitAudit("auth_login_failed", {
@@ -210,16 +217,20 @@ router.post("/login", async (req, res, next) => {
 
     onLoginSuccess(email, req.ip);
 
-    const token = makeFakeJwt(buildTokenPayload(stored));
+    const token = jwt.sign(
+      buildTokenPayload(user), 
+      env.JWT_SECRET, 
+      { expiresIn: '1d' } 
+    );
 
     emitAudit("auth_login_success", {
       method: "password",
       email,
     });
 
-    return res.json({
+   return res.json({
       token,
-      user: toPublicUser(stored),
+      user: toPublicUser(user),
     });
   } catch (error) {
     emitAudit("auth_login_failed", {
@@ -248,20 +259,27 @@ router.post("/microsoft", async (req, res, next) => {
       normalizeEmail(profile.email) ||
       `msal.${Buffer.from(payload.idToken).toString("base64url").slice(0, 12)}@demo.local`;
 
-    let userRecord = getUserByEmail(email);
+    let userRecord = await prisma.user.findUnique({
+      where: { email }
+    });
+
     if (!userRecord) {
-      userRecord = {
+      const newUser = {
         id: uid("U_"),
         name: profile.name || "Usuario Microsoft",
         email,
         role: "PROFESSIONAL",
-        passwordHash: null,
+        passwordHash: null, 
         createdAt: new Date().toISOString(),
       };
-      usersByEmail.set(email, userRecord);
+      userRecord = await prisma.user.create({ data: newUser });
     }
 
-    const token = makeFakeJwt(buildTokenPayload(userRecord));
+    const token = jwt.sign(
+      buildTokenPayload(userRecord), 
+      env.JWT_SECRET, 
+      { expiresIn: '1d' }
+    );
 
     emitAudit("auth_login_success", {
       method: "microsoft",
