@@ -36,10 +36,11 @@ const handleChange = (event) => {
       <div className="register-step__body register-step__grid">
         
         <Field
+        
           label="Telefono movil"
           required
           error={errors.phone}
-          className="phone-verify-field" 
+         
         >
           <div className="phone-verify-input"> 
             <input
@@ -52,6 +53,7 @@ const handleChange = (event) => {
               disabled={disabled || isVerified} 
               autoComplete="tel-national"
               maxLength={10}
+               className="input-field__input" 
             />
             
             {isVerified ? (
@@ -61,7 +63,7 @@ const handleChange = (event) => {
                 type="button" 
                 onClick={() => setIsModalOpen(true)} 
                 disabled={disabled || (data.phone || '').length !== 10}
-                className="button-ghost" 
+                className="ui-btn btn--primary btn--md" 
               >
                 Verificar
               </button>
@@ -97,8 +99,7 @@ const handleChange = (event) => {
         />
       </div>
 
-      {/* --- MODAL AÑADIDO --- */}
-      {/* El modal solo se renderiza si isModalOpen es true */}
+
       {isModalOpen && (
         <PhoneVerificationModal
           phone={data.phone}
@@ -106,7 +107,6 @@ const handleChange = (event) => {
           onSuccess={handleVerificationSuccess}
         />
       )}
-      {/* ------------------- */}
     </div>
   );
 }

@@ -64,14 +64,15 @@ const handleCheckOtp = async (e) => {
               onChange={(e) => setOtpCode(e.target.value)}
               disabled={isLoading}
               maxLength={6}
+               className="input-field__input" 
             />
           </Field>
           
           <div className="camera-modal-actions">
-            <button type="submit" onClick={handleCheckOtp} disabled={isLoading || otpCode.length < 6}>
+            <button type="submit" onClick={handleCheckOtp} disabled={isLoading || otpCode.length < 6} className="ui-btn btn--primary btn--md" >
               {isLoading ? "Verificando..." : "Confirmar Código"}
             </button>
-            <button type="button" className="ghost" onClick={onClose} disabled={isLoading}>
+            <button type="button" className="ui-btn btn--ghost btn--md "  onClick={onClose} disabled={isLoading}>
               Cancelar
             </button>
           </div>
