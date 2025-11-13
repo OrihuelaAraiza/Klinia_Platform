@@ -13,6 +13,7 @@ import historyRouter from "./src/routes/history.js";
 import notesRouter from "./src/routes/notes.js";
 import exportRouter from "./src/routes/export.js";
 import sessionsRouter from "./src/routes/sessions.js";
+import dashboardRouter from "./src/routes/dashboard.js";
 import uploadsRouter from "./src/routes/uploads.js";
 import verifyRouter from "./src/routes/verify.js";
 import registerRouter from "./src/routes/register.js";
@@ -43,6 +44,7 @@ app.use("/api/patients/:id/consents", consentsRouter);
 app.use("/api/patients/:id/history", historyRouter);
 app.use("/api/patients/:id/notes", notesRouter);
 app.use("/api/patients/:id/export", exportRouter);
+app.use("/api", dashboardRouter);
 app.use("/api", sessionsRouter);
 app.use(errorMiddleware);
 

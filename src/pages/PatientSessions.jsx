@@ -18,6 +18,11 @@ import {
   changeStatus,
 } from "../services/sessionsService";
 import { SESSION_STATUS, SESSION_STATUS_LABEL, SESSION_STATUS_VARIANT } from "../utils/constants";
+import {
+  formatSessionModality,
+  getSessionNoteLabel,
+  isSessionNoteDisabled,
+} from "../utils/sessionHelpers";
 
 function formatDateTime(value) {
   if (!value) return "—";
@@ -169,7 +174,7 @@ export default function PatientSessions() {
                       description={error || "Aún no se han programado sesiones para este paciente."}
                       action={!isAssistant ? (
                         <Button size="sm" onClick={() => setDrawerOpen(true)}>
-                          Programar sesión
+                          Crear primera sesión
                         </Button>
                       ) : null}
                     />
@@ -179,16 +184,25 @@ export default function PatientSessions() {
               {sessions.map((session) => {
                 const badgeVariant = SESSION_STATUS_VARIANT[session.status] || "neutral";
                 const isChanging = statusLoading.sessionId === session.id ? statusLoading.status : null;
+                const noteDisabled = isSessionNoteDisabled(session, isAssistant);
                 return (
                   <tr key={session.id}>
-                    <td>{formatDateTime(session.datetime)}</td>
+                    <td>
+                      <p className="sessions-table__primary">{formatDateTime(session.datetime)}</p>
+                      <p className="sessions-table__meta">{formatSessionModality(session)}</p>
+                    </td>
                     <td>{session.durationMin ? `${session.durationMin} min` : "—"}</td>
                     <td>
                       <Badge variant={badgeVariant}>{SESSION_STATUS_LABEL[session.status] || session.status}</Badge>
                     </td>
                     <td>
-                      <Button variant="ghost" size="sm" onClick={() => handleViewOrCreateNote(session)} disabled={isAssistant && !session.noteId}>
-                        {session.noteId ? "Ver nota" : isAssistant ? "Sin nota" : "Crear nota"}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleViewOrCreateNote(session)}
+                        disabled={noteDisabled}
+                      >
+                        {getSessionNoteLabel(session, isAssistant)}
                       </Button>
                     </td>
                     <td className="align-right">

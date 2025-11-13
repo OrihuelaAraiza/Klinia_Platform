@@ -1,6 +1,6 @@
-import { NavLink } from "react-router-dom";
 import logo from "../assets/logo-romi.svg";
 import { ROLES, ROUTES } from "../utils/constants";
+import SidebarLink from "./SidebarLink";
 
 const NAV_ITEMS = [
   { to: ROUTES.dashboard, label: "Inicio", icon: DashboardIcon, roles: [ROLES.ADMIN, ROLES.PROFESSIONAL, ROLES.ASSISTANT] },
@@ -84,23 +84,12 @@ export default function NavSidebar({
       <ul className="sidebar__list">
         {filteredItems.map((item) => (
           <li key={item.to} className="sidebar__item">
-            <NavLink
+            <SidebarLink
               to={item.to}
-              className={({ isActive }) =>
-                `sidebar__link${isActive ? " is-active" : ""}`
-              }
-              aria-label={collapsed ? item.label : undefined}
-              data-tooltip={collapsed ? item.label : undefined}
-              title={collapsed ? item.label : undefined}
-            >
-              {({ isActive }) => (
-                <>
-                  <item.icon className="sidebar__icon" aria-hidden="true" />
-                  <span className="sidebar__label">{item.label}</span>
-                  {isActive ? <span className="visually-hidden">Actual</span> : null}
-                </>
-              )}
-            </NavLink>
+              label={item.label}
+              icon={item.icon}
+              collapsed={collapsed}
+            />
           </li>
         ))}
       </ul>

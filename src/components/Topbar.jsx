@@ -2,6 +2,7 @@ import { useState } from "react";
 import Button from "./UI/Button";
 import Modal from "./UI/Modal";
 import { ROLES_LABEL } from "../utils/constants";
+import ThemeToggle from "./ThemeToggle";
 
 function getInitials(name) {
   if (!name) return "U";
@@ -84,7 +85,6 @@ export default function Topbar({
     : sidebarCollapsed
     ? MenuIcon
     : CollapseIcon;
-
   return (
     <header className="topbar">
       <div className="topbar__left">
@@ -108,19 +108,22 @@ export default function Topbar({
           ) : null}
         </div>
       </div>
-      <div className="topbar__menu">
-        <details>
-          <summary>
-            <span className="topbar__avatar">{initials}</span>
-            <span className="topbar__summary-name">{name}</span>
-          </summary>
-          <div className="topbar__menu-content">
-            <button type="button">Perfil (próximamente)</button>
-            <button type="button" className="danger" onClick={openConfirmLogout}>
-              Cerrar sesión
-            </button>
-          </div>
-        </details>
+      <div className="topbar__actions">
+        <ThemeToggle className="topbar__toggle topbar__theme-toggle" />
+        <div className="topbar__menu">
+          <details>
+            <summary>
+              <span className="topbar__avatar">{initials}</span>
+              <span className="topbar__summary-name">{name}</span>
+            </summary>
+            <div className="topbar__menu-content">
+              <button type="button">Perfil (próximamente)</button>
+              <button type="button" className="danger" onClick={openConfirmLogout}>
+                Cerrar sesión
+              </button>
+            </div>
+          </details>
+        </div>
       </div>
       <Modal
         open={confirmLogoutOpen}

@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { loginWithMicrosoft, getMsalConfig } from "../services/msal";
+import { loginWithMicrosoft, msalEnabled } from "../services/msal";
 import auditService from "../services/auditService";
 import { useToast } from "./UI/Toast";
 import microsoftLogo from "../assets/logos/microsoft-icon.png";
@@ -45,21 +45,6 @@ export default function AuthProviders({
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const [configHint, setConfigHint] = useState("");
-
-  useEffect(() => {
-    try {
-      getMsalConfig();
-      setConfigHint("");
-    } catch (error) {
-      if (import.meta.env.DEV) {
-        console.warn("[msal] Configuración inválida", error);
-      }
-      setConfigHint(
-        "Configura VITE_MSAL_CLIENT_ID y el tenant (VITE_MSAL_TENANT_ID o VITE_MSAL_AUTHORITY)."
-      );
-    }
-  }, []);
 
   const setBusy = useCallback(
     (value) => {
@@ -72,7 +57,7 @@ export default function AuthProviders({
   );
 
   const handleMicrosoft = async () => {
-    if (disabled || loading || configHint) {
+    if (disabled || loading) {
       return;
     }
     setBusy(true);
@@ -120,7 +105,7 @@ export default function AuthProviders({
           }
         });
 
-      toast.danger(friendly);
+      toast.error(friendly);
 
       if (typeof onError === "function") {
         onError(error);
@@ -130,7 +115,11 @@ export default function AuthProviders({
     }
   };
 
-  const microsoftDisabled = disabled || loading || Boolean(configHint);
+  const microsoftDisabled = disabled || loading;
+
+  if (!msalEnabled) {
+    return null;
+  }
 
   return (
     <div className="auth-providers">
@@ -155,7 +144,6 @@ export default function AuthProviders({
           {errorMessage}
         </p>
       ) : null}
-      {configHint ? <p className="auth-providers__hint">{configHint}</p> : null}
     </div>
   );
 }

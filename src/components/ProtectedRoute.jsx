@@ -13,15 +13,11 @@ export default function ProtectedRoute({ allow, children }) {
   const user = storage.getUser();
   const location = useLocation();
   const navigate = useNavigate();
-
-  if (!token || !role) {
-    return <Navigate to={ROUTES.login} state={{ from: location }} replace />;
-  }
-
   const allowedRoles = allow && allow.length ? allow : Object.values(ROLES);
-  if (!allowedRoles.includes(role)) {
-    return <Navigate to={ROUTES.dashboard} replace />;
-  }
+  const shouldRedirectToLogin = !token || !role;
+  const shouldRedirectToDashboard = !shouldRedirectToLogin && !allowedRoles.includes(role);
+  const buildVersion = import.meta.env.VITE_APP_VERSION || "dev";
+  const buildMessage = import.meta.env.VITE_APP_COMMIT_MESSAGE || "";
 
   const handleLogout = useCallback(async () => {
     try {
@@ -36,6 +32,9 @@ export default function ProtectedRoute({ allow, children }) {
   const [isMobile, setIsMobile] = useState(false);
   const previousMobileRef = useRef(false);
   const previousOverflowRef = useRef("");
+  const toggleSidebar = useCallback(() => {
+    setSidebarCollapsed((prev) => !prev);
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -109,9 +108,19 @@ export default function ProtectedRoute({ allow, children }) {
     () => ({
       role,
       user,
+      toggleSidebar,
+      isMobile,
+      sidebarCollapsed,
     }),
-    [role, user]
+    [role, user, toggleSidebar, isMobile, sidebarCollapsed]
   );
+  if (shouldRedirectToLogin) {
+    return <Navigate to={ROUTES.login} state={{ from: location }} replace />;
+  }
+
+  if (shouldRedirectToDashboard) {
+    return <Navigate to={ROUTES.dashboard} replace />;
+  }
 
   const sidebarId = "app-sidebar";
   const shouldShowOverlay = isMobile && !sidebarCollapsed;
@@ -143,11 +152,15 @@ export default function ProtectedRoute({ allow, children }) {
           sidebarCollapsed={sidebarCollapsed}
           isMobile={isMobile}
           sidebarId={sidebarId}
-          onToggleSidebar={() => setSidebarCollapsed((prev) => !prev)}
+          onToggleSidebar={toggleSidebar}
         />
         <main className="app-shell__content">
           {children ?? <Outlet context={outletContext} />}
         </main>
+        <footer className="app-shell__footer">
+          <span>Build: {buildVersion}</span>
+          {buildMessage ? <span>{buildMessage}</span> : null}
+        </footer>
       </div>
     </div>
   );

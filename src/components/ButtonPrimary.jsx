@@ -1,3 +1,5 @@
+
+
 import Button from "./UI/Button";
 
 export default function ButtonPrimary({
@@ -12,10 +14,8 @@ export default function ButtonPrimary({
   size = "md",
   ...props
 }) {
-  const resolvedVariant =
-    variant === "secondary" || variant === "ghost" || variant === "danger"
-      ? variant
-      : "primary";
+  const allowedVariants = new Set(["primary", "secondary", "ghost", "danger", "accent"]);
+  const resolvedVariant = allowedVariants.has(variant) ? variant : "primary";
 
   return (
     <Button

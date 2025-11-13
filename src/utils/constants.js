@@ -16,6 +16,7 @@ export const ROUTES = {
   dashboard: "/dashboard",
   patients: "/patients",
   sessions: "/sessions",
+  sessionsCalendar: "/sessions/calendar",
   consents: "/consents",
   prescriptions: "/prescriptions",
   reports: "/reports",
@@ -43,6 +44,16 @@ export const SESSION_STATUS_VARIANT = {
   [SESSION_STATUS.ATENDIDA]: "success",
   [SESSION_STATUS.NO_PRESENTADA]: "warning",
   [SESSION_STATUS.CANCELADA]: "danger",
+};
+
+export const SESSION_MODALITY = {
+  PRESENCIAL: "presencial",
+  VIRTUAL: "virtual",
+};
+
+export const SESSION_MODALITY_LABEL = {
+  [SESSION_MODALITY.PRESENCIAL]: "Presencial",
+  [SESSION_MODALITY.VIRTUAL]: "Virtual",
 };
 
 export const CONSENT_TYPES = {
@@ -103,6 +114,8 @@ export default {
   SESSION_STATUS,
   SESSION_STATUS_LABEL,
   SESSION_STATUS_VARIANT,
+  SESSION_MODALITY,
+  SESSION_MODALITY_LABEL,
   CONSENT_TYPES,
   PRESCRIPTION_FIELDS,
   MEXICAN_STATES,
