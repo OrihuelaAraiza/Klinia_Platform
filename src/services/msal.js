@@ -219,22 +219,15 @@ export async function loginWithMicrosoft() {
 
   const idToken = authResult.idToken;
   if (!idToken) {
-    const error = new Error("No se recibió un token de Microsoft.");
-    error.code = "missing_token";
+  const error = new Error("No se recibió un token de Microsoft.");
+  error.code = "missing_token";
     throw error;
-  }
+ }
 
-  try {
-    const session = await exchangeMicrosoftLogin(idToken);
-    const user = session?.user ?? null;
-    return {
-      user,
-      role: user?.role ?? null,
-    };
-  } catch (error) {
-    throw mapBackendError(error);
-  }
+  
+ return authResult;
 }
+
 
 export function getActiveAccount() {
   if (!msalEnabled) {

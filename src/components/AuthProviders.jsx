@@ -1,10 +1,11 @@
 import { useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { loginWithMicrosoft, msalEnabled } from "../services/msal";
+import { loginWithMicrosoft as msalLoginPopup, msalEnabled } from "../services/msal";
 import auditService from "../services/auditService";
 import { useToast } from "./UI/Toast";
 import microsoftLogo from "../assets/logos/microsoft-icon.png";
 import { ROLES, ROUTES } from "../utils/constants";
+import authService from "../services/authService";
 
 function resolveRedirect(role) {
   switch (role) {
@@ -63,31 +64,23 @@ export default function AuthProviders({
     setBusy(true);
     setErrorMessage("");
 
-    try {
-      const { user, role } = await loginWithMicrosoft();
+   try {
+      const msalResponse = await msalLoginPopup();
+       const idToken = msalResponse?.idToken;
 
-      auditService
-        .logAudit(
-          "auth_login_success",
-          { method: "microsoft", email: user?.email, role },
-          { auth: true }
-        )
-        .catch((error) => {
-          if (import.meta.env.DEV) {
-            console.warn("[audit] microsoft login success audit failed", error);
-          }
-        });
+    if (!idToken) {
+    throw new Error("No se pudo obtener el token de Microsoft.");
+   }
 
-      toast.success("Sesión iniciada con Microsoft.");
+   const backendResponse = await authService.loginMicrosoft(idToken);
+    
+   if (typeof onSuccess === "function") {
+     onSuccess(backendResponse);
+   }
 
-      if (typeof onSuccess === "function") {
-        onSuccess({ user, role });
-      }
-
-      navigate(resolveRedirect(role), { replace: true });
-    } catch (error) {
-      const friendly = mapErrorMessage(error);
-      setErrorMessage(friendly);
+  } catch (error) {
+   const friendly = mapErrorMessage(error);
+   setErrorMessage(friendly);
 
       auditService
         .logAudit(
