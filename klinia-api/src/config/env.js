@@ -3,7 +3,7 @@ import path from 'path';
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
-const DEFAULT_PORT = 8080;
+const DEFAULT_PORT = 4000;
 const DEFAULT_ALLOW_ORIGIN = "http://localhost:5173";
 const DEFAULT_MIN_DELAY = 150;
 const DEFAULT_MAX_DELAY = 350;
