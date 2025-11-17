@@ -1,9 +1,8 @@
 import { useState } from "react";
-import { Moon, Sun } from "lucide-react";
 import Button from "./UI/Button";
 import Modal from "./UI/Modal";
-import { useTheme } from "../hooks/useTheme";
 import { ROLES_LABEL } from "../utils/constants";
+import ThemeToggle from "./ThemeToggle";
 
 function getInitials(name) {
   if (!name) return "U";
@@ -51,7 +50,6 @@ export default function Topbar({
   const initials = getInitials(name);
   const [confirmLogoutOpen, setConfirmLogoutOpen] = useState(false);
   const [logoutLoading, setLogoutLoading] = useState(false);
-  const { theme, toggleTheme } = useTheme();
 
   const openConfirmLogout = () => setConfirmLogoutOpen(true);
   const closeConfirmLogout = () => {
@@ -87,9 +85,6 @@ export default function Topbar({
     : sidebarCollapsed
     ? MenuIcon
     : CollapseIcon;
-  const ThemeIcon = theme === "dark" ? Sun : Moon;
-  const themeLabel = theme === "dark" ? "Cambiar a modo claro" : "Cambiar a modo oscuro";
-
   return (
     <header className="topbar">
       <div className="topbar__left">
@@ -114,17 +109,7 @@ export default function Topbar({
         </div>
       </div>
       <div className="topbar__actions">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={toggleTheme}
-          aria-label={themeLabel}
-          className="topbar__toggle topbar__theme-toggle"
-          type="button"
-        >
-          <ThemeIcon aria-hidden="true" />
-          <span className="sr-only">{themeLabel}</span>
-        </Button>
+        <ThemeToggle className="topbar__toggle topbar__theme-toggle" />
         <div className="topbar__menu">
           <details>
             <summary>

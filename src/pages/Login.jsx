@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { motion } from "framer-motion";
+import { motion as Motion } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
 import InputField from "../components/InputField";
 import ButtonPrimary from "../components/ButtonPrimary";
@@ -9,6 +9,7 @@ import {
   loginEmail as loginWithEmail,
   currentRole,
 } from "../services/authService";
+import { msalEnabled } from "../services/msal";
 import storage from "../services/storage";
 import {
   shouldBlock as shouldRateLimit,
@@ -238,22 +239,38 @@ export default function Login() {
               {loading ? "Validando…" : "Iniciar sesión"}
             </ButtonPrimary>
 
-            <AuthProviders
-              disabled={combinedBusy || isBlocked}
-              onBusyChange={setProvidersBusy}
-              onSuccess={() => {
+            {msalEnabled ? (
+              <AuthProviders
+                disabled={combinedBusy || isBlocked}
+                onBusyChange={setProvidersBusy}
+                
+
+                onSuccess={(response) => {
+
                 if (limiterKey) {
-                  resetRateLimit(limiterKey);
-                  setBlockState(BLOCK_INITIAL_STATE);
+                resetRateLimit(limiterKey);
+                setBlockState(BLOCK_INITIAL_STATE);
                 }
-              }}
-              onError={() => {
-                if (limiterKey) {
-                  const limiterState = shouldRateLimit(limiterKey);
-                  setBlockState(limiterState);
-                }
-              }}
-            />
+                                  
+
+                if (response.status === 'LOGIN_SUCCESS') {
+                navigate(resolveDestination(response.user.role), { replace: true });
+
+                } else if (response.status === 'REGISTRATION_REQUIRED') {
+
+                navigate(ROUTES.register, { 
+                state: { partialToken: response.partialToken } 
+                });
+                } 
+                }} 
+                onError={() => {
+                }}
+                />
+            ) : import.meta.env.DEV ? (
+              <small className="hint">
+                Configura VITE_MSAL_CLIENT_ID y el tenant para habilitar Microsoft.
+              </small>
+            ) : null}
 
             {displayedError ? (
               <p className="form__error" role="alert">
@@ -271,7 +288,7 @@ export default function Login() {
         </div>
       </section>
 
-      <motion.section
+      <Motion.section
         className="login-right"
         initial={{ opacity: 0, x: 40 }}
         animate={{ opacity: 1, x: 0 }}
@@ -282,7 +299,7 @@ export default function Login() {
           alt="Profesional de salud usando un móvil"
           className="hero-img"
         />
-      </motion.section>
+      </Motion.section>
     </div>
   );
 }

@@ -6,59 +6,46 @@ import { loginMicrosoft as exchangeMicrosoftLogin } from "./authService";
 
 const DEFAULT_SCOPES = ["openid", "profile", "email"];
 
+const clientId = (import.meta.env.VITE_MSAL_CLIENT_ID || "").trim();
+const tenantId = (import.meta.env.VITE_MSAL_TENANT_ID || "").trim();
+const authorityEnv = (import.meta.env.VITE_MSAL_AUTHORITY || "").trim();
+const authority = authorityEnv || (tenantId ? `https://login.microsoftonline.com/${tenantId}` : "");
+const redirectEnv = (import.meta.env.VITE_MSAL_REDIRECT_URI || "").trim();
+const postLogoutEnv = (import.meta.env.VITE_MSAL_POST_LOGOUT_REDIRECT_URI || "").trim();
+const cacheLocation = (import.meta.env.VITE_MSAL_CACHE || "sessionStorage").trim();
+
+export const msalEnabled = Boolean(clientId && authority);
+
 let msalInstance;
 let initPromise;
 let interactionInFlight = false;
-
-export function getMsalConfig() {
-  const clientIdRaw = import.meta.env.VITE_MSAL_CLIENT_ID;
-  const tenantId = import.meta.env.VITE_MSAL_TENANT_ID || "common";
-  const authority =
-    import.meta.env.VITE_MSAL_AUTHORITY ||
-    `https://login.microsoftonline.com/${tenantId}`;
-  const redirectRaw = import.meta.env.VITE_MSAL_REDIRECT_URI;
-  const resolvedRedirect =
-    typeof redirectRaw === "string" && redirectRaw.trim().length > 0
-      ? redirectRaw.trim()
-      : typeof window !== "undefined"
-        ? `${window.location.origin}/`
-        : undefined;
-
-  const clientId = typeof clientIdRaw === "string" ? clientIdRaw.trim() : "";
-
-  if (!clientId || clientId.toLowerCase().includes("replace_me")) {
-    throw new Error("MSAL: VITE_MSAL_CLIENT_ID no configurado");
-  }
-
-  const authorityNormalized = authority?.trim() || "";
-  if (
-    !authorityNormalized ||
-    authorityNormalized.toLowerCase().includes("replace_me") ||
-    authorityNormalized.endsWith("/replace_me")
-  ) {
-    throw new Error(
-      "MSAL: tenant inválido. Configura VITE_MSAL_TENANT_ID o VITE_MSAL_AUTHORITY"
-    );
-  }
-
-  return {
-    clientId,
-    authority: authorityNormalized,
-    redirectUri: resolvedRedirect,
-  };
-}
+let cachedConfig;
 
 function buildMsalConfig() {
-  const base = getMsalConfig();
-  return {
+  if (!msalEnabled) {
+    return null;
+  }
+
+  if (cachedConfig) {
+    return cachedConfig;
+  }
+
+  const origin =
+    redirectEnv || (typeof window !== "undefined" && window.location ? window.location.origin : "");
+  const redirectUri = origin || undefined;
+  const postLogoutRedirectUri =
+    postLogoutEnv || redirectUri || (typeof window !== "undefined" ? window.location?.origin : undefined);
+
+  cachedConfig = {
     auth: {
-      clientId: base.clientId,
-      authority: base.authority,
-      redirectUri: base.redirectUri,
+      clientId,
+      authority,
+      redirectUri,
+      postLogoutRedirectUri,
     },
     cache: {
-      cacheLocation: "localStorage",
-      storeAuthStateInCookie: true,
+      cacheLocation: cacheLocation || "sessionStorage",
+      storeAuthStateInCookie: cacheLocation === "localStorage",
     },
     system: {
       loggerOptions: {
@@ -71,9 +58,20 @@ function buildMsalConfig() {
       },
     },
   };
+
+  return cachedConfig;
 }
 
+export function getMsalConfig() {
+  return buildMsalConfig();
+}
+
+export const msalConfig = msalEnabled ? buildMsalConfig() : null;
+
 function getMsalInstance() {
+  if (!msalEnabled) {
+    return null;
+  }
   if (!msalInstance) {
     const config = buildMsalConfig();
     msalInstance = new PublicClientApplication(config);
@@ -82,6 +80,9 @@ function getMsalInstance() {
 }
 
 async function ensureInitialized() {
+  if (!msalEnabled) {
+    return null;
+  }
   const instance = getMsalInstance();
   if (!initPromise) {
     initPromise = (async () => {
@@ -167,11 +168,18 @@ async function performPopupLogin(instance) {
 }
 
 export async function initMsal() {
+  if (!msalEnabled) {
+    return null;
+  }
   return ensureInitialized();
 }
 
 export async function loginWithMicrosoft() {
-  // Validamos la configuración antes de arrancar MSAL.
+  if (!msalEnabled) {
+    const error = new Error("Inicio con Microsoft no disponible en este entorno.");
+    error.code = "msal_disabled";
+    throw error;
+  }
   getMsalConfig();
   const instance = await ensureInitialized();
   let account = instance.getActiveAccount() || null;
@@ -211,24 +219,20 @@ export async function loginWithMicrosoft() {
 
   const idToken = authResult.idToken;
   if (!idToken) {
-    const error = new Error("No se recibió un token de Microsoft.");
-    error.code = "missing_token";
+  const error = new Error("No se recibió un token de Microsoft.");
+  error.code = "missing_token";
     throw error;
-  }
+ }
 
-  try {
-    const session = await exchangeMicrosoftLogin(idToken);
-    const user = session?.user ?? null;
-    return {
-      user,
-      role: user?.role ?? null,
-    };
-  } catch (error) {
-    throw mapBackendError(error);
-  }
+  
+ return authResult;
 }
 
+
 export function getActiveAccount() {
+  if (!msalEnabled) {
+    return null;
+  }
   const instance = msalInstance;
   if (!instance) {
     return null;
@@ -237,12 +241,15 @@ export function getActiveAccount() {
 }
 
 export async function logoutMsal() {
+  if (!msalEnabled) {
+    return null;
+  }
   const instance = await ensureInitialized();
   const account = instance.getActiveAccount() || instance.getAllAccounts()[0] || undefined;
   try {
     await instance.logoutPopup({
       account,
-      postLogoutRedirectUri: getMsalConfig().redirectUri,
+      postLogoutRedirectUri: getMsalConfig()?.auth?.postLogoutRedirectUri,
     });
   } catch (error) {
     if (import.meta.env.DEV) {
@@ -257,4 +264,5 @@ export default {
   getActiveAccount,
   logoutMsal,
   getMsalConfig,
+  msalEnabled,
 };

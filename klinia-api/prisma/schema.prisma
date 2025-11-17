@@ -1,0 +1,63 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL") 
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id            String    @id 
+  email         String    @unique
+  name          String
+  passwordHash  String
+  role          String    @default("PROFESSIONAL")
+  createdAt     DateTime  @default(now())
+
+  kycRecord     KycRecord?
+  uploads       Upload[]
+}
+
+model Upload {
+  id           String    @id 
+  name         String
+  mime         String
+  size         Int
+  blobName     String
+  blobUrl      String
+  uploadedAt   DateTime  @default(now())
+  userId       String?
+  user         User?     @relation(fields: [userId], references: [id])
+}
+
+model KycRecord {
+  id        String   @id
+  createdAt DateTime @default(now())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id])
+  firstName String
+  lastName  String
+  curp      String
+  birthDate String
+  certificateFolio String
+  phone String
+  phoneIsVerified Boolean @default(false)
+  emergencyName   String
+  emergencyPhone  String
+  street       String
+  neighborhood String
+  postalCode   String
+  city         String
+  state        String
+  nombreCoincide Boolean
+  curpCoincide   Boolean
+  faceMatch      Boolean @default(false) // Para el futuro
+  faceConfidence String  // Para guardar "SKIPPED_AZURE_403" o el score
+}

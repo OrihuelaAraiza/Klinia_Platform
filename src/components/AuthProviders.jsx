@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { loginWithMicrosoft, getMsalConfig } from "../services/msal";
+import { loginWithMicrosoft as msalLoginPopup, msalEnabled } from "../services/msal";
 import auditService from "../services/auditService";
 import { useToast } from "./UI/Toast";
 import microsoftLogo from "../assets/logos/microsoft-icon.png";
 import { ROLES, ROUTES } from "../utils/constants";
+import authService from "../services/authService";
 
 function resolveRedirect(role) {
   switch (role) {
@@ -45,21 +46,6 @@ export default function AuthProviders({
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const [configHint, setConfigHint] = useState("");
-
-  useEffect(() => {
-    try {
-      getMsalConfig();
-      setConfigHint("");
-    } catch (error) {
-      if (import.meta.env.DEV) {
-        console.warn("[msal] Configuración inválida", error);
-      }
-      setConfigHint(
-        "Configura VITE_MSAL_CLIENT_ID y el tenant (VITE_MSAL_TENANT_ID o VITE_MSAL_AUTHORITY)."
-      );
-    }
-  }, []);
 
   const setBusy = useCallback(
     (value) => {
@@ -72,37 +58,29 @@ export default function AuthProviders({
   );
 
   const handleMicrosoft = async () => {
-    if (disabled || loading || configHint) {
+    if (disabled || loading) {
       return;
     }
     setBusy(true);
     setErrorMessage("");
 
-    try {
-      const { user, role } = await loginWithMicrosoft();
+   try {
+      const msalResponse = await msalLoginPopup();
+       const idToken = msalResponse?.idToken;
 
-      auditService
-        .logAudit(
-          "auth_login_success",
-          { method: "microsoft", email: user?.email, role },
-          { auth: true }
-        )
-        .catch((error) => {
-          if (import.meta.env.DEV) {
-            console.warn("[audit] microsoft login success audit failed", error);
-          }
-        });
+    if (!idToken) {
+    throw new Error("No se pudo obtener el token de Microsoft.");
+   }
 
-      toast.success("Sesión iniciada con Microsoft.");
+   const backendResponse = await authService.loginMicrosoft(idToken);
+    
+   if (typeof onSuccess === "function") {
+     onSuccess(backendResponse);
+   }
 
-      if (typeof onSuccess === "function") {
-        onSuccess({ user, role });
-      }
-
-      navigate(resolveRedirect(role), { replace: true });
-    } catch (error) {
-      const friendly = mapErrorMessage(error);
-      setErrorMessage(friendly);
+  } catch (error) {
+   const friendly = mapErrorMessage(error);
+   setErrorMessage(friendly);
 
       auditService
         .logAudit(
@@ -130,7 +108,11 @@ export default function AuthProviders({
     }
   };
 
-  const microsoftDisabled = disabled || loading || Boolean(configHint);
+  const microsoftDisabled = disabled || loading;
+
+  if (!msalEnabled) {
+    return null;
+  }
 
   return (
     <div className="auth-providers">
@@ -155,7 +137,6 @@ export default function AuthProviders({
           {errorMessage}
         </p>
       ) : null}
-      {configHint ? <p className="auth-providers__hint">{configHint}</p> : null}
     </div>
   );
 }

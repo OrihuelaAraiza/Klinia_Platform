@@ -148,22 +148,7 @@ export default function StepFace({
     }
   };
 
-  const handleUploadFallback = async (event) => {
-    const file = event.target.files?.[0];
-    if (!file) {
-      return;
-    }
-    if (!/\.jpe?g$/i.test(file.name)) {
-      setCameraError("Formato invalido. Carga una foto en JPG.");
-      event.target.value = "";
-      return;
-    }
-    try {
-      await handleVerify(file);
-    } finally {
-      event.target.value = "";
-    }
-  };
+
 
   const handleRetry = () => {
     onChange?.({ selfieFileId: "", preview: "", score: null });
@@ -208,15 +193,7 @@ export default function StepFace({
               {previewSrc ? "Tomar otra foto" : "Tomar foto"}
             </button>
 
-            <label className="face-capture__button face-capture__button--ghost">
-              <input
-                type="file"
-                accept={ACCEPT_ATTR}
-                onChange={handleUploadFallback}
-                disabled={disabled || verifying}
-              />
-              Subir selfie JPG
-            </label>
+           
           </div>
         </div>
 
