@@ -3,14 +3,16 @@ import { motion } from "framer-motion";
 import { useNavigate, useOutletContext, useParams } from "react-router-dom";
 import Card, { CardBody, CardHeader } from "../components/UI/Card";
 import Button from "../components/UI/Button";
+import Badge from "../components/UI/Badge";
 import Modal from "../components/UI/Modal";
 import Breadcrumbs from "../components/UI/Breadcrumbs";
 import ConsentBadge from "../components/ConsentBadge";
 import auditService from "../services/auditService";
 import { getPatient, updatePatient } from "../services/patientsService";
 import { listConsents, signConsent, revokeConsent } from "../services/consentsService";
+import * as prescriptionsService from "../services/prescriptionsService";
 import { formatDateISOToHuman, formatPhone } from "../utils/formatters";
-import { ROLES } from "../utils/constants";
+import { ROLES, ROUTES } from "../utils/constants";
 import { useToast } from "../components/UI/Toast";
 import ExportMenu from "../components/ExportMenu";
 
@@ -51,13 +53,18 @@ export default function PatientDetail() {
   const [attachmentError, setAttachmentError] = useState("");
   const [isDragging, setIsDragging] = useState(false);
   const [confirmModal, setConfirmModal] = useState({ open: false, action: null, type: null });
+  const [prescriptionsState, setPrescriptionsState] = useState({
+    items: [],
+    loading: true,
+    error: "",
+  });
   const fileInputRef = useRef(null);
 
-  useEffect(() => {
-    let isMounted = true;
+useEffect(() => {
+  let isMounted = true;
 
-    async function load() {
-      setLoading(true);
+  async function load() {
+    setLoading(true);
       setError("");
       try {
         const patientResponse = await getPatient(id);
@@ -90,10 +97,30 @@ export default function PatientDetail() {
 
     load();
 
-    return () => {
-      isMounted = false;
-    };
-  }, [id]);
+  return () => {
+    isMounted = false;
+  };
+}, [id]);
+
+useEffect(() => {
+  let active = true;
+  setPrescriptionsState((prev) => ({ ...prev, loading: true, error: "" }));
+  prescriptionsService
+    .listByPatient(id)
+    .then((items) => {
+      if (!active) return;
+      setPrescriptionsState({ items, loading: false, error: "" });
+    })
+    .catch((err) => {
+      if (!active) return;
+      const message =
+        err?.status === 404 ? "" : err?.message || "No pudimos cargar las prescripciones.";
+      setPrescriptionsState({ items: [], loading: false, error: message });
+    });
+  return () => {
+    active = false;
+  };
+}, [id]);
 
   const consentByType = useMemo(() => {
     const map = new Map();
@@ -389,6 +416,54 @@ export default function PatientDetail() {
                 ) : null}
               </>
             ) : null}
+          </CardBody>
+        </Card>
+
+        <Card hoverable={false} id="prescripciones">
+          <CardHeader className="cluster justify-between align-center wrap">
+            <div>
+              <h2>Prescripciones</h2>
+              <p className="helper-text">Registro terapéutico asociado al expediente.</p>
+            </div>
+            <Button
+              variant="secondary"
+              onClick={() => navigate(`${ROUTES.prescriptionsNew}?patientId=${id}`)}
+              disabled={isAssistant}
+            >
+              Emitir prescripción
+            </Button>
+          </CardHeader>
+          <CardBody className="stack-2">
+            {prescriptionsState.loading ? (
+              <p>Cargando prescripciones…</p>
+            ) : prescriptionsState.error ? (
+              <p className="form-error" role="alert">
+                {prescriptionsState.error}
+              </p>
+            ) : prescriptionsState.items.length === 0 ? (
+              <p className="helper-text">No hay prescripciones registradas.</p>
+            ) : (
+              <ul className="stack-2">
+                {prescriptionsState.items.map((item) => {
+                  const statusLabel = item.status === "suspendida" ? "Suspendida" : "Vigente";
+                  const variant = item.status === "suspendida" ? "danger" : "success";
+                  return (
+                    <li key={item.id} className="prescription-row cluster justify-between align-center wrap gap-2">
+                      <div className="stack-1">
+                        <strong>Folio {item.folio}</strong>
+                        <p className="helper-text">
+                          Fecha: {formatDateISOToHuman(item.createdAt || item.updatedAt)}
+                        </p>
+                      </div>
+                      <Badge variant={variant}>{statusLabel}</Badge>
+                      <Button variant="ghost" onClick={() => navigate(`/prescriptions/${item.id}`)}>
+                        Ver detalle
+                      </Button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
           </CardBody>
         </Card>
 

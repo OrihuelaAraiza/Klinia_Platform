@@ -67,7 +67,12 @@ function drawSection(page, title, content, fonts, cursorY) {
   return cursorY;
 }
 
-export async function generateHistoryPdf({ patient, history, generatedAt = new Date().toISOString() }) {
+export async function generateHistoryPdf({
+  patient,
+  history,
+  prescriptions = [],
+  generatedAt = new Date().toISOString(),
+}) {
   if (!history) {
     throw new Error("No hay historia clínica registrada para este paciente.");
   }
@@ -175,6 +180,52 @@ export async function generateHistoryPdf({ patient, history, generatedAt = new D
     font: fontRegular,
     size: BODY_FONT_SIZE,
   });
+
+  cursorY -= LINE_HEIGHT * 1.5;
+  page.drawText("Prescripciones", {
+    x: PAGE_MARGIN,
+    y: cursorY,
+    font: fontBold,
+    size: SECTION_TITLE_SIZE,
+  });
+  cursorY -= LINE_HEIGHT;
+
+  if (Array.isArray(prescriptions) && prescriptions.length) {
+    prescriptions.slice(0, 5).forEach((item) => {
+      page.drawText(`${item.folio ?? "RX"} — ${formatDateISOToHuman(item.createdAt)}`, {
+        x: PAGE_MARGIN,
+        y: cursorY,
+        font: fontBold,
+        size: BODY_FONT_SIZE,
+      });
+      cursorY -= LINE_HEIGHT;
+      const detail = `Principio activo: ${item.substance} | Dosis: ${item.dose} | Frecuencia: ${item.frequency}`;
+      cursorY = drawWrappedText(page, detail, {
+        x: PAGE_MARGIN,
+        yStart: cursorY,
+        font: fontRegular,
+        fontSize: BODY_FONT_SIZE,
+      });
+      cursorY -= LINE_HEIGHT * 0.5;
+    });
+    if (prescriptions.length > 5) {
+      page.drawText(`+${prescriptions.length - 5} prescripciones adicionales registradas.`, {
+        x: PAGE_MARGIN,
+        y: cursorY,
+        font: fontRegular,
+        size: BODY_FONT_SIZE,
+      });
+      cursorY -= LINE_HEIGHT;
+    }
+  } else {
+    page.drawText("Sin prescripciones registradas.", {
+      x: PAGE_MARGIN,
+      y: cursorY,
+      font: fontRegular,
+      size: BODY_FONT_SIZE,
+    });
+    cursorY -= LINE_HEIGHT;
+  }
 
   page.drawText("Documento generado por Klinia (PMV) — No sustituye firma autógrafa.", {
     x: PAGE_MARGIN,

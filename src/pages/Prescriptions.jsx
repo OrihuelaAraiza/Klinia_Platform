@@ -1,109 +1,392 @@
-import { useState } from "react";
-import { useOutletContext } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useLocation, useNavigate, useOutletContext } from "react-router-dom";
 import ButtonPrimary from "../components/ButtonPrimary";
 import InputField from "../components/InputField";
+import { useToast } from "../components/UI/Toast";
+import Button from "../components/UI/Button";
+import Card, { CardBody, CardHeader } from "../components/UI/Card";
+import { PRESCRIPTION_FIELDS, ROLES, ROUTES } from "../utils/constants";
+import * as patientsService from "../services/patientsService";
+import * as prescriptionsService from "../services/prescriptionsService";
 import auditService from "../services/auditService";
-import { PRESCRIPTION_FIELDS, ROLES } from "../utils/constants";
+import { downloadPrescriptionPdf } from "../utils/prescriptionPdf";
 
-const INITIAL_STATE = PRESCRIPTION_FIELDS.reduce(
-  (acc, field) => ({
-    ...acc,
-    [field.name]: "",
-  }),
-  { patientId: "" }
-);
+const REQUIRED_FIELDS = new Set(["substance", "dose", "frequency", "duration"]);
+
+function buildInitialForm(patientId = "") {
+  return PRESCRIPTION_FIELDS.reduce(
+    (acc, field) => ({
+      ...acc,
+      [field.name]: "",
+    }),
+    { patientId }
+  );
+}
+
+function formatAge(birthDate) {
+  if (!birthDate) return "—";
+  const date = new Date(birthDate);
+  if (Number.isNaN(date.getTime())) return "—";
+  const today = new Date();
+  let age = today.getFullYear() - date.getFullYear();
+  const monthDiff = today.getMonth() - date.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < date.getDate())) {
+    age -= 1;
+  }
+  return `${age} años`;
+}
 
 export default function Prescriptions() {
-  const { role } = useOutletContext() ?? {};
-  const [form, setForm] = useState(INITIAL_STATE);
-  const [statusMessage, setStatusMessage] = useState("");
+  const { role, user } = useOutletContext() ?? {};
+  const toast = useToast();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const initialPatientId = searchParams.get("patientId")?.trim() || "";
+  const [selectedPatientId, setSelectedPatientId] = useState(initialPatientId);
+  const [patient, setPatient] = useState(null);
+  const [patientError, setPatientError] = useState("");
+  const [patientLoading, setPatientLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [form, setForm] = useState(() => buildInitialForm(initialPatientId));
+  const [errors, setErrors] = useState({});
+  const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState("");
+  const [successRecord, setSuccessRecord] = useState(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
 
-  const isReadOnly = role === ROLES.ASSISTANT;
+  const isAssistant = role === ROLES.ASSISTANT;
+  const isFormDisabled = isAssistant || !patient || Boolean(patientError);
+
+  useEffect(() => {
+    setForm(buildInitialForm(selectedPatientId));
+    setSuccessRecord(null);
+  }, [selectedPatientId]);
+
+  useEffect(() => {
+    if (!selectedPatientId) {
+      setPatient(null);
+      setPatientError("");
+      return;
+    }
+
+    let active = true;
+    setPatientLoading(true);
+    setPatientError("");
+
+    patientsService
+      .getPatient(selectedPatientId)
+      .then((response) => {
+        if (!active) return;
+        setPatient(response);
+      })
+      .catch((error) => {
+        if (!active) return;
+        const message =
+          error?.status === 404
+            ? "No encontramos el expediente solicitado. Selecciona otro paciente."
+            : error?.message || "No pudimos cargar la información del paciente.";
+        setPatientError(message);
+        setPatient(null);
+      })
+      .finally(() => {
+        if (active) {
+          setPatientLoading(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [selectedPatientId]);
+
+  const handleSearch = async (event) => {
+    event.preventDefault();
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      return;
+    }
+    setSearchLoading(true);
+    try {
+      const response = await patientsService.listPatients({ q: searchQuery.trim(), page: 1, size: 5 });
+      const items = Array.isArray(response?.items) ? response.items : [];
+      setSearchResults(items);
+    } catch (error) {
+      toast.error(error?.message || "No pudimos buscar pacientes.");
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  const selectPatient = useCallback(
+    (candidate) => {
+      if (!candidate?.id) return;
+      navigate(`${ROUTES.prescriptionsNew}?patientId=${candidate.id}`, { replace: false });
+      setSelectedPatientId(candidate.id);
+      setSearchResults([]);
+    },
+    [navigate]
+  );
+
+  const clearSelection = () => {
+    navigate(ROUTES.prescriptions, { replace: true });
+    setSelectedPatientId("");
+    setPatient(null);
+    setPatientError("");
+  };
 
   const handleChange = (event) => {
     const { name, value } = event.target;
     setForm((prev) => ({ ...prev, [name]: value }));
+    if (errors[name]) {
+      setErrors((prev) => ({ ...prev, [name]: "" }));
+    }
+    if (formError) {
+      setFormError("");
+    }
   };
 
-  const resetForm = () => {
-    setForm(INITIAL_STATE);
-  };
+  const validationErrors = useMemo(() => {
+    const issues = {};
+    if (!selectedPatientId) {
+      issues.patientId = "Selecciona un paciente para continuar.";
+    }
+    REQUIRED_FIELDS.forEach((field) => {
+      if (!String(form[field] || "").trim()) {
+        issues[field] = "Campo requerido.";
+      }
+    });
+    return issues;
+  }, [form, selectedPatientId]);
 
-  const handleGeneratePdf = async () => {
-    await auditService.logAudit("generate_prescription_pdf", { patientId: form.patientId });
-    setStatusMessage("PDF generado (simulado). Se enviará al paciente por correo.");
-  };
-
-  const handleRegister = async (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
-    if (isReadOnly) {
-      setStatusMessage("Solo lectura: solicita a un profesional que emita la prescripción.");
+    if (isFormDisabled) {
+      setFormError("Este perfil es de solo lectura. Solicita a un profesional que emita la prescripción.");
       return;
     }
 
-    await auditService.logAudit("register_prescription", { patientId: form.patientId });
-    setStatusMessage("Prescripción registrada en bitácora de auditoría.");
-    resetForm();
+    const issues = validationErrors;
+    setErrors(issues);
+    if (Object.keys(issues).length > 0) {
+      setFormError("Revisa los campos obligatorios marcados en rojo.");
+      return;
+    }
+
+    setSubmitting(true);
+    setFormError("");
+
+    try {
+      const payload = {
+        ...form,
+        patientId: selectedPatientId,
+        professional: {
+          id: user?.id,
+          name: user?.name || "Profesional Klinia",
+          role: role || "PROFESSIONAL",
+          license: user?.license,
+        },
+      };
+      const record = await prescriptionsService.create(payload);
+      setSuccessRecord(record);
+      toast.success(`Prescripción emitida (folio ${record.folio}).`);
+    } catch (error) {
+      const message = error?.message || "No pudimos registrar la prescripción.";
+      setFormError(message);
+      toast.error(message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handlePdf = async () => {
+    if (!successRecord || pdfLoading) {
+      return;
+    }
+    setPdfLoading(true);
+    try {
+      await downloadPrescriptionPdf({
+        prescription: successRecord,
+        patient: patient || { id: successRecord.patientId, curp: successRecord.patientCurp },
+        professional: successRecord.professional || user,
+      });
+      await auditService.logAudit("prescription_pdf_generated", {
+        patientId: successRecord.patientId,
+        prescriptionId: successRecord.id,
+        folio: successRecord.folio,
+      });
+    } catch (error) {
+      toast.error(error?.message || "No pudimos generar el PDF.");
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
+  const handleViewExpediente = () => {
+    if (!successRecord?.patientId) return;
+    navigate(`/patients/${successRecord.patientId}#prescripciones`);
   };
 
   return (
-    <section className="page">
-      <header className="page__header">
+    <section className="page stack-5">
+      <header className="page__header stack-1">
         <h1>Prescripciones</h1>
-        <p>Genera recetas electrónicas y regístralas para seguimiento terapéutico.</p>
+        <p className="helper-text">
+          Emite recetas electrónicas con trazabilidad NOM-004 y NOM-024.
+        </p>
       </header>
 
-      <form className="form-grid" onSubmit={handleRegister} noValidate>
-        <InputField
-          label="ID del paciente"
-          name="patientId"
-          value={form.patientId}
-          onChange={handleChange}
-          placeholder="KLI-001"
-          required
-          autoComplete="off"
-          assistiveText="Ingresa el identificador interno del expediente."
-        />
-        {PRESCRIPTION_FIELDS.map((field) => (
-          <InputField
-            key={field.name}
-            label={field.label}
-            name={field.name}
-            value={form[field.name]}
-            onChange={handleChange}
-            placeholder=""
-            required={field.name !== "notes"}
-            autoComplete="off"
-          />
-        ))}
-
-        <div className="form-grid__actions">
-          <ButtonPrimary
-            type="button"
-            variant="secondary"
-            onClick={handleGeneratePdf}
-            disabled={isReadOnly}
-          >
-            Generar PDF (stub)
-          </ButtonPrimary>
-          <ButtonPrimary type="submit" disabled={isReadOnly}>
-            Registrar emisión (stub)
-          </ButtonPrimary>
-        </div>
-      </form>
-
-      {statusMessage ? (
-        <p className="helper-text" role="status">
-          {statusMessage}
-        </p>
+      {!selectedPatientId ? (
+        <Card hoverable={false}>
+          <CardHeader>
+            <h2>Selecciona un paciente</h2>
+          </CardHeader>
+          <CardBody className="stack-3">
+            <form className="form-inline" onSubmit={handleSearch}>
+              <InputField
+                label="Buscar por nombre, CURP o correo"
+                name="patient-search"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder="Ej. Carmen Pérez"
+                autoComplete="off"
+              />
+              <ButtonPrimary type="submit" loading={searchLoading}>
+                Buscar
+              </ButtonPrimary>
+            </form>
+            {searchResults.length ? (
+              <ul className="list list--card">
+                {searchResults.map((item) => (
+                  <li key={item.id}>
+                    <button
+                      type="button"
+                      className="list__item"
+                      onClick={() => selectPatient(item)}
+                    >
+                      <span>
+                        {item.firstName} {item.lastName}
+                      </span>
+                      <small>{item.curp}</small>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : searchQuery ? (
+              <p className="helper-text">No encontramos coincidencias.</p>
+            ) : null}
+          </CardBody>
+        </Card>
       ) : null}
 
-      {isReadOnly ? (
+      {selectedPatientId ? (
+        <Card hoverable={false} id="prescripcion-paciente">
+          <CardHeader className="cluster justify-between">
+            <div>
+              <h2>Paciente seleccionado</h2>
+              <p className="helper-text">Revisa los datos antes de emitir la receta.</p>
+            </div>
+            <Button variant="ghost" onClick={clearSelection}>
+              Cambiar paciente
+            </Button>
+          </CardHeader>
+          <CardBody className="stack-2">
+            {patientLoading ? (
+              <p>Cargando expediente…</p>
+            ) : patientError ? (
+              <p className="form-error" role="alert">
+                {patientError}
+              </p>
+            ) : patient ? (
+              <>
+                <p>
+                  <strong>Nombre:</strong> {patient.firstName} {patient.lastName}
+                </p>
+                <p>
+                  <strong>CURP:</strong> {patient.curp}
+                </p>
+                <p>
+                  <strong>Edad:</strong> {formatAge(patient.birthDate)}
+                </p>
+              </>
+            ) : null}
+          </CardBody>
+        </Card>
+      ) : null}
+
+      {selectedPatientId ? (
+        <form className="form-grid" onSubmit={handleSubmit} noValidate>
+          <InputField
+            label="ID del paciente"
+            name="patientId"
+            value={selectedPatientId}
+            readOnly
+            disabled
+          />
+          {PRESCRIPTION_FIELDS.map((field) => (
+            <InputField
+              key={field.name}
+              label={field.label}
+              name={field.name}
+              value={form[field.name]}
+              onChange={handleChange}
+              placeholder=""
+              required={REQUIRED_FIELDS.has(field.name)}
+              autoComplete="off"
+              disabled={isFormDisabled || submitting}
+              error={errors[field.name]}
+            />
+          ))}
+
+          {formError ? (
+            <p className="form-error" role="alert">
+              {formError}
+            </p>
+          ) : null}
+
+          <div className="form-grid__actions">
+            <ButtonPrimary
+              type="submit"
+              disabled={isFormDisabled}
+              loading={submitting}
+              fullWidth
+            >
+              Registrar emisión
+            </ButtonPrimary>
+          </div>
+        </form>
+      ) : null}
+
+      {isAssistant ? (
         <div className="empty-state empty-state--inline">
           <p>
-            Perfil asistente: consulta permitida pero sin capacidad de emitir recetas.
+            Perfil asistente: consulta el estado de las recetas pero no puedes emitir ni suspender prescripciones.
           </p>
         </div>
+      ) : null}
+
+      {successRecord ? (
+        <Card hoverable={false} className="stack-2">
+          <CardHeader className="cluster justify-between">
+            <div>
+              <h2>Prescripción registrada</h2>
+              <p className="helper-text">Folio {successRecord.folio}</p>
+            </div>
+            <Button variant="ghost" onClick={() => navigate(`/prescriptions/${successRecord.id}`)}>
+              Ver detalle
+            </Button>
+          </CardHeader>
+          <CardBody className="cluster gap-2 wrap">
+            <ButtonPrimary variant="secondary" onClick={handlePdf} loading={pdfLoading}>
+              Ver PDF
+            </ButtonPrimary>
+            <ButtonPrimary onClick={handleViewExpediente}>
+              Ver en expediente
+            </ButtonPrimary>
+          </CardBody>
+        </Card>
       ) : null}
     </section>
   );

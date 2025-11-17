@@ -5,6 +5,7 @@ import {
   notesByPatient,
   consentsByPatient,
 } from "../store/memory.js";
+import { listPrescriptionsByPatient } from "../store/prescriptions.js";
 
 function sorter(value, seen) {
   if (value && typeof value === "object") {
@@ -81,6 +82,25 @@ function mapAttachments(patient) {
   }));
 }
 
+function mapPrescriptions(patientId) {
+  return listPrescriptionsByPatient(patientId).map((item) => {
+    const payload = {
+      folio: item.folio,
+      fecha: item.createdAt || item.signedAt || new Date().toISOString(),
+      principioActivo: item.substance,
+      forma: item.form,
+      dosis: item.dose,
+      via: item.route,
+      frecuencia: item.frequency,
+      duracion: item.duration,
+      indicaciones: item.notes || "",
+      estado: item.status,
+    };
+    payload.hash = sha256Hex(canonicalize(payload));
+    return payload;
+  });
+}
+
 /** Compose NOM-024 record JSON */
 export function composeRecord(patientId) {
   const patient = patients.get(patientId);
@@ -123,6 +143,7 @@ export function composeRecord(patientId) {
       : null,
     notas: mapNotes(notes),
     consentimientos: mapConsents(consents),
+    prescripciones: mapPrescriptions(patientId),
     adjuntos: mapAttachments(patient),
     verificacion: {
       algoritmo: "SHA-256",

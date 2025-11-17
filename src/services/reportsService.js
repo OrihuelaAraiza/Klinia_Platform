@@ -6,6 +6,7 @@ import { listConsents } from "./consentsService";
 import { composeRecord } from "../utils/export/composeRecord";
 import { generateHistoryPdf } from "../utils/export/pdf/historyPdf";
 import { generateNotePdf } from "../utils/export/pdf/notePdf";
+import { listByPatient as listPrescriptionsByPatient } from "./prescriptionsService";
 
 function triggerDownload(blob, filename) {
   const url = URL.createObjectURL(blob);
@@ -38,6 +39,7 @@ export async function fetchPatientBundle(patientId, overrides = {}) {
     history: overrides.history || null,
     notes: overrides.notes || null,
     consents: overrides.consents || null,
+    prescriptions: overrides.prescriptions || null,
   };
 
   if (!bundle.patient) {
@@ -73,12 +75,27 @@ export async function fetchPatientBundle(patientId, overrides = {}) {
     }
   }
 
+  if (!bundle.prescriptions) {
+    try {
+      bundle.prescriptions = await listPrescriptionsByPatient(patientId);
+    } catch (error) {
+      if (error?.status === 404) {
+        bundle.prescriptions = [];
+      } else {
+        throw error;
+      }
+    }
+  }
+
   return bundle;
 }
 
 export async function exportPatientRecordJson(patientId, overrides = {}) {
-  const { patient, history, notes, consents } = await fetchPatientBundle(patientId, overrides);
-  const record = await composeRecord(patient, history, notes, consents);
+  const { patient, history, notes, consents, prescriptions } = await fetchPatientBundle(
+    patientId,
+    overrides
+  );
+  const record = await composeRecord(patient, history, notes, consents, prescriptions);
   const filename = `expediente_${(patient.curp || patient.id || "paciente").toLowerCase()}.json`;
   downloadJson(filename, record);
   await auditExport("export_json", { patientId: patient.id });
@@ -86,11 +103,11 @@ export async function exportPatientRecordJson(patientId, overrides = {}) {
 }
 
 export async function exportHistoryPdf(patientId, overrides = {}) {
-  const { patient, history } = await fetchPatientBundle(patientId, overrides);
+  const { patient, history, prescriptions } = await fetchPatientBundle(patientId, overrides);
   if (!history) {
     throw new Error("No hay historia clínica registrada para este paciente.");
   }
-  const blob = await generateHistoryPdf({ patient, history });
+  const blob = await generateHistoryPdf({ patient, history, prescriptions });
   const filename = `historia_${(patient.curp || patient.id || "paciente").toLowerCase()}.pdf`;
   downloadPdf(filename, blob);
   await auditExport("export_pdf_history", { patientId: patient.id });

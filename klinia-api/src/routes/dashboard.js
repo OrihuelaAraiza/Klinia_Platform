@@ -58,7 +58,7 @@ router.get("/dashboard/stats", (req, res) => {
   const todaySessions = collectTodaySessions();
   const prescriptions = getPrescriptions();
   const activePrescriptions = countActivePrescriptions();
-  const lastPrescriptionTime = pickLatestTimestamp(prescriptions, "signedAt");
+  const lastPrescriptionTime = pickLatestTimestamp(prescriptions, "createdAt");
   const auditEvents = getAuditEvents();
 
   const sessionsToday = todaySessions.length;
@@ -129,7 +129,7 @@ router.get("/dashboard/prescriptions/recent", (req, res) => {
       patientId: item.patientId || null,
       patientName: item.patientName,
       folio: item.folio,
-      signedAt: item.signedAt,
+      signedAt: item.createdAt,
     }))
     .sort((a, b) => {
       const timeA = a.signedAt ? Date.parse(a.signedAt) : 0;

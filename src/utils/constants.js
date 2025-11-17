@@ -19,6 +19,8 @@ export const ROUTES = {
   sessionsCalendar: "/sessions/calendar",
   consents: "/consents",
   prescriptions: "/prescriptions",
+  prescriptionsNew: "/prescriptions/new",
+  prescriptionDetail: "/prescriptions/:id",
   reports: "/reports",
 };
 

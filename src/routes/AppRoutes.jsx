@@ -22,6 +22,7 @@ const PatientSessions = lazy(() => import("../pages/PatientSessions"));
 const SessionsCalendar = lazy(() => import("../pages/SessionsCalendar"));
 const Consents = lazy(() => import("../pages/Consents"));
 const Prescriptions = lazy(() => import("../pages/Prescriptions"));
+const PrescriptionDetail = lazy(() => import("../pages/PrescriptionDetail"));
 const Reports = lazy(() => import("../pages/Reports"));
 const NotFound = lazy(() => import("../pages/NotFound"));
 
@@ -113,8 +114,10 @@ export default function AppRoutes() {
             <Route path="/patients/:id/history" element={<History />} />
           </Route>
 
-          <Route element={<ProtectedRoute allow={[ROLES.ADMIN, ROLES.PROFESSIONAL]} />}>
+          <Route element={<ProtectedRoute allow={[ROLES.ADMIN, ROLES.PROFESSIONAL, ROLES.ASSISTANT]} />}>
             <Route path={ROUTES.prescriptions} element={<Prescriptions />} />
+            <Route path={ROUTES.prescriptionsNew} element={<Prescriptions />} />
+            <Route path={ROUTES.prescriptionDetail} element={<PrescriptionDetail />} />
           </Route>
 
           <Route element={<ProtectedRoute />}>

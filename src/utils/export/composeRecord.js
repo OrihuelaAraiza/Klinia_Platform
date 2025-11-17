@@ -101,7 +101,33 @@ function mapAttachments(patient) {
   }));
 }
 
-export async function composeRecord(patient, history, notes, consents) {
+async function mapPrescriptions(prescriptions) {
+  if (!Array.isArray(prescriptions)) {
+    return [];
+  }
+  return Promise.all(
+    prescriptions.map(async (item) => {
+      const payload = {
+        folio: item.folio ?? "",
+        fecha: item.createdAt ?? item.signedAt ?? "",
+        principioActivo: item.substance ?? "",
+        forma: item.form ?? "",
+        dosis: item.dose ?? "",
+        via: item.route ?? "",
+        frecuencia: item.frequency ?? "",
+        duracion: item.duration ?? "",
+        indicaciones: item.notes ?? "",
+        estado: item.status ?? "vigente",
+      };
+      const canonical = canonicalize(payload);
+      payload.hash = await sha256(canonical);
+      return payload;
+    })
+  );
+}
+
+export async function composeRecord(patient, history, notes, consents, prescriptions = []) {
+  const mappedPrescriptions = await mapPrescriptions(prescriptions);
   const record = {
     version: "1.0",
     generadoEn: new Date().toISOString(),
@@ -109,6 +135,7 @@ export async function composeRecord(patient, history, notes, consents) {
     historiaClinica: mapHistory(history),
     notas: mapNotes(notes),
     consentimientos: mapConsents(consents),
+    prescripciones: mappedPrescriptions,
     adjuntos: mapAttachments(patient),
     verificacion: {
       algoritmo: "SHA-256",
