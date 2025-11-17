@@ -243,19 +243,29 @@ export default function Login() {
               <AuthProviders
                 disabled={combinedBusy || isBlocked}
                 onBusyChange={setProvidersBusy}
-                onSuccess={() => {
-                  if (limiterKey) {
-                    resetRateLimit(limiterKey);
-                    setBlockState(BLOCK_INITIAL_STATE);
-                  }
-                }}
+                
+
+                onSuccess={(response) => {
+
+                if (limiterKey) {
+                resetRateLimit(limiterKey);
+                setBlockState(BLOCK_INITIAL_STATE);
+                }
+                                  
+
+                if (response.status === 'LOGIN_SUCCESS') {
+                navigate(resolveDestination(response.user.role), { replace: true });
+
+                } else if (response.status === 'REGISTRATION_REQUIRED') {
+
+                navigate(ROUTES.register, { 
+                state: { partialToken: response.partialToken } 
+                });
+                } 
+                }} 
                 onError={() => {
-                  if (limiterKey) {
-                    const limiterState = shouldRateLimit(limiterKey);
-                    setBlockState(limiterState);
-                  }
                 }}
-              />
+                />
             ) : import.meta.env.DEV ? (
               <small className="hint">
                 Configura VITE_MSAL_CLIENT_ID y el tenant para habilitar Microsoft.

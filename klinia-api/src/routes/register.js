@@ -1,13 +1,10 @@
 import { Router } from "express";
+import { prisma } from '../services/dbClient.js'; 
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import {
-  hasUser,
-  kycRecordsByUserId,
-  pushAuditEvent, 
+  pushAuditEvent,
   uid,
-  usersByEmail,
-  uploadsById, 
 } from "../store/memory.js";
 
 import * as docIntelService from '../services/azureDocIntelService.js';
@@ -24,6 +21,7 @@ function emitAudit(event, meta = {}) {
 
 const router = Router();
 
+// --- CONSTANTES Y VALIDADORES ---
 const PASSWORD_REGEX = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
 const CURP_REGEX =
   /^[A-Z][AEIOU][A-Z]{2}\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])[HM](AS|BC|BS|CC|CL|CM|CS|CH|DF|DG|GT|GR|HG|JC|MC|MN|MS|NT|NL|OC|PL|QT|QR|SP|SL|SR|TC|TS|TL|VZ|YN|ZS)[B-DF-HJ-NP-TV-Z]{3}[0-9A-Z]\d$/;
@@ -40,6 +38,7 @@ const MEXICO_STATES = [
   "TAMAULIPAS", "TLAXCALA", "VERACRUZ", "YUCATAN", "ZACATECAS",
 ];
 
+// --- FUNCIÓN 'isAdult' (CORREGIDA) ---
 function isAdult(birthDate) {
   if (!DATE_REGEX.test(birthDate)) return false;
   const date = new Date(birthDate);
@@ -53,6 +52,7 @@ function isAdult(birthDate) {
   return age >= 18;
 }
 
+// --- ESQUEMAS ZOD (CORREGIDOS) ---
 const emailSchema = z
   .string({ required_error: "Correo requerido" })
   .trim()
@@ -68,36 +68,15 @@ const passwordSchema = z
   });
 
 const identitySchema = z.object({
-  firstName: z
-    .string({ required_error: "Nombre requerido" })
+  firstName: z.string().trim().min(2, { message: "Nombre muy corto" }),
+  lastName: z.string().trim().min(2, { message: "Apellido muy corto" }),
+  curp: z.string().trim().refine((value) => CURP_REGEX.test(value), { message: "CURP invalido" }),
+  certificateFolio: z
+    .string({ required_error: "Folio de certificado requerido" })
     .trim()
-    .min(2, { message: "Nombre muy corto" }),
-  lastName: z
-    .string({ required_error: "Apellido requerido" })
-    .trim()
-    .min(2, { message: "Apellido muy corto" }),
-  curp: z
-    .string({ required_error: "CURP requerido" })
-    .trim()
-    .transform((value) => value.toUpperCase())
-    .refine((value) => CURP_REGEX.test(value), {
-      message: "CURP invalido",
-    }),
-  rfc: z
-    .string()
-    .trim()
-    .optional()
-    .transform((value) => (value ? value.toUpperCase() : undefined))
-    .refine((value) => value === undefined || RFC_REGEX.test(value), {
-      message: "RFC invalido",
-    }),
-  birthDate: z
-    .string({ required_error: "Fecha de nacimiento requerida" })
-    .trim()
-    .regex(DATE_REGEX, { message: "Fecha de nacimiento invalida" })
-    .refine((value) => isAdult(value), {
-      message: "Debe ser mayor de 18 años.",
-    }),
+    .min(5, { message: "Folio inválido (mín. 5 caracteres)" }),
+  birthDate: z.string().trim().regex(DATE_REGEX, { message: "Fecha invalida" })
+    .refine((value) => isAdult(value), { message: "Debe ser mayor de 18 años." }),
 });
 
 const registerCompleteSchema = z.object({
@@ -121,7 +100,7 @@ const registerCompleteSchema = z.object({
   documents: z.object({
     idOrPassportFileId: z.string().trim().min(1, { message: "Identificacion requerida" }),
     professionalLicenseFileId: z.string().trim().min(1, { message: "Cedula requerida" }),
-    universityDegreeFileId: z.string().trim().min(1, { message: "Titulo requerido" }),
+    curpDocumentFileId: z.string().trim().min(1).optional(),
     proofOfAddressFileId: z.string().trim().min(1, { message: "Comprobante requerido" }),
   }),
   face: z.object({
@@ -129,17 +108,33 @@ const registerCompleteSchema = z.object({
   }),
 });
 
+// --- RUTA /register-msal (NUEVA) ---
+router.post("/register-msal", async (req, res, next) => {
+  const { payload: formPayload, partialToken } = req.body;
+  
+  // 1. Validar el Token Parcial
+  let msalPayload;
+  try {
+    msalPayload = jwt.verify(partialToken, env.JWT_SECRET);
+    if (!msalPayload.msal) throw new Error("Token no válido.");
+  } catch (jwtError) {
+    return res.status(401).json({ message: "Token de registro inválido o expirado." });
+  }
 
-
-router.post("/register/complete", async (req, res, next) => {
-  const timestamp = new Date().toISOString();
-  const emailForAudit = String(req.body?.access?.email || "").trim().toLowerCase();
+ const email = msalPayload.email;
+  const emailForAudit = email;
+  console.log(`Completando registro MSAL para: ${email}`);
 
   try {
-    const payload = registerCompleteSchema.parse(req.body);
-    const email = payload.access.email;
+    const payload = registerCompleteSchema
+      .omit({ access: true })
+      .parse(formPayload);
 
-    if (hasUser(email)) {
+    const existingUser = await prisma.user.findUnique({
+      where: { email: email }
+    });
+
+    if (existingUser) {
       emitAudit("auth_register_failed", { email, reason: "duplicate" });
       return res
         .status(409)
@@ -148,56 +143,80 @@ router.post("/register/complete", async (req, res, next) => {
 
     const idDocFileId = payload.documents.idOrPassportFileId;
     const selfieFileId = payload.face.selfieFileId;
-
-    const idDocRecord = uploadsById.get(idDocFileId);
-    const selfieRecord = uploadsById.get(selfieFileId); 
+    const idDocRecord = await prisma.upload.findUnique({ where: { id: idDocFileId } });
+    const selfieRecord = await prisma.upload.findUnique({ where: { id: selfieFileId } });
 
     if (!idDocRecord || !selfieRecord) {
-      console.error("Registros no encontrados en memoria (probable reinicio de nodemon)", { idDocFileId, selfieFileId });
-      return res.status(400).json({ message: "Archivos de verificación no encontrados (sesión expirada). Súbelos de nuevo." });
+      console.error("Registros no encontrados en la BD", { idDocFileId, selfieFileId });
+      return res.status(400).json({ message: "Archivos de verificación no encontrados. Súbelos de nuevo." });
     }
 
     const idDocBlobName = idDocRecord.blobName;
-
     if (!idDocBlobName) {
       console.error("Registro de 'idDoc' no tiene .blobName", idDocRecord);
       return res.status(400).json({ message: "Registro de archivo corrupto, falta 'blobName'." });
     }
- 
+  
     const idDocSasUrl = await blobService.getBlobSasUrl(idDocBlobName);
 
-    console.log('Iniciando verificación de documentos (extracción de texto)...');
-    
-    const docExtraction = await docIntelService.analyzeIdDocument(idDocSasUrl);
-    
+  
+    let docExtraction;
+    try {
+      console.log('Iniciando verificación de documentos (extracción de texto)...');
+      docExtraction = await docIntelService.analyzeIdDocument(idDocSasUrl);
+    } catch (extractionError) {
+      console.warn('Fallo la extracción de Document Intelligence:', extractionError.message);
+      emitAudit("auth_register_failed", { email, reason: "kyc_doc_intel_failed" });
+      return res.status(400).json({ 
+        message: `El documento de identidad no pudo ser procesado. Asegúrate de que sea una INE válida. (Error: ${extractionError.message})` 
+      });
+    }
+
     const fields = docExtraction.fields;
-    const nombreExtraido = fields.FirstName?.value || '';
-    const curpExtraida = fields.PersonalIdentificationNumber?.value || '';
-    
-    const nombreCoincide = nombreExtraido.toUpperCase() === payload.identity.firstName.toUpperCase();
-    const curpCoincide = curpExtraida.toUpperCase() === payload.identity.curp.toUpperCase();
+    const nombreExtraido = fields.FirstName?.value || ''; 
+    let curpExtraida = fields.PersonalIdentificationNumber?.value || '';
 
 
-    console.warn('¡Omitiendo verificación facial! Pendiente de aprobación de Azure (Error 403).');
-    const faceVerification = { 
-      isIdentical: true, // Simular que coincide
-      confidence: "SKIPPED_AZURE_403" 
-    };
+    // --- LÓGICA DE RESPALDO DE CURP (CORREGIDA) ---
+    if (!curpExtraida && payload.documents.curpDocumentFileId) {
+      console.warn('CURP no encontrada en INE. Buscando en documento CURP de respaldo...');
+      
+      const curpDocRecord = await prisma.upload.findUnique({
+        where: { id: payload.documents.curpDocumentFileId }
+      });
+      
+      if (curpDocRecord && curpDocRecord.blobName) {
+        try {
+          const curpDocSasUrl = await blobService.getBlobSasUrl(curpDocRecord.blobName);
+          const layoutResult = await docIntelService.analyzeDocumentLayout(curpDocSasUrl);
+          
+          const curpRegex = /[A-Z][AEIOU][A-Z]{2}\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])[HM][A-Z]{5}[0-9A-Z]\d/;
+          const match = layoutResult.content.match(curpRegex);
+          
+          if (match) {
+            curpExtraida = match[0];
+            console.log('CURP encontrada en documento de respaldo:', curpExtraida);
+          } else {
+            console.warn('Se subió documento CURP, pero no se encontró un patrón de CURP en él.');
+          }
+        } catch (curpError) {
+          console.error('Error al analizar el documento CURP de respaldo:', curpError.message);
+        }
+      }
+    }
+
+
+    const nombreCoincide = (nombreExtraido?.toUpperCase() || '') === (payload.identity.firstName?.toUpperCase() || '');
+    const curpCoincide = (curpExtraida?.toUpperCase() || '') === (payload.identity.curp?.toUpperCase() || '');
+
+    console.warn('¡Omitiendo verificación facial! ...');
+    const faceVerification = { isIdentical: true, confidence: "SKIPPED_AZURE_403" }; 
     
-    // --- NO EJECUTAR ESTO HASTA TENER PERMISO DE AZURE ---
-    /*
-    const selfieUrl = selfieRecord.blobUrl; // Necesario para la detección
-    const [selfieFaceId, docFaceId] = await Promise.all([
-      faceService.detectFace(selfieUrl),
-      faceService.detectFace(idDocSasUrl) // Usar la URL SAS para el doc
-    ]);
-    const faceVerification = await faceService.verifyFaces(selfieFaceId, docFaceId);
-    */
-    // ---------------------------------------------------
+    // --- VERIFICATION SUMMARY (CORREGIDO) ---
     const verificationSummary = {
       nombreCoincide,
       curpCoincide,
-      faceVerification, 
+      faceVerification, // ej: { isIdentical: true, confidence: "SKIPPED_AZURE_403" }
       datosFormulario: {
         nombre: payload.identity.firstName,
         curp: payload.identity.curp,
@@ -208,10 +227,227 @@ router.post("/register/complete", async (req, res, next) => {
       },
     };
 
-
+    // --- BLOQUE 'IF' DE RECHAZO (CORREGIDO) ---
     if (!nombreCoincide || !curpCoincide) { 
       console.warn('Verificación de TEXTO fallida para:', email, verificationSummary);
+      emitAudit("auth_register_failed", {
+        email,
+        reason: "kyc_text_failed",
+        summary: verificationSummary,
+      });
+
+      return res.status(400).json({ 
+        message: 'Los datos de tus documentos (CURP/Nombre) no coinciden con el formulario.', 
+        summary: verificationSummary 
+      });
+    }
+    
+    console.log('Verificación de texto exitosa. Creando usuario...');
+    const userId = uid("U_");
+    const fullName = `${payload.identity.firstName} ${payload.identity.lastName}`.trim();
+    console.log('Verificación KYC de MSAL exitosa. Creando usuario...');
+    
+    
+
+    const allFileIds = [
+      payload.documents.idOrPassportFileId,
+      payload.documents.professionalLicenseFileId,
+      payload.documents.curpDocumentFileId,
+      payload.documents.proofOfAddressFileId,
+      payload.face.selfieFileId
+    ].filter(Boolean);
+    
+    try { 
+      const newUser = await prisma.$transaction(async (tx) => {
+        const createdUser = await tx.user.create({
+          data: {
+            id: userId,
+            email: email, 
+            name: fullName,
+            role: "PROFESSIONAL",
+            passwordHash: null, 
+            createdAt: new Date().toISOString(),
+          }
+        });
+
+        await tx.kycRecord.create({
+          data: {
+            id: uid("KYC_"),
+            userId: createdUser.id,
+            
+            // Identidad
+            firstName: payload.identity.firstName,
+            lastName: payload.identity.lastName,
+            curp: payload.identity.curp,
+            birthDate: payload.identity.birthDate,
+            certificateFolio: payload.identity.certificateFolio, 
+            
+            // Contacto (con emergencia)
+            phone: payload.contact.phone,
+            emergencyName: payload.contact.emergencyName,
+            emergencyPhone: payload.contact.emergencyPhone,
+            phoneIsVerified: true, // Asumimos 'true' por ahora
+            
+            // Domicilio
+            street: payload.address.street,
+            neighborhood: payload.address.neighborhood,
+            postalCode: payload.address.postalCode,
+            city: payload.address.city,
+            state: payload.address.state,
+            
+            // Verificación
+            nombreCoincide: verificationSummary.nombreCoincide, 
+            curpCoincide: verificationSummary.curpCoincide,   
+            faceMatch: verificationSummary.faceVerification.isIdentical,
+            faceConfidence: String(verificationSummary.faceVerification.confidence)
+          }
+        });
+        
+        await tx.upload.updateMany({
+          where: { id: { in: allFileIds } },
+          data: { userId: createdUser.id }
+        });
+
+        return createdUser;
+      });
+
+      const token = jwt.sign(buildTokenPayload(newUser), env.JWT_SECRET, { expiresIn: '1d' });
+      emitAudit("auth_register_success", { email, method: "microsoft" });
+
+      return res.status(201).json({
+        token,
+        user: toPublicUser(newUser),
+      });
+
+    } catch (dbError) { 
+      console.error("Error en la transacción de Prisma:", dbError);
+      emitAudit("auth_register_failed", {
+        email: emailForAudit,
+        reason: "database_error",
+        message: dbError?.message,
+      });
+      return res.status(500).json({ message: "Error al guardar el usuario en la base de datos." });
+    }
+    
+  } catch (error) { 
+    emitAudit("auth_register_failed", {
+      email: emailForAudit,
+      reason: error instanceof z.ZodError ? "validation" : "error",
+      message: error?.message,
+    });
+    return next(error);
+  }
+});
+
+
+// --- RUTA COMPLETA ---
+router.post("/register/complete", async (req, res, next) => {
+  const timestamp = new Date().toISOString();
+  const emailForAudit = String(req.body?.access?.email || "").trim().toLowerCase();
+
+  try {
+    const payload = registerCompleteSchema.parse(req.body);
+    const email = payload.access.email;
+
+    const existingUser = await prisma.user.findUnique({
+      where: { email: email }
+    });
+    if (existingUser) {
+      emitAudit("auth_register_failed", { email, reason: "duplicate" });
+      return res
+        .status(409)
+        .json({ message: "Este correo ya esta registrado." });
+    }
+
+    const idDocFileId = payload.documents.idOrPassportFileId;
+    const selfieFileId = payload.face.selfieFileId;
+    const idDocRecord = await prisma.upload.findUnique({ where: { id: idDocFileId } });
+    const selfieRecord = await prisma.upload.findUnique({ where: { id: selfieFileId } });
+
+    if (!idDocRecord || !selfieRecord) {
+      console.error("Registros no encontrados en la BD", { idDocFileId, selfieFileId });
+      return res.status(400).json({ message: "Archivos de verificación no encontrados. Súbelos de nuevo." });
+    }
+
+    const idDocBlobName = idDocRecord.blobName;
+    if (!idDocBlobName) {
+      console.error("Registro de 'idDoc' no tiene .blobName", idDocRecord);
+      return res.status(400).json({ message: "Registro de archivo corrupto, falta 'blobName'." });
+    }
+  
+    const idDocSasUrl = await blobService.getBlobSasUrl(idDocBlobName);
+
+  
+    let docExtraction;
+    try {
+      console.log('Iniciando verificación de documentos (extracción de texto)...');
+      docExtraction = await docIntelService.analyzeIdDocument(idDocSasUrl);
+    } catch (extractionError) {
+      console.warn('Fallo la extracción de Document Intelligence:', extractionError.message);
+      emitAudit("auth_register_failed", { email, reason: "kyc_doc_intel_failed" });
+      return res.status(400).json({ 
+        message: `El documento de identidad no pudo ser procesado. Asegúrate de que sea una INE válida. (Error: ${extractionError.message})` 
+      });
+    }
+
+    const fields = docExtraction.fields;
+    const nombreExtraido = fields.FirstName?.value || ''; 
+    let curpExtraida = fields.PersonalIdentificationNumber?.value || '';
+
+
+    // --- LÓGICA DE RESPALDO DE CURP (CORREGIDA) ---
+    if (!curpExtraida && payload.documents.curpDocumentFileId) {
+      console.warn('CURP no encontrada en INE. Buscando en documento CURP de respaldo...');
       
+      const curpDocRecord = await prisma.upload.findUnique({
+        where: { id: payload.documents.curpDocumentFileId }
+      });
+      
+      if (curpDocRecord && curpDocRecord.blobName) {
+        try {
+          const curpDocSasUrl = await blobService.getBlobSasUrl(curpDocRecord.blobName);
+          const layoutResult = await docIntelService.analyzeDocumentLayout(curpDocSasUrl);
+          
+          const curpRegex = /[A-Z][AEIOU][A-Z]{2}\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])[HM][A-Z]{5}[0-9A-Z]\d/;
+          const match = layoutResult.content.match(curpRegex);
+          
+          if (match) {
+            curpExtraida = match[0];
+            console.log('CURP encontrada en documento de respaldo:', curpExtraida);
+          } else {
+            console.warn('Se subió documento CURP, pero no se encontró un patrón de CURP en él.');
+          }
+        } catch (curpError) {
+          console.error('Error al analizar el documento CURP de respaldo:', curpError.message);
+        }
+      }
+    }
+
+
+    const nombreCoincide = (nombreExtraido?.toUpperCase() || '') === (payload.identity.firstName?.toUpperCase() || '');
+    const curpCoincide = (curpExtraida?.toUpperCase() || '') === (payload.identity.curp?.toUpperCase() || '');
+
+    console.warn('¡Omitiendo verificación facial! ...');
+    const faceVerification = { isIdentical: true, confidence: "SKIPPED_AZURE_403" }; 
+    
+    // --- VERIFICATION SUMMARY (CORREGIDO) ---
+    const verificationSummary = {
+      nombreCoincide,
+      curpCoincide,
+      faceVerification, // ej: { isIdentical: true, confidence: "SKIPPED_AZURE_403" }
+      datosFormulario: {
+        nombre: payload.identity.firstName,
+        curp: payload.identity.curp,
+      },
+      datosExtraidos: { 
+        nombre: nombreExtraido, 
+        curp: curpExtraida 
+      },
+    };
+
+    // --- BLOQUE 'IF' DE RECHAZO (CORREGIDO) ---
+    if (!nombreCoincide || !curpCoincide) { 
+      console.warn('Verificación de TEXTO fallida para:', email, verificationSummary);
       emitAudit("auth_register_failed", {
         email,
         reason: "kyc_text_failed",
@@ -229,38 +465,93 @@ router.post("/register/complete", async (req, res, next) => {
     const userId = uid("U_");
     const fullName = `${payload.identity.firstName} ${payload.identity.lastName}`.trim();
 
-    usersByEmail.set(email, {
-      id: userId,
-      email,
-      name: fullName,
-      role: "PROFESSIONAL",
-      passwordHash,
-      createdAt: timestamp,
-    });
-
+    const allFileIds = [
+      payload.documents.idOrPassportFileId,
+      payload.documents.professionalLicenseFileId,
+      payload.documents.curpDocumentFileId,
+      payload.documents.proofOfAddressFileId,
+      payload.face.selfieFileId
+    ].filter(Boolean);
     
-    kycRecordsByUserId.set(userId, {
-      id: uid("KYC_"),
-      userId,
-      identity: payload.identity,
-      address: payload.address,
-      contact: payload.contact,
-      documents: payload.documents,
-      face: payload.face,
-      verification: verificationSummary, // <-- ¡Aquí se guarda!
-      createdAt: timestamp,
-    });
+    try { 
+      const newUser = await prisma.$transaction(async (tx) => {
+        const createdUser = await tx.user.create({
+          data: {
+            id: userId,
+            email: email,
+            name: fullName,
+            role: "PROFESSIONAL",
+            passwordHash: passwordHash,
+            createdAt: timestamp,
+          }
+        });
 
-    const responseBody = {
-      userId,
-      email,
-      role: "PROFESSIONAL",
-    };
+        // --- kycRecord.create (CORREGIDO) ---
+        // Ahora incluye los campos de emergencia
+        await tx.kycRecord.create({
+          data: {
+            id: uid("KYC_"),
+            userId: createdUser.id,
+            
+            // Identidad
+            firstName: payload.identity.firstName,
+            lastName: payload.identity.lastName,
+            curp: payload.identity.curp,
+            birthDate: payload.identity.birthDate,
+            certificateFolio: payload.identity.certificateFolio, 
+            
+            // Contacto (con emergencia)
+            phone: payload.contact.phone,
+            emergencyName: payload.contact.emergencyName,
+            emergencyPhone: payload.contact.emergencyPhone,
+            phoneIsVerified: true, // Asumimos 'true' por ahora
+            
+            // Domicilio
+            street: payload.address.street,
+            neighborhood: payload.address.neighborhood,
+            postalCode: payload.address.postalCode,
+            city: payload.address.city,
+            state: payload.address.state,
+            
+            // Verificación
+            nombreCoincide: verificationSummary.nombreCoincide, 
+            curpCoincide: verificationSummary.curpCoincide,   
+            faceMatch: verificationSummary.faceVerification.isIdentical,
+            faceConfidence: String(verificationSummary.faceVerification.confidence)
+          }
+        });
+        
+        await tx.upload.updateMany({
+          where: {
+            id: { in: allFileIds }
+          },
+          data: {
+            userId: createdUser.id
+          }
+        });
 
-    emitAudit("auth_register_success", responseBody);
+        return createdUser;
+      });
 
-    return res.status(201).json(responseBody);
-  } catch (error) {
+      const responseBody = {
+        userId: newUser.id,
+        email: newUser.email,
+        role: newUser.role,
+      };
+      emitAudit("auth_register_success", responseBody);
+      return res.status(201).json(responseBody);
+
+    } catch (dbError) { 
+      console.error("Error en la transacción de Prisma:", dbError);
+      emitAudit("auth_register_failed", {
+        email: emailForAudit,
+        reason: "database_error",
+        message: dbError?.message,
+      });
+      return res.status(500).json({ message: "Error al guardar el usuario en la base de datos." });
+    }
+    
+  } catch (error) { 
     emitAudit("auth_register_failed", {
       email: emailForAudit,
       reason: error instanceof z.ZodError ? "validation" : "error",

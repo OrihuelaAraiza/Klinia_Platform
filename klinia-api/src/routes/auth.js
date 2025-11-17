@@ -2,14 +2,13 @@ import { Router } from "express";
 import bcrypt from "bcryptjs";
 import { ZodError } from "zod";
 import { registerSchema, loginSchema, microsoftSchema } from "../validators/authSchemas.js";
+import jwt from 'jsonwebtoken'; 
+import { prisma } from '../services/dbClient.js'; 
+import { env } from '../config/env.js';
 import {
-  usersByEmail,
-  getUserByEmail,
-  hasUser,
   pushAuditEvent,
   uid,
-} from "../store/memory.js";
-import { makeFakeJwt } from "../utils/token.js";
+} from "../store/memory.js"; 
 import {
   isLocked,
   onLoginFail,
@@ -129,7 +128,8 @@ router.post("/register", async (req, res, next) => {
     const email = normalizeEmail(payload.email);
     emailForAudit = email;
 
-    if (hasUser(email)) {
+    const existingUser = await prisma.user.findUnique({ where: { email } });
+    if (existingUser) {
       emitAudit("auth_register_failed", { email, reason: "duplicate" });
       return res.status(409).json({ message: "Email already registered" });
     }
@@ -144,18 +144,22 @@ router.post("/register", async (req, res, next) => {
       createdAt: new Date().toISOString(),
     };
 
-    usersByEmail.set(email, userRecord);
+    const createdUser = await prisma.user.create({ data: userRecord });
 
-    const token = makeFakeJwt(buildTokenPayload(userRecord));
+    const token = jwt.sign(
+      buildTokenPayload(createdUser), 
+      env.JWT_SECRET, 
+      { expiresIn: '1d' }
+    );
 
     emitAudit("auth_register_success", {
       email,
-      role: userRecord.role,
+      role: createdUser.role, 
     });
 
     return res.status(201).json({
       token,
-      user: toPublicUser(userRecord),
+      user: toPublicUser(createdUser), 
     });
   } catch (error) {
     emitAudit("auth_register_failed", {
@@ -186,8 +190,11 @@ router.post("/login", async (req, res, next) => {
       });
     }
 
-    const stored = getUserByEmail(email);
-    if (!stored || !stored.passwordHash) {
+    const user = await prisma.user.findUnique({
+      where: { email: email }
+    });
+
+  if (!user || !user.passwordHash) {
       onLoginFail(email, req.ip);
       emitAudit("auth_login_failed", {
         method: "password",
@@ -197,7 +204,7 @@ router.post("/login", async (req, res, next) => {
       return res.status(401).json({ message: "Credenciales inválidas" });
     }
 
-    const isMatch = await bcrypt.compare(payload.password, stored.passwordHash);
+   const isMatch = await bcrypt.compare(payload.password, user.passwordHash);
     if (!isMatch) {
       onLoginFail(email, req.ip);
       emitAudit("auth_login_failed", {
@@ -210,16 +217,20 @@ router.post("/login", async (req, res, next) => {
 
     onLoginSuccess(email, req.ip);
 
-    const token = makeFakeJwt(buildTokenPayload(stored));
+    const token = jwt.sign(
+      buildTokenPayload(user), 
+      env.JWT_SECRET, 
+      { expiresIn: '1d' } 
+    );
 
     emitAudit("auth_login_success", {
       method: "password",
       email,
     });
 
-    return res.json({
+   return res.json({
       token,
-      user: toPublicUser(stored),
+      user: toPublicUser(user),
     });
   } catch (error) {
     emitAudit("auth_login_failed", {
@@ -231,8 +242,10 @@ router.post("/login", async (req, res, next) => {
   }
 });
 
+// --- RUTA /microsoft (UNIFICADA Y CORREGIDA) ---
 router.post("/microsoft", async (req, res, next) => {
   try {
+    // 0. Validar token crudo
     const rawToken = req.body?.idToken;
     if (!rawToken || typeof rawToken !== "string") {
       emitAudit("auth_login_failed", {
@@ -242,37 +255,83 @@ router.post("/microsoft", async (req, res, next) => {
       return res.status(400).json({ message: "Invalid Microsoft token" });
     }
 
+    // 1. Decodificar el token con Zod
     const payload = microsoftSchema.parse({ idToken: rawToken });
     const profile = decodeMicrosoftProfile(payload.idToken);
-    const email =
-      normalizeEmail(profile.email) ||
-      `msal.${Buffer.from(payload.idToken).toString("base64url").slice(0, 12)}@demo.local`;
+    const email = normalizeEmail(profile.email);
 
-    let userRecord = getUserByEmail(email);
-    if (!userRecord) {
-      userRecord = {
-        id: uid("U_"),
-        name: profile.name || "Usuario Microsoft",
-        email,
-        role: "PROFESSIONAL",
-        passwordHash: null,
-        createdAt: new Date().toISOString(),
-      };
-      usersByEmail.set(email, userRecord);
+    if (!email) {
+      emitAudit("auth_login_failed", { method: "microsoft", reason: "no_email" });
+      return res.status(400).json({ message: "No se pudo obtener el email de Microsoft." });
     }
 
-    const token = makeFakeJwt(buildTokenPayload(userRecord));
+    // 2. Buscar usuario en Prisma
+    let user = await prisma.user.findUnique({
+      where: { email }
+    });
 
-    emitAudit("auth_login_success", {
+    // 3. Bifurcación: usuario EXISTE o es nuevo
+    if (user) {
+      // --- A. LOGIN DEL USUARIO ---
+
+      // Evitar login por Microsoft si fue cuenta email/password
+      if (user.passwordHash) {
+        console.warn(`Intento de login MSAL a cuenta de email/pass: ${email}`);
+        emitAudit("auth_login_failed", {
+          method: "microsoft",
+          email,
+          reason: "password_account_exists"
+        });
+        return res.status(403).json({
+          message: "Esta cuenta debe iniciar sesión con contraseña."
+        });
+      }
+
+      console.log(`Login de Microsoft exitoso para: ${email}`);
+      
+      const token = jwt.sign(
+        buildTokenPayload(user),
+        env.JWT_SECRET,
+        { expiresIn: "1d" }
+      );
+
+      emitAudit("auth_login_success", { method: "microsoft", email });
+
+      return res.json({
+        status: "LOGIN_SUCCESS",
+        token,
+        user: toPublicUser(user),
+      });
+    }
+
+    // --- B. USUARIO ES NUEVO → REGISTRO REQUERIDO ---
+    console.log(`Usuario nuevo Microsoft: ${email}. Requiere registro.`);
+
+    // Crear token parcial de 15 minutos
+    const partialTokenPayload = {
+      email,
+      name: profile.name || "Usuario Microsoft",
+      msal: true
+    };
+
+    const partialToken = jwt.sign(
+      partialTokenPayload,
+      env.JWT_SECRET,
+      { expiresIn: "15m" }
+    );
+
+    emitAudit("auth_register_partial", {
       method: "microsoft",
       email,
     });
 
     return res.json({
-      token,
-      user: toPublicUser(userRecord),
+      status: "REGISTRATION_REQUIRED",
+      partialToken,
     });
+
   } catch (error) {
+
     if (error instanceof ZodError) {
       emitAudit("auth_login_failed", {
         method: "microsoft",
@@ -280,14 +339,17 @@ router.post("/microsoft", async (req, res, next) => {
       });
       return res.status(400).json({ message: "Invalid Microsoft token" });
     }
+
     emitAudit("auth_login_failed", {
       method: "microsoft",
       email: normalizeEmail(req.body?.email),
       reason: "validation_error",
     });
+
     return next(error);
   }
 });
+
 
 router.post("/logout", (req, res) => {
   let email = normalizeEmail(req.body?.email);

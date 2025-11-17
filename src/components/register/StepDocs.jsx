@@ -1,12 +1,19 @@
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  useRef,
+  useCallback,
+} from "react";
 import Field from "../UI/Field";
 import uploadService from "../../services/uploadService";
+import { CameraModal } from "./CameraModal";
 
 const DOCUMENT_FIELDS = [
   {
     key: "idOrPassport",
     label: "INE o Pasaporte",
-    helper: "PDF o JPG (max 5 MB)",
+    helper: "Usa tu cámara O sube un archivo (PDF/JPG)",
   },
   {
     key: "professionalLicense",
@@ -14,9 +21,9 @@ const DOCUMENT_FIELDS = [
     helper: "PDF o JPG (max 5 MB)",
   },
   {
-    key: "universityDegree",
-    label: "Titulo universitario",
-    helper: "PDF o JPG (max 5 MB)",
+    key: "curpDocument", 
+    label: "Documento CURP (Opcional)",
+    helper: "Súbelo si tu CURP no está en tu INE (PDF/JPG)",
   },
   {
     key: "proofOfAddress",
@@ -52,14 +59,106 @@ export default function StepDocs({
   const [localErrors, setLocalErrors] = useState({});
   const [uploadingMap, setUploadingMap] = useState({});
 
+  const [frontImage, setFrontImage] = useState(null); 
+  const [backImage, setBackImage] = useState(null); 
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [capturingFor, setCapturingFor] = useState(null); 
+  const [isCombining, setIsCombining] = useState(false);
+  const combinedCanvasRef = useRef(null);
+
   const isUploading = useMemo(
-    () => Object.values(uploadingMap).some(Boolean),
-    [uploadingMap]
+    () => Object.values(uploadingMap).some(Boolean) || isCombining,
+    [uploadingMap, isCombining]
   );
 
   useEffect(() => {
     onBusyChange?.(isUploading);
   }, [isUploading, onBusyChange]);
+
+  const handleTakePhoto = (side) => {
+    if (disabled) return;
+    setCapturingFor(side);
+    setIsModalOpen(true);
+  };
+
+  const handleCapture = (blob) => {
+    const previewUrl = URL.createObjectURL(blob);
+    onDocumentChange('idOrPassport', null); 
+    
+    if (capturingFor === 'front') {
+      setFrontImage({ blob, previewUrl });
+    } else if (capturingFor === 'back') {
+      setBackImage({ blob, previewUrl });
+    }
+    setIsModalOpen(false);
+    setLocalErrors((prev) => ({ ...prev, idOrPassport: "" }));
+  };
+  
+  const handleRetake = (side) => {
+    onDocumentChange('idOrPassport', null); 
+    if (side === 'front' && frontImage) {
+      URL.revokeObjectURL(frontImage.previewUrl);
+      setFrontImage(null);
+    } else if (side === 'back' && backImage) {
+      URL.revokeObjectURL(backImage.previewUrl);
+      setBackImage(null);
+    }
+  };
+  
+  const combineAndUpload = useCallback(async () => {
+    const storedId = documents?.idOrPassport;
+    if (!frontImage || !backImage || isCombining || storedId) return;
+
+    setIsCombining(true);
+    setUploadingMap((prev) => ({ ...prev, idOrPassport: true }));
+    setLocalErrors((prev) => ({ ...prev, idOrPassport: "" }));
+
+    try {
+      const canvas = combinedCanvasRef.current;
+      const ctx = canvas.getContext('2d');
+
+      const frontImg = await createImageBitmap(frontImage.blob);
+      const backImg = await createImageBitmap(backImage.blob);
+
+      canvas.width = Math.max(frontImg.width, backImg.width);
+      canvas.height = frontImg.height + backImg.height;
+
+      ctx.drawImage(frontImg, 0, 0);
+      ctx.drawImage(backImg, 0, frontImg.height);
+
+      canvas.toBlob(async (combinedBlob) => {
+        try {
+          const response = await uploadService.uploadDocument(
+            combinedBlob,
+            { kind: 'idOrPassport' }
+          );
+          onDocumentChange('idOrPassport', {
+            fileId: response?.fileId,
+            name: "ID_Capturado.jpg",
+            size: combinedBlob.size,
+            mime: combinedBlob.type,
+          });
+        } catch (uploadError) {
+          const message = uploadError?.message || "No pudimos subir la ID. Intenta de nuevo.";
+          setLocalErrors((prev) => ({ ...prev, idOrPassport: message }));
+          onDocumentChange('idOrPassport', null);
+        } finally {
+          setIsCombining(false);
+          setUploadingMap((prev) => ({ ...prev, idOrPassport: false }));
+        }
+      }, 'image/jpeg', 0.9);
+
+    } catch (err) {
+      console.error("Error al combinar imágenes:", err);
+      setLocalErrors((prev) => ({ ...prev, idOrPassport: "Error al combinar fotos." }));
+      setIsCombining(false);
+      setUploadingMap((prev) => ({ ...prev, idOrPassport: false }));
+    }
+  }, [frontImage, backImage, isCombining, onDocumentChange, documents]);
+
+  useEffect(() => {
+    combineAndUpload();
+  }, [combineAndUpload]);
 
   const handleFileChange = async (key, event) => {
     const file = event.target.files?.[0];
@@ -67,25 +166,21 @@ export default function StepDocs({
       return;
     }
 
+    if (key === 'idOrPassport') {
+      if (frontImage) handleRetake('front');
+      if (backImage) handleRetake('back');
+    }
+
     if (file.size > MAX_SIZE) {
-      setLocalErrors((prev) => ({
-        ...prev,
-        [key]: "Documento demasiado grande (≤ 5 MB).",
-      }));
+      setLocalErrors((prev) => ({ ...prev, [key]: "Documento demasiado grande (≤ 5 MB)." }));
       onDocumentChange?.(key, null);
       event.target.value = "";
       return;
     }
-
     const extensionMatch = /\.(pdf|jpe?g)$/i.test(file.name);
-    const acceptedType =
-      ACCEPTED_TYPES.includes(file.type) || (file.type === "" && extensionMatch);
-
+    const acceptedType = ACCEPTED_TYPES.includes(file.type) || (file.type === "" && extensionMatch);
     if (!acceptedType) {
-      setLocalErrors((prev) => ({
-        ...prev,
-        [key]: "Formato invalido (solo PDF/JPG).",
-      }));
+      setLocalErrors((prev) => ({ ...prev, [key]: "Formato invalido (solo PDF/JPG)." }));
       onDocumentChange?.(key, null);
       event.target.value = "";
       return;
@@ -99,7 +194,6 @@ export default function StepDocs({
         file,
         { kind: key }
       );
-
       onDocumentChange?.(key, {
         fileId: response?.fileId,
         name: response?.name || file.name,
@@ -130,14 +224,89 @@ export default function StepDocs({
 
       <div className="register-step__body register-step__grid">
         {DOCUMENT_FIELDS.map((field) => {
+          
           const stored = documents?.[field.key] || null;
           const fieldError = localErrors[field.key] || errors[field.key];
+          const isUploadingField = uploadingMap[field.key];
 
+          if (field.key === "idOrPassport") {
+            return (
+              <Field
+                key={field.key}
+                label={field.label}
+                required
+                hint={field.helper}
+                error={fieldError}
+                className="file-field"
+              >
+                <div className="id-capture-stack">
+                  {frontImage ? (
+                    <div className="photo-preview">
+                      <img src={frontImage.previewUrl} alt="Frente de INE" />
+                      <button type="button" className="file-upload__control" onClick={() => handleRetake('front')} disabled={disabled || isUploadingField}>
+                        Repetir (Frente)
+                      </button>
+                    </div>
+                  ) : (
+                    <button type="button" className="file-upload__control" onClick={() => handleTakePhoto('front')} disabled={disabled || isUploadingField}>
+                      Tomar Foto (Frente)
+                    </button>
+                  )}
+                  {backImage ? (
+                    <div className="photo-preview">
+                      <img src={backImage.previewUrl} alt="Reverso de INE" />
+                      <button type="button" className="file-upload__control" onClick={() => handleRetake('back')} disabled={disabled || isUploadingField}>
+                        Repetir (Reverso)
+                      </button>
+                    </div>
+                  ) : (
+                    <button type="button" className="file-upload__control" onClick={() => handleTakePhoto('back')} disabled={disabled || isUploadingField}>
+                      Tomar Foto (Reverso)
+                    </button>
+                  )}
+                </div>
+
+                <div className="file-upload__divider">
+                  <span>O</span>
+                </div>
+
+                <div className="file-upload">
+                  <label className="file-upload__control">
+                    <input
+                      type="file"
+                      name={field.key}
+                      accept={ACCEPT_ATTR}
+                      onChange={(event) => handleFileChange(field.key, event)}
+                      disabled={isUploadingField || disabled}
+                      aria-invalid={Boolean(fieldError)}
+                    />
+                    <span className="file-upload__cta">
+                      {stored ? "Reemplazar archivo" : "Selecciona un archivo (PDF/JPG)"}
+                    </span>
+                  </label>
+                  <div className="file-upload__status" aria-live="polite">
+                    {isUploadingField ? (
+                      <span className="file-upload__uploading">Subiendo…</span>
+                    ) : stored ? (
+                      <div className="file-upload__meta">
+                        <span className="file-upload__name">{stored.name}</span>
+                        <span className="file-upload__size">{formatSize(stored.size)}</span>
+                      </div>
+                    ) : (
+                      <span className="file-upload__hint">
+                        {frontImage && backImage ? "Fotos listas para subir" : "Sube un archivo o usa tu cámara"}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </Field>
+            );
+          }
           return (
             <Field
               key={field.key}
               label={field.label}
-              required
+              required={field.key !== 'curpDocument'} 
               hint={field.helper}
               error={fieldError}
               className="file-field"
@@ -151,7 +320,7 @@ export default function StepDocs({
                       name={field.key}
                       accept={ACCEPT_ATTR}
                       onChange={(event) => handleFileChange(field.key, event)}
-                      disabled={Boolean(uploadingMap[field.key]) || disabled}
+                      disabled={isUploadingField || disabled}
                       aria-describedby={describedBy}
                       aria-invalid={Boolean(fieldError)}
                     />
@@ -159,13 +328,8 @@ export default function StepDocs({
                       {stored ? "Reemplazar archivo" : "Selecciona archivo"}
                     </span>
                   </label>
-
-                  <div
-                    className="file-upload__status"
-                    aria-live="polite"
-                    aria-atomic="true"
-                  >
-                    {uploadingMap[field.key] ? (
+                  <div className="file-upload__status" aria-live="polite" aria-atomic="true">
+                    {isUploadingField ? (
                       <span className="file-upload__uploading">
                         Subiendo…
                       </span>
@@ -188,6 +352,14 @@ export default function StepDocs({
           );
         })}
       </div>
+      
+      <canvas ref={combinedCanvasRef} style={{ display: 'none' }} />
+      {isModalOpen && (
+        <CameraModal
+          onCapture={handleCapture}
+          onClose={() => setIsModalOpen(false)}
+        />
+      )}
     </div>
   );
 }

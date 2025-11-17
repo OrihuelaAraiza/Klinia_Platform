@@ -6,12 +6,16 @@ import {
   clearAll,
   getUser,
   getRole,
+  setPartialToken, 
+  clearPartialToken, 
 } from "./storage";
 
 const LOGIN_EMAIL_ENDPOINT = "/auth/login";
 const LOGIN_MICROSOFT_ENDPOINT = "/auth/microsoft";
 const LOGOUT_ENDPOINT = "/auth/logout";
-const REGISTER_ENDPOINT = "/auth/register";
+const REGISTER_ENDPOINT = "/auth/register"; 
+const REGISTER_COMPLETE_ENDPOINT = "/auth/register/complete";
+const REGISTER_MSAL_ENDPOINT = "/auth/register-msal";
 
 function persistSession(session) {
   const { token, user } = session ?? {};
@@ -46,6 +50,40 @@ export async function loginMicrosoft(idToken) {
   const response = await api.post(
     LOGIN_MICROSOFT_ENDPOINT,
     { idToken },
+    { auth: false }
+  );
+
+  if (response.status === 'LOGIN_SUCCESS') {
+    clearPartialToken(); 
+    return persistSession(response); 
+  } 
+  
+  if (response.status === 'REGISTRATION_REQUIRED') {
+    setPartialToken(response.partialToken); 
+    return { partialToken: response.partialToken }; 
+  }
+
+  throw new Error("Respuesta de autenticación desconocida.");
+}
+
+
+export async function registerComplete(payload) {
+  const response = await api.post(
+    REGISTER_COMPLETE_ENDPOINT,
+    payload,
+    { auth: false }
+  );
+
+  return response; 
+}
+
+export async function registerCompleteMsal(payload, partialToken) {
+  const response = await api.post(
+    REGISTER_MSAL_ENDPOINT,
+    { 
+      payload: payload, 
+      partialToken: partialToken 
+    },
     { auth: false }
   );
 
@@ -104,6 +142,8 @@ export default {
   loginEmail,
   loginMicrosoft,
   register,
+  registerComplete,     
+  registerCompleteMsal, 
   logout,
   currentUser,
   currentRole,

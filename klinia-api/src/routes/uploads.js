@@ -1,6 +1,7 @@
 import { Router } from "express";
 import multer from "multer";
-import { pushAuditEvent, uid, uploadsById } from "../store/memory.js";
+import { pushAuditEvent, uid } from "../store/memory.js"; 
+import { prisma } from '../services/dbClient.js'; 
 import * as blobService from '../services/azureBlobService.js'; // ¡Importante!
 
 const router = Router();
@@ -41,21 +42,24 @@ router.post("/", (req, res) => {
         file.mimetype
       );
 
-      uploadsById.set(fileId, {
-        id: fileId,
-        name: file.originalname,
-        mime: file.mimetype,
-        size: file.size,
-        blobUrl: blobUrl,
-        blobName: blobName, 
-        uploadedAt: new Date().toISOString(),
+      const newUpload = await prisma.upload.create({
+        data: {
+          id: fileId,
+          name: file.originalname,
+          mime: file.mimetype,
+          size: file.size,
+          blobName: blobName,
+          blobUrl: blobUrl,
+        }
       });
 
       emitAudit("files_upload", { fileId, blobName });
 
       return res.status(201).json({
-        fileId, 
-        name: file.originalname,
+        fileId: newUpload.id,
+        name: newUpload.name,
+        mime: newUpload.mime,
+        size: newUpload.size,
       });
     } catch (error) {
       console.error("Upload error:", error);
