@@ -204,6 +204,9 @@ router.post("/login", async (req, res, next) => {
       return res.status(401).json({ message: "Credenciales inválidas" });
     }
 
+    console.log('[AUTH DEBUG] Client Password:', payload.password);
+    console.log('[AUTH DEBUG] DB Hash (truncated):', user.passwordHash.slice(0, 30) + '...');
+
    const isMatch = await bcrypt.compare(payload.password, user.passwordHash);
     if (!isMatch) {
       onLoginFail(email, req.ip);

@@ -43,27 +43,35 @@ export async function loginEmail({ email, password }) {
 }
 
 export async function loginMicrosoft(idToken) {
-  if (!idToken) {
-    throw new Error("Token de Microsoft inválido.");
-  }
+ if (!idToken) {
+  throw new Error("Token de Microsoft inválido.");
+ }
 
-  const response = await api.post(
-    LOGIN_MICROSOFT_ENDPOINT,
-    { idToken },
-    { auth: false }
-  );
+ const response = await api.post(
+  LOGIN_MICROSOFT_ENDPOINT,
+  { idToken },
+  { auth: false }
+ );
 
-  if (response.status === 'LOGIN_SUCCESS') {
-    clearPartialToken(); 
-    return persistSession(response); 
-  } 
-  
-  if (response.status === 'REGISTRATION_REQUIRED') {
-    setPartialToken(response.partialToken); 
-    return { partialToken: response.partialToken }; 
-  }
+ if (response.status === 'LOGIN_SUCCESS') {
+  clearPartialToken(); 
+  // Corregido: Obtenemos la sesión y le agregamos el status de nuevo.
+  const session = persistSession(response); 
+  return {
+        status: 'LOGIN_SUCCESS', // <-- ¡AÑADIDO!
+        ...session 
+    }; 
+ } 
+ 
+ if (response.status === 'REGISTRATION_REQUIRED') {
+  setPartialToken(response.partialToken); 
+   return { 
+        status: 'REGISTRATION_REQUIRED', // <-- ¡AÑADIDO!
+        partialToken: response.partialToken 
+    }; 
+ }
 
-  throw new Error("Respuesta de autenticación desconocida.");
+ throw new Error("Respuesta de autenticación desconocida.");
 }
 
 

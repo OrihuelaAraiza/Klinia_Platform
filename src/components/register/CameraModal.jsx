@@ -1,103 +1,176 @@
 import React, { useRef, useCallback, useEffect, useState } from 'react';
 
 export function CameraModal({ onCapture, onClose }) {
-  const videoRef = useRef(null);
-  const canvasRef = useRef(null);
-  const streamRef = useRef(null);
-  const [cameraError, setCameraError] = useState("");
+    const videoRef = useRef(null);
+    const canvasRef = useRef(null);
+    const streamRef = useRef(null);
+    const [cameraError, setCameraError] = useState("");
+    
+    // --- NUEVO ESTADO ---
+    const [photoPreview, setPhotoPreview] = useState(null); // URL de la foto tomada
+    // --------------------
 
-  const stopStream = useCallback(() => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-    }
-  }, []);
-
-  const startCamera = useCallback(async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'environment' } 
-      });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-      }
-      setCameraError("");
-    } catch (error) {
-      console.error("Error al iniciar cámara:", error);
-
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        streamRef.current = stream;
+    const stopStream = useCallback(() => {
+        const currentStream = streamRef.current;
+        if (currentStream) {
+            currentStream.getTracks().forEach((track) => track.stop());
+            streamRef.current = null;
+        }
+        // Limpiamos la URL de la vista previa de la cámara si la hay
         if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          await videoRef.current.play();
+             videoRef.current.srcObject = null;
         }
-        setCameraError("");
-      } catch (e) {
-        setCameraError("No se pudo acceder a la cámara. Revisa los permisos.");
-        stopStream();
-      }
-    }
-  }, [stopStream]);
+    }, []);
 
-  useEffect(() => {
-    startCamera();
-    return () => {
-      stopStream();
+    const startCamera = useCallback(async () => {
+        // Si ya hay una foto, no inicies la cámara (se muestra la preview estática)
+        if (photoPreview) return;
+        
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { facingMode: 'environment' } 
+            });
+            streamRef.current = stream;
+            if (videoRef.current) {
+                videoRef.current.srcObject = stream;
+                await videoRef.current.play();
+            }
+            setCameraError("");
+        } catch (error) {
+            console.error("Error al iniciar cámara:", error);
+
+            try {
+                // Fallback a cámara frontal
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                streamRef.current = stream;
+                if (videoRef.current) {
+                    videoRef.current.srcObject = stream;
+                    await videoRef.current.play();
+                }
+                setCameraError("");
+            } catch (e) {
+                setCameraError("No se pudo acceder a la cámara. Revisa los permisos.");
+                stopStream();
+            }
+        }
+    }, [stopStream, photoPreview]);
+
+    useEffect(() => {
+        // Solo iniciar la cámara si no hay una foto en vista previa
+        if (!photoPreview) { 
+            startCamera();
+        }
+        return () => {
+            // Aseguramos que la cámara se detenga solo al cerrar el modal
+            if (!photoPreview) { 
+                 stopStream(); 
+            }
+        };
+    }, [startCamera, stopStream, photoPreview]);
+
+    // --- Lógica de Captura y Retención (Modificada) ---
+    const handleCapture = () => {
+        const video = videoRef.current;
+        const canvas = canvasRef.current;
+        if (!video || !canvas) return;
+
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        canvas.getContext('2d').drawImage(video, 0, 0);
+
+        canvas.toBlob((blob) => {
+            // 1. Guardar la foto en el estado local del modal para previsualizar
+            const url = URL.createObjectURL(blob);
+            setPhotoPreview({ blob, url });
+            
+            // 2. Detener el feed de video y limpiar el stream
+            stopStream();
+
+        }, 'image/jpeg', 0.92);
     };
-  }, [startCamera, stopStream]);
 
-  const handleCapture = () => {
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    if (!video || !canvas) return;
+    // --- NUEVA FUNCIÓN ---
+    const handleRetake = () => {
+        if (photoPreview) {
+            URL.revokeObjectURL(photoPreview.url); // Liberar memoria del blob anterior
+            setPhotoPreview(null);
+            setCameraError("");
+        }
+    };
+    
+    // --- NUEVA FUNCIÓN ---
+    const handleConfirm = () => {
+        if (photoPreview?.blob) {
+            onCapture(photoPreview.blob); // Enviar el blob al componente padre
+        }
+        onClose(); // Cerrar el modal
+    }
+    // ----------------------
 
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    canvas.getContext('2d').drawImage(video, 0, 0);
+    return (
+        <div className="camera-modal-backdrop" onClick={onClose}>
+            <div className="camera-modal-content" onClick={(e) => e.stopPropagation()}>
+                <h3>Capturar Foto</h3>
+                <div className="camera-preview-window"> {/* Contenedor de previsualización */}
+                    
+                    {/* --- RENDERIZADO CONDICIONAL --- */}
+                    {photoPreview ? (
+                        <img src={photoPreview.url} alt="Foto Capturada" className="captured-image" />
+                    ) : cameraError ? (
+                        <p className="camera-error">{cameraError}</p>
+                    ) : (
+                        <video ref={videoRef} playsInline autoPlay muted />
+                    )}
+                    {/* ------------------------------- */}
 
-    canvas.toBlob((blob) => {
-      onCapture(blob);
-      onClose();
-    }, 'image/jpeg', 0.92);
-  };
+                    <canvas ref={canvasRef} style={{ display: 'none' }} />
+                </div>
 
-  return (
-    <div className="camera-modal-backdrop" onClick={onClose}>
-      <div className="camera-modal-content" onClick={(e) => e.stopPropagation()}>
-        <h3>Capturar Foto</h3>
-        {cameraError ? (
-          <p className="camera-error">{cameraError}</p>
-        ) : (
-          <video ref={videoRef} playsInline autoPlay muted />
-        )}
-        <canvas ref={canvasRef} style={{ display: 'none' }} />
-        <div className="camera-modal-actions">
-          <button type="button" onClick={handleCapture} disabled={!!cameraError}>
-            Tomar Foto
-          </button>
-          <button type="button" className="ghost" onClick={onClose}>
-            Cancelar
-          </button>
+                <div className="camera-modal-actions">
+                    {photoPreview ? (
+                        <>
+                            <button type="button" onClick={handleRetake}>
+                                Tomar otra Foto
+                            </button>
+                            <button type="button" onClick={handleConfirm} disabled={!photoPreview?.blob}>
+                                Confirmar y Continuar
+                            </button>
+                        </>
+                    ) : (
+                        <>
+                            <button type="button" onClick={handleCapture} disabled={!!cameraError}>
+                                Tomar Foto
+                            </button>
+                            <button type="button" className="ghost" onClick={onClose}>
+                                Cancelar
+                            </button>
+                        </>
+                    )}
+                </div>
+            </div>
+            
+            <style>{`
+                .camera-modal-backdrop {
+                    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+                    background: rgba(0,0,0,0.5); z-index: 100;
+                    display: flex; align-items: center; justify-content: center;
+                }
+                .camera-modal-content {
+                    background: white; padding: 20px; border-radius: 8px;
+                    max-width: 500px; width: 90%;
+                }
+                .camera-preview-window { /* Nuevo wrapper */
+                    width: 100%; height: 375px; 
+                    overflow: hidden; position: relative;
+                    background: #eee; border-radius: 4px;
+                }
+                .camera-modal-content video, .captured-image { 
+                    position: absolute; top: 0; left: 0; 
+                    width: 100%; height: 100%;
+                    object-fit: cover; 
+                }
+                .camera-modal-actions { display: flex; gap: 10px; margin-top: 15px; }
+            `}</style>
         </div>
-      </div>
-      
-      {/* Necesitarás añadir estilos CSS para este modal */}
-      <style>{`
-        .camera-modal-backdrop {
-          position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-          background: rgba(0,0,0,0.5); z-index: 100;
-          display: flex; align-items: center; justify-content: center;
-        }
-        .camera-modal-content {
-          background: white; padding: 20px; border-radius: 8px;
-          max-width: 500px; width: 90%;
-        }
-        .camera-modal-content video { width: 100%; border-radius: 4px; }
-        .camera-modal-actions { display: flex; gap: 10px; margin-top: 15px; }
-      `}</style>
-    </div>
-  );
+    );
 }
