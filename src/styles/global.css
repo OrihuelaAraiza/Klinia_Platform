@@ -3924,3 +3924,232 @@ main {
   gap: var(--s-3);
   text-align: center;
 }
+
+
+/*modal camer */
+
+/* =========================================
+   MODALES DE ACCIÓN (Cámara / OTP)
+   Adaptado al Design System de Klinia
+   ========================================= */
+
+/* Reutiliza la lógica de z-index y overlay de tu sistema */
+.camera-modal-backdrop {
+  position: fixed;
+  inset: 0; /* Top, right, bottom, left: 0 */
+  background: rgba(15, 23, 42, 0.45); /* Coincide con .app-shell__overlay */
+  z-index: 50; /* Coincide con .ui-toast-stack o mayor */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--s-4);
+  backdrop-filter: blur(2px); /* Un toque moderno extra */
+}
+
+.camera-modal-content {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-2);
+  
+  width: min(480px, 100%);
+  max-height: 90vh;
+  overflow-y: auto;
+  
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  padding: var(--s-5);
+  
+  /* Animación suave de entrada */
+  animation: modal-in 0.2s ease-out forwards;
+}
+
+@keyframes modal-in {
+  from { opacity: 0; transform: scale(0.95) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.camera-modal-content h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text);
+  line-height: var(--line-tight);
+}
+
+.camera-modal-content p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+/* Ventana de previsualización (Cámara) */
+.camera-preview-window {
+  width: 100%;
+  aspect-ratio: 4/3;
+  overflow: hidden;
+  position: relative;
+  background: #000; /* Fondo negro para video */
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+}
+
+.camera-preview-window video,
+.camera-preview-window img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Input para el código OTP */
+.otp-input-container {
+  display: flex;
+  gap: var(--s-2);
+  justify-content: center;
+  margin-top: var(--s-2);
+}
+
+.otp-input {
+  width: 100%;
+  padding: 0.75rem;
+  font-size: 1.5rem;
+  text-align: center;
+  letter-spacing: 0.5em;
+  font-weight: 700;
+  font-family: monospace; /* Para que los números se alineen bien */
+  
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.otp-input:focus {
+  outline: none;
+  border-color: var(--focus);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 25%, transparent);
+}
+
+/* Acciones del pie del modal */
+.camera-modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+  justify-content: flex-end;
+  margin-top: var(--s-2);
+  padding-top: var(--s-4);
+  border-top: 1px solid var(--border);
+}
+
+/* Estilos de botones dentro del modal 
+   (Heredan de tus clases .ui-btn si las usas, 
+   pero esto asegura consistencia por si usas <button> planos) */
+.camera-modal-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.65rem 1rem;
+  border-radius: var(--r-sm);
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+
+/* Botón Primario (Confirmar/Tomar Foto) */
+.camera-modal-actions button:first-child:not(.ghost) {
+  background: var(--brand);
+  color: #ffffff; /* O var(--brand-ink) si prefieres */
+  box-shadow: var(--shadow-1);
+}
+
+.camera-modal-actions button:first-child:not(.ghost):hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+.camera-modal-actions button:first-child:not(.ghost):disabled {
+  background: var(--border);
+  color: var(--text-muted);
+  cursor: not-allowed;
+  transform: none;
+  filter: none;
+}
+
+/* Botón Secundario (Cancelar) */
+.camera-modal-actions button.ghost {
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+
+.camera-modal-actions button.ghost:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+
+
+/* Mensajes de Error */
+.camera-error {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+  padding: var(--s-3);
+  border-radius: var(--r-sm);
+  font-size: 0.9rem;
+  border: 1px solid color-mix(in srgb, var(--danger) 20%, transparent);
+}
+
+
+
+/* Login Toggle */
+.login-toggle {
+  display: flex;
+  background: var(--surface-2);
+  padding: 4px;
+  border-radius: var(--r-md);
+  margin-bottom: 1.5rem;
+  border: 1px solid var(--border);
+}
+
+.login-toggle__btn {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 0.6rem;
+  border-radius: var(--r-sm);
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.login-toggle__btn:hover {
+  color: var(--text);
+}
+
+.login-toggle__btn.is-active {
+  background: var(--surface);
+  color: var(--brand); 
+  box-shadow: var(--shadow-1); 
+  transform: none;
+}
+
+.login-toggle__btn:hover:not(.is-active) {
+  background: color-mix(in srgb, var(--secondary) 8%, var(--surface-2));
+  transform: translateY(-1px); 
+  color: var(--text); 
+}
+
+.login-toggle__btn:active:not(.is-active) {
+    transform: translateY(0); 
+}
+
+.login-toggle__btn {
+  cursor: pointer;
+}

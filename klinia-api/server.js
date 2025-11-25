@@ -34,13 +34,16 @@ app.use(morgan("dev"));
 const apiRouter = express.Router();
 apiRouter.use(healthRouter);
 apiRouter.use(auditRouter);
-apiRouter.use("/patients", patientsRouter);
 
 app.use("/api/auth", authRouter);
 app.use("/api/auth", registerRouter);
 app.use("/api/uploads", uploadsRouter);
 app.use("/api/verify", verifyRouter);
+
 app.use("/api", apiRouter);
+
+app.use("/api/patients", patientsRouter);
+
 app.use("/api/patients/:id/consents", consentsRouter);
 app.use("/api/patients/:id/history", historyRouter);
 app.use("/api/patients/:id/notes", notesRouter);

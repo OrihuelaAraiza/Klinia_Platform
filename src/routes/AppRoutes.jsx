@@ -6,6 +6,8 @@ import auditService from "../services/auditService";
 import storage from "../services/storage";
 import { ROLES, ROUTES } from "../utils/constants";
 import PageSkeleton from "../components/PageSkeleton";
+import PatientRegister from "../pages/PatientRegister";
+import PatientDashboard from "../pages/Patient";
 
 const Login = lazy(() => import("../pages/Login"));
 const Register = lazy(() => import("../pages/Register"));
@@ -29,12 +31,14 @@ const NotFound = lazy(() => import("../pages/NotFound"));
 function resolveDestination(role) {
   switch (role) {
     case ROLES.ADMIN:
-      return ROUTES.dashboard;
+    return ROUTES.dashboard;
     case ROLES.PROFESSIONAL:
     case ROLES.ASSISTANT:
-      return ROUTES.patients;
+    return ROUTES.patients;
+    case ROLES.PATIENT: 
+    return '/patient/dashboard'; 
     default:
-      return ROUTES.dashboard;
+    return ROUTES.dashboard;
   }
 }
 
@@ -73,6 +77,7 @@ export default function AppRoutes() {
         <Routes>
           <Route path={ROUTES.login} element={<Login />} />
           <Route path={ROUTES.register} element={<Register />} />
+          <Route path="/register/patient" element={<PatientRegister />} />
           <Route path="/health" element={<Health />} />
 
           <Route element={<ProtectedRoute allow={[ROLES.ADMIN]} />}>
@@ -80,7 +85,7 @@ export default function AppRoutes() {
             <Route path="/auth/debug" element={<AuthDebug />} />
           </Route>
 
-          <Route element={<ProtectedRoute allow={[ROLES.ADMIN, ROLES.PROFESSIONAL, ROLES.ASSISTANT]} />}>
+          <Route element={<ProtectedRoute allow={[ROLES.ADMIN, ROLES.PROFESSIONAL, ROLES.ASSISTANT, ROLES.PATIENT]} />}>
             <Route path={ROUTES.patients} element={<Patients />} />
             <Route path={`${ROUTES.patients}/:id`} element={<PatientDetail />} />
             <Route path={ROUTES.sessions} element={<Sessions />} />
@@ -88,6 +93,8 @@ export default function AppRoutes() {
             <Route path="/patients/:id/sessions" element={<PatientSessions />} />
             <Route path={ROUTES.consents} element={<Consents />} />
             <Route path={ROUTES.reports} element={<Reports />} />
+            <Route path="/patient/dashboard" element={<PatientDashboard />} />
+            <Route path="/profile/medical" element={/* Componente de edición de perfil */null} />
           </Route>
 
           <Route element={<ProtectedRoute allow={[ROLES.ADMIN, ROLES.PROFESSIONAL, ROLES.ASSISTANT]} />}>

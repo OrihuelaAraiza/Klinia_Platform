@@ -21,7 +21,6 @@ import { isValidEmail, isValidPassword } from "../utils/validators";
 import { useToast } from "../components/UI/Toast";
 import doctorImg from "../assets/hero/doctor-login.jpg";
 import logo from "../assets/logo-romi.svg";
-
 const INITIAL_FORM = {
   email: "",
   password: "",
@@ -65,6 +64,8 @@ export default function Login() {
   const [formError, setFormError] = useState("");
   const [blockState, setBlockState] = useState(BLOCK_INITIAL_STATE);
   const toast = useToast();
+
+  const [userType, setUserType] = useState('profesional');
 
   const limiterKey = useMemo(() => buildLimiterKey(form.email), [form.email]);
   const combinedBusy = loading || providersBusy;
@@ -194,10 +195,32 @@ export default function Login() {
         <div className="login-card">
           <img src={logo} alt="ROMI Klinia" className="login-logo" />
 
-          <h1 className="login-title">Inicio de sesión</h1>
+          <h1 className="login-title">
+            {userType === 'professional' ? 'Portal Profesionales' : 'Portal Pacientes'}
+          </h1>
           <p className="login-subtitle">
-            Bienvenido de vuelta. Ingresa tus credenciales para continuar.
+            {userType === 'professional' 
+              ? 'Gestiona tus consultas y pacientes.' 
+              : 'Accede a tu historial y recetas.'}
           </p>
+
+          <div className="login-toggle">
+            <button
+              type="button"
+              className={`login-toggle__btn ${userType === 'professional' ? 'is-active' : ''}`}
+              onClick={() => setUserType('professional')}
+            >
+              Soy Especialista
+            </button>
+            <button
+              type="button"
+              className={`login-toggle__btn ${userType === 'patient' ? 'is-active' : ''}`}
+              onClick={() => setUserType('patient')}
+            >
+              Soy Paciente
+            </button>
+          </div>
+
 
           <form className="form" onSubmit={handleSubmit} noValidate>
             <InputField
@@ -278,12 +301,23 @@ export default function Login() {
               </p>
             ) : null}
 
-            <p className="register">
-              ¿No tienes cuenta?{" "}
-              <Link className="link" to={ROUTES.register}>
-                Regístrate
+            <div className="register" style={{ borderTop: '1px solid var(--border)', paddingTop: '1rem', marginTop: '1rem' }}>
+              <p style={{ margin: 0 }}>
+                {userType === 'professional' 
+                  ? "¿Eres nuevo en Klinia?" 
+                  : "¿Primera vez aquí?"}
+              </p>
+              
+              <Link 
+                className="link" 
+                to={userType === 'professional' ? ROUTES.register : "/register/patient"}
+                style={{ display: 'block', marginTop: '0.25rem', fontSize: '1rem' }}
+              >
+                {userType === 'professional' 
+                  ? "Registrar mi Consultorio" 
+                  : "Crear cuenta de Paciente"}
               </Link>
-            </p>
+            </div>
           </form>
         </div>
       </section>
@@ -294,9 +328,11 @@ export default function Login() {
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.6 }}
       >
+
+        {/*imagen decorativa cambiar*/}
         <img
-          src={doctorImg}
-          alt="Profesional de salud usando un móvil"
+          src={doctorImg} 
+          alt="Fondo decorativo"
           className="hero-img"
         />
       </Motion.section>

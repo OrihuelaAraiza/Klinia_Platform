@@ -149,28 +149,7 @@ export function CameraModal({ onCapture, onClose }) {
                 </div>
             </div>
             
-            <style>{`
-                .camera-modal-backdrop {
-                    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-                    background: rgba(0,0,0,0.5); z-index: 100;
-                    display: flex; align-items: center; justify-content: center;
-                }
-                .camera-modal-content {
-                    background: white; padding: 20px; border-radius: 8px;
-                    max-width: 500px; width: 90%;
-                }
-                .camera-preview-window { /* Nuevo wrapper */
-                    width: 100%; height: 375px; 
-                    overflow: hidden; position: relative;
-                    background: #eee; border-radius: 4px;
-                }
-                .camera-modal-content video, .captured-image { 
-                    position: absolute; top: 0; left: 0; 
-                    width: 100%; height: 100%;
-                    object-fit: cover; 
-                }
-                .camera-modal-actions { display: flex; gap: 10px; margin-top: 15px; }
-            `}</style>
+           
         </div>
     );
 }

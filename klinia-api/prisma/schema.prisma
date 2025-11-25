@@ -22,6 +22,7 @@ model User {
   createdAt     DateTime  @default(now())
 
   kycRecord     KycRecord?
+  patientRecord PatientRecord?
   uploads       Upload[]
 }
 
@@ -60,4 +61,25 @@ model KycRecord {
   curpCoincide   Boolean
   faceMatch      Boolean @default(false) // Para el futuro
   faceConfidence String  // Para guardar "SKIPPED_AZURE_403" o el score
+}
+
+//paciente
+model PatientRecord {
+  id            String    @id @default(cuid()) 
+  createdAt     DateTime  @default(now())
+  userId        String    @unique
+  user          User      @relation(fields: [userId], references: [id])
+
+  firstName     String
+  lastName      String
+  birthDate     String
+  gender        String? 
+  
+  referral      String 
+  purpose       String 
+  
+  phone         String
+  emergencyName String
+  emergencyPhone String
+  phoneIsVerified Boolean @default(false)
 }
