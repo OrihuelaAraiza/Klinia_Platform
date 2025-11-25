@@ -3,7 +3,7 @@ import { Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
 import authService from "../services/authService";
 import auditService from "../services/auditService";
 import storage from "../services/storage";
-import { ROLES, ROUTES } from "../utils/constants";
+import { ROLES, ROUTES, resolveDestination } from "../utils/constants"; 
 import NavSidebar from "./NavSidebar";
 import Topbar from "./Topbar";
 
@@ -16,8 +16,8 @@ export default function ProtectedRoute({ allow, children }) {
   const allowedRoles = allow && allow.length ? allow : Object.values(ROLES);
   const shouldRedirectToLogin = !token || !role;
   const shouldRedirectToDashboard = !shouldRedirectToLogin && !allowedRoles.includes(role);
-  const buildVersion = import.meta.env.VITE_APP_VERSION || "dev";
-  const buildMessage = import.meta.env.VITE_APP_COMMIT_MESSAGE || "";
+ const buildVersion = import.meta.env.VITE_APP_VERSION || "dev";
+ const buildMessage = import.meta.env.VITE_APP_COMMIT_MESSAGE || "";
 
   const handleLogout = useCallback(async () => {
     try {
@@ -115,12 +115,13 @@ export default function ProtectedRoute({ allow, children }) {
     [role, user, toggleSidebar, isMobile, sidebarCollapsed]
   );
   if (shouldRedirectToLogin) {
-    return <Navigate to={ROUTES.login} state={{ from: location }} replace />;
-  }
+   return <Navigate to={ROUTES.login} state={{ from: location }} replace />;
+    }
 
-  if (shouldRedirectToDashboard) {
-    return <Navigate to={ROUTES.dashboard} replace />;
-  }
+ if (shouldRedirectToDashboard) {
+    const correctHome = resolveDestination(role); 
+  return <Navigate to={correctHome} replace />;
+ }
 
   const sidebarId = "app-sidebar";
   const shouldShowOverlay = isMobile && !sidebarCollapsed;

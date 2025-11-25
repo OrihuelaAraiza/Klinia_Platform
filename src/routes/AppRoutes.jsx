@@ -7,7 +7,7 @@ import storage from "../services/storage";
 import { ROLES, ROUTES } from "../utils/constants";
 import PageSkeleton from "../components/PageSkeleton";
 import PatientRegister from "../pages/PatientRegister";
-import PatientDashboard from "../pages/Patient";
+import PatientDashboard from "../pages/PatientDashboard";
 
 const Login = lazy(() => import("../pages/Login"));
 const Register = lazy(() => import("../pages/Register"));
@@ -27,20 +27,9 @@ const Prescriptions = lazy(() => import("../pages/Prescriptions"));
 const PrescriptionDetail = lazy(() => import("../pages/PrescriptionDetail"));
 const Reports = lazy(() => import("../pages/Reports"));
 const NotFound = lazy(() => import("../pages/NotFound"));
+const DashboardPatient = lazy(() => import("../pages/PatientDashboard"));
 
-function resolveDestination(role) {
-  switch (role) {
-    case ROLES.ADMIN:
-    return ROUTES.dashboard;
-    case ROLES.PROFESSIONAL:
-    case ROLES.ASSISTANT:
-    return ROUTES.patients;
-    case ROLES.PATIENT: 
-    return '/patient/dashboard'; 
-    default:
-    return ROUTES.dashboard;
-  }
-}
+
 
 function RouteAuditor() {
   const location = useLocation();
@@ -55,25 +44,29 @@ function RouteAuditor() {
   useEffect(() => {
     const token = storage.getToken();
     const role = storage.getRole();
-    if (!token || !role) {
-      return;
-    }
+    if (!token || !role) return;
+
     if (
       location.pathname === ROUTES.login ||
       location.pathname === ROUTES.register
     ) {
-      navigate(resolveDestination(role), { replace: true });
+      navigate(
+        role === ROLES.PATIENT ? "/patient/dashboard" : ROUTES.dashboard,
+        { replace: true }
+      );
     }
   }, [location.pathname, navigate]);
 
   return null;
 }
 
+
 export default function AppRoutes() {
   return (
     <BrowserRouter>
       <RouteAuditor />
       <Suspense fallback={<PageSkeleton />}>
+
         <Routes>
           <Route path={ROUTES.login} element={<Login />} />
           <Route path={ROUTES.register} element={<Register />} />
@@ -85,54 +78,71 @@ export default function AppRoutes() {
             <Route path="/auth/debug" element={<AuthDebug />} />
           </Route>
 
-          <Route element={<ProtectedRoute allow={[ROLES.ADMIN, ROLES.PROFESSIONAL, ROLES.ASSISTANT, ROLES.PATIENT]} />}>
+         <Route element={<ProtectedRoute allow={[ROLES.ADMIN, ROLES.PROFESSIONAL, ROLES.ASSISTANT, ROLES.PATIENT]} />}>
+      
+
+            <Route path={ROUTES.dashboard} element={<Dashboard />} /> 
+            <Route path="/auth/debug" element={<AuthDebug />} />
+
+            <Route path="/patient/dashboard" element={<PatientDashboard />} />
+
+            {/* Gestión de pacientes */}
             <Route path={ROUTES.patients} element={<Patients />} />
             <Route path={`${ROUTES.patients}/:id`} element={<PatientDetail />} />
-            <Route path={ROUTES.sessions} element={<Sessions />} />
-            <Route path={ROUTES.sessionsCalendar} element={<SessionsCalendar />} />
-            <Route path="/patients/:id/sessions" element={<PatientSessions />} />
-            <Route path={ROUTES.consents} element={<Consents />} />
-            <Route path={ROUTES.reports} element={<Reports />} />
-            <Route path="/patient/dashboard" element={<PatientDashboard />} />
-            <Route path="/profile/medical" element={/* Componente de edición de perfil */null} />
-          </Route>
+                        
 
+            <Route path="/profile/medical" element={<Dashboard />} /> 
+
+            <Route path="*" element={<NotFound />} />
+            </Route>
+
+
+          {/* =====================================================
+              (Admin + Profesional + Asistente)
+          ===================================================== */}
           <Route element={<ProtectedRoute allow={[ROLES.ADMIN, ROLES.PROFESSIONAL, ROLES.ASSISTANT]} />}>
             <Route
               path="/patients/:id/notes"
-              element={
-                <ErrorBoundary>
-                  <Notes />
-                </ErrorBoundary>
-              }
+              element={<ErrorBoundary><Notes /></ErrorBoundary>}
             />
             <Route
               path="/patients/:id/notes/:noteId"
-              element={
-                <ErrorBoundary>
-                  <NoteDetail />
-                </ErrorBoundary>
-              }
+              element={<ErrorBoundary><NoteDetail /></ErrorBoundary>}
             />
             <Route path="/patients/:id/consents" element={<PatientDetail />} />
           </Route>
 
+
+          {/* =====================================================
+              (Admin + Profesional)
+          ===================================================== */}
           <Route element={<ProtectedRoute allow={[ROLES.ADMIN, ROLES.PROFESSIONAL]} />}>
             <Route path="/patients/:id/history" element={<History />} />
           </Route>
 
+
+          {/* =====================================================
+              Prescripciones (Admin + Profesional + Asistente)
+          ===================================================== */}
           <Route element={<ProtectedRoute allow={[ROLES.ADMIN, ROLES.PROFESSIONAL, ROLES.ASSISTANT]} />}>
             <Route path={ROUTES.prescriptions} element={<Prescriptions />} />
             <Route path={ROUTES.prescriptionsNew} element={<Prescriptions />} />
             <Route path={ROUTES.prescriptionDetail} element={<PrescriptionDetail />} />
           </Route>
 
+
+          {/* =====================================================
+              404 Protegido
+          ===================================================== */}
           <Route element={<ProtectedRoute />}>
             <Route path="*" element={<NotFound />} />
           </Route>
 
+          {/* 404 Público */}
           <Route path="*" element={<NotFound />} />
+
         </Routes>
+
       </Suspense>
     </BrowserRouter>
   );

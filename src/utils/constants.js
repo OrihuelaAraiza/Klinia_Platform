@@ -2,12 +2,14 @@ export const ROLES = {
   ADMIN: "ADMIN",
   PROFESSIONAL: "PROFESSIONAL",
   ASSISTANT: "ASSISTANT",
+  PATIENT: "PATIENT",
 };
 
 export const ROLES_LABEL = {
   [ROLES.ADMIN]: "Administrador",
   [ROLES.PROFESSIONAL]: "Profesional",
   [ROLES.ASSISTANT]: "Asistente",
+  [ROLES.PATIENT]: "Paciente",
 };
 
 export const ROUTES = {
@@ -122,3 +124,17 @@ export default {
   PRESCRIPTION_FIELDS,
   MEXICAN_STATES,
 };
+
+export function resolveDestination(role) {
+  switch (role) {
+  case ROLES.ADMIN:
+    return ROUTES.dashboard;
+  case ROLES.PROFESSIONAL:
+  case ROLES.ASSISTANT:
+    return ROUTES.patients;
+  case ROLES.PATIENT:
+    return "/patient/dashboard"; // Ruta del paciente
+  default:
+    return ROUTES.dashboard;
+}
+}

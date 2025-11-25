@@ -10,6 +10,9 @@ export default function PatientDashboard() {
   const { user } = useOutletContext(); 
   
   const firstName = user?.name?.split(' ')[0] || 'Paciente';
+  if (!user) {
+      return <div className="page dashboard-page">Cargando perfil...</div>; 
+  }
 
   const welcomeMessage = `Bienvenido, ${firstName}. Revisa tu estado de salud y próximas citas.`;
 

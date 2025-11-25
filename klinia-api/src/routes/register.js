@@ -22,19 +22,17 @@ function emitAudit(event, meta = {}) {
   });
 }
 
-function isAdult(dateString) {
-  const birth = new Date(dateString);
+function isAdult(birthDate) {
+  if (!DATE_REGEX.test(birthDate)) return false;
+  const date = new Date(birthDate);
+  if (Number.isNaN(date.getTime())) return false;
   const today = new Date();
-  const age = today.getFullYear() - birth.getFullYear();
-  if (
-    age > 18 ||
-    (age === 18 &&
-      (today.getMonth() > birth.getMonth() ||
-        (today.getMonth() === birth.getMonth() && today.getDate() >= birth.getDate())))
-  ) {
-    return true;
+  let age = today.getFullYear() - date.getFullYear();
+  const monthDiff = today.getMonth() - date.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < date.getDate())) {
+    age -= 1;
   }
-  return false;
+  return age >= 18;
 }
 
 const PASSWORD_REGEX = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
