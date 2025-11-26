@@ -7,6 +7,7 @@ import storage from "../services/storage";
 import { ROLES, ROUTES } from "../utils/constants";
 import PageSkeleton from "../components/PageSkeleton";
 
+const Home = lazy(() => import("../pages/Home"));
 const Login = lazy(() => import("../pages/Login"));
 const Register = lazy(() => import("../pages/Register"));
 const Dashboard = lazy(() => import("../pages/Dashboard"));
@@ -55,6 +56,7 @@ function RouteAuditor() {
       return;
     }
     if (
+      location.pathname === ROUTES.home ||
       location.pathname === ROUTES.login ||
       location.pathname === ROUTES.register
     ) {
@@ -71,6 +73,7 @@ export default function AppRoutes() {
       <RouteAuditor />
       <Suspense fallback={<PageSkeleton />}>
         <Routes>
+          <Route path={ROUTES.home} element={<Home />} />
           <Route path={ROUTES.login} element={<Login />} />
           <Route path={ROUTES.register} element={<Register />} />
           <Route path="/health" element={<Health />} />
