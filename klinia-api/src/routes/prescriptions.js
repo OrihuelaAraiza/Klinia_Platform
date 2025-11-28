@@ -1,12 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
-import { patients } from "../store/memory.js";
-import {
-  createPrescription,
-  listPrescriptionsByPatient,
-  getPrescriptionById,
-  suspendPrescription,
-} from "../store/prescriptions.js";
+import { prisma } from "../services/dbClient.js";
+import { uid } from "../store/memory.js"; 
 
 const router = Router();
 
@@ -20,7 +15,7 @@ const professionalSchema = z
   .optional();
 
 const createSchema = z.object({
-  patientId: z.string().trim().min(1, { message: "Paciente requerido" }),
+  patientRecordId: z.string().trim().min(1, { message: "ID del paciente requerido" }),
   substance: z.string().trim().min(1, { message: "Principio activo requerido" }),
   form: z.string().trim().min(1, { message: "Forma farmacéutica requerida" }),
   dose: z.string().trim().min(1, { message: "Dosis requerida" }),
@@ -31,7 +26,8 @@ const createSchema = z.object({
   professional: professionalSchema,
 });
 
-router.post("/prescriptions", (req, res) => {
+
+router.post("/prescriptions", async (req, res) => {
   const parsed = createSchema.safeParse(req.body);
   if (!parsed.success) {
     const issue = parsed.error.issues[0];
@@ -39,38 +35,102 @@ router.post("/prescriptions", (req, res) => {
   }
 
   const payload = parsed.data;
-  const patient = patients.get(payload.patientId);
-  if (!patient) {
-    return res.status(404).json({ message: "Paciente no encontrado" });
-  }
 
-  const record = createPrescription({ ...payload, patient });
-  return res.status(201).json(record);
+  const therapistId = req.user?.id || "U_ADMIN_TEST"; 
+
+  try {
+    const patient = await prisma.patientRecord.findUnique({
+      where: { id: payload.patientRecordId },
+    });
+
+    if (!patient) {
+      return res.status(404).json({ message: "Paciente no encontrado" });
+    }
+
+    const record = await prisma.prescription.create({
+      data: {
+        id: uid("PRES_"),
+        description: `${payload.substance} (${payload.dose})`,
+
+        therapistId,
+        patientRecordId: payload.patientRecordId,
+
+      },
+    });
+
+    return res.status(201).json(record);
+  } catch (e) {
+    console.error("[Prescriptions] Create DB Error:", e);
+    res.status(500).json({ message: "Error al crear la prescripción." });
+  }
 });
 
-router.get("/patients/:id/prescriptions", (req, res) => {
-  const patient = patients.get(req.params.id);
-  if (!patient) {
-    return res.status(404).json({ message: "Paciente no encontrado" });
+
+router.get("/patients/:id/prescriptions", async (req, res) => {
+  const patientRecordId = req.params.id;
+
+  try {
+    const patient = await prisma.patientRecord.findUnique({
+      where: { id: patientRecordId },
+    });
+
+    if (!patient) {
+      return res.status(404).json({ message: "Paciente no encontrado" });
+    }
+
+    const items = await prisma.prescription.findMany({
+      where: { patientRecordId },
+      orderBy: { createdAt: "desc" },
+    });
+
+    res.json(items);
+  } catch (e) {
+    console.error("[Prescriptions] List DB Error:", e);
+    res.status(500).json({ message: "Error al consultar las prescripciones." });
   }
-  const items = listPrescriptionsByPatient(patient.id);
-  res.json(items);
 });
 
-router.get("/prescriptions/:id", (req, res) => {
-  const record = getPrescriptionById(req.params.id);
-  if (!record) {
-    return res.status(404).json({ message: "Prescripción no encontrada" });
+
+router.get("/prescriptions/:id", async (req, res) => {
+  const id = req.params.id;
+
+  try {
+    const record = await prisma.prescription.findUnique({
+      where: { id },
+      include: {
+        therapist: true,
+        patientRecord: true,
+      },
+    });
+
+    if (!record) {
+      return res.status(404).json({ message: "Prescripción no encontrada" });
+    }
+
+    res.json(record);
+  } catch (e) {
+    console.error("[Prescriptions] Detail DB Error:", e);
+    res.status(500).json({ message: "Error al obtener el detalle de la prescripción." });
   }
-  res.json(record);
 });
 
-router.post("/prescriptions/:id/suspend", (req, res) => {
-  const record = suspendPrescription(req.params.id);
-  if (!record) {
-    return res.status(404).json({ message: "Prescripción no encontrada" });
+
+router.post("/prescriptions/:id/suspend", async (req, res) => {
+  const id = req.params.id;
+
+  try {
+    const record = await prisma.prescription.update({
+      where: { id },
+      data: {
+        status: "suspendida",
+      },
+    });
+
+    res.json(record);
+  } catch (e) {
+    console.error("[Prescriptions] Suspend DB Error:", e);
+    res.status(500).json({ message: "Error al suspender la prescripción." });
   }
-  res.json(record);
 });
 
 export default router;

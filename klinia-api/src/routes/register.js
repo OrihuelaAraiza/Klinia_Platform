@@ -169,6 +169,7 @@ router.post("/register/patient", async (req, res, next) => {
           userId: user.id,
           firstName: payload.identity.firstName,
           lastName: payload.identity.lastName,
+          curp: payload.identity.curp || null,
           birthDate: payload.identity.birthDate,
           gender: payload.identity.gender || null,
           referral: payload.source.referral,

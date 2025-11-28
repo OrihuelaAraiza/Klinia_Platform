@@ -40,17 +40,27 @@ app.use("/api/auth", registerRouter);
 app.use("/api/uploads", uploadsRouter);
 app.use("/api/verify", verifyRouter);
 
-app.use("/api", apiRouter);
 
-app.use("/api/patients", patientsRouter);
+// 2. RUTAS DE SERVICIOS CENTRALES (General App)
+// Montamos las rutas explícitamente.
+app.use("/api/dashboard", dashboardRouter); // Monta /api/dashboard/...
+app.use("/api/prescriptions", prescriptionsRouter); // Monta /api/prescriptions/...
+app.use("/api/sessions", sessionsRouter); // Monta /api/sessions/... (Esto arregla el 404)
 
+
+// 3. RUTAS DE PACIENTES (Lista y Detalle)
+app.use("/api/patients", patientsRouter); 
+
+// 4. RUTAS PARAMETRIZADAS (Siempre van al final de las listas)
+// Estas rutas dependen de un :id
 app.use("/api/patients/:id/consents", consentsRouter);
 app.use("/api/patients/:id/history", historyRouter);
 app.use("/api/patients/:id/notes", notesRouter);
 app.use("/api/patients/:id/export", exportRouter);
-app.use("/api", dashboardRouter);
-app.use("/api", prescriptionsRouter);
-app.use("/api", sessionsRouter);
+
+// 5. RUTAS GENÉRICAS RESTANTES
+app.use("/api", apiRouter); 
+
 app.use(errorMiddleware);
 
 const server = app.listen(env.port, () => {

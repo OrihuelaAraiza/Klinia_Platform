@@ -24,7 +24,7 @@ const basePatientSchema = z.object({
   birthDate: z
     .string()
     .regex(DATE_REGEX, { message: "Fecha inválida" }),
-  sex: z.enum(["M", "F", "X"], { message: "Sexo inválido" }),
+    gender: z.enum(["M", "F", "X"], { message: "Género inválido" }), 
   phone: z
     .string()
     .regex(PHONE_REGEX, { message: "Teléfono inválido" }),
@@ -39,10 +39,11 @@ export const patientUpdateSchema = basePatientSchema.partial({
   lastName: true,
   curp: true,
   birthDate: true,
-  sex: true,
+  gender: true,
   phone: true,
   email: true,
   attachments: true,
+  updatedAt: true,
 });
 
 export const consentTypeSchema = z.enum(["attention", "recording", "ai_use"], {
