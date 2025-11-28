@@ -9,6 +9,7 @@ import PageSkeleton from "../components/PageSkeleton";
 import PatientRegister from "../pages/PatientRegister";
 import PatientDashboard from "../pages/PatientDashboard";
 
+const Home = lazy(() => import("../pages/Home"));
 const Login = lazy(() => import("../pages/Login"));
 const Register = lazy(() => import("../pages/Register"));
 const Dashboard = lazy(() => import("../pages/Dashboard"));
@@ -47,6 +48,7 @@ function RouteAuditor() {
     if (!token || !role) return;
 
     if (
+      location.pathname === ROUTES.home ||
       location.pathname === ROUTES.login ||
       location.pathname === ROUTES.register
     ) {
@@ -64,10 +66,22 @@ function RouteAuditor() {
 // ... (Tus imports) ...
 
 export default function AppRoutes() {
+<<<<<<< HEAD
   return (
     <BrowserRouter>
       <RouteAuditor />
       <Suspense fallback={<PageSkeleton />}>
+=======
+  return (
+    <BrowserRouter>
+      <RouteAuditor />
+      <Suspense fallback={<PageSkeleton />}>
+        <Routes>
+          <Route path={ROUTES.home} element={<Home />} />
+          <Route path={ROUTES.login} element={<Login />} />
+          <Route path={ROUTES.register} element={<Register />} />
+          <Route path="/health" element={<Health />} />
+>>>>>>> main
 
         <Routes>
             <Route path={ROUTES.login} element={<Login />} />

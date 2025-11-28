@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion as Motion } from "framer-motion";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import InputField from "../components/InputField";
 import ButtonPrimary from "../components/ButtonPrimary";
 import AuthProviders from "../components/AuthProviders";
+import ThemeToggle from "../components/ThemeToggle";
 import auditService from "../services/auditService";
 import {
   loginEmail as loginWithEmail,
@@ -57,6 +58,8 @@ function formatBlockMessage(remainingMs) {
 
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const fromPath = location.state?.from?.pathname;
   const [form, setForm] = useState(INITIAL_FORM);
   const [errors, setErrors] = useState(EMPTY_ERRORS);
   const [loading, setLoading] = useState(false);
@@ -159,7 +162,8 @@ export default function Login() {
         { auth: true }
       );
 
-      navigate(resolveDestination(session.user?.role), { replace: true });
+      const destination = fromPath || resolveDestination(session.user?.role);
+      navigate(destination, { replace: true });
     } catch (error) {
       const isNetworkError = error?.code === "NETWORK_ERROR";
       const fallbackMessage = isNetworkError
@@ -190,11 +194,15 @@ export default function Login() {
   };
 
   return (
-    <div className="login-shell">
-      <section className="login-left">
-        <div className="login-card">
-          <img src={logo} alt="ROMI Klinia" className="login-logo" />
+    <div className="login-page">
+      <div className="login-layout">
+        <section className="login-card">
+          <header className="login-card__header">
+            <img src={logo} alt="ROMI Klinia" className="login-logo" />
+            <ThemeToggle className="login-theme-toggle" />
+          </header>
 
+<<<<<<< HEAD
           <h1 className="login-title">
             {userType === 'professional' ? 'Portal Profesionales' : 'Portal Pacientes'}
           </h1>
@@ -203,6 +211,14 @@ export default function Login() {
               ? 'Gestiona tus consultas y pacientes.' 
               : 'Accede a tu historial y recetas.'}
           </p>
+=======
+          <div className="stack-1">
+            <h1 className="login-title">Inicio de sesión</h1>
+            <p className="login-subtitle">
+              Bienvenido de vuelta. Ingresa tus credenciales para continuar.
+            </p>
+          </div>
+>>>>>>> main
 
           <div className="login-toggle">
             <button
@@ -266,29 +282,29 @@ export default function Login() {
               <AuthProviders
                 disabled={combinedBusy || isBlocked}
                 onBusyChange={setProvidersBusy}
-                
-
                 onSuccess={(response) => {
-
-                if (limiterKey) {
-                resetRateLimit(limiterKey);
-                setBlockState(BLOCK_INITIAL_STATE);
-                }
-                                  
-
-                if (response.status === 'LOGIN_SUCCESS') {
-                navigate(resolveDestination(response.user.role), { replace: true });
-
-                } else if (response.status === 'REGISTRATION_REQUIRED') {
-
-                navigate(ROUTES.register, { 
-                state: { partialToken: response.partialToken } 
-                });
-                } 
-                }} 
-                onError={() => {
+                  if (limiterKey) {
+                    resetRateLimit(limiterKey);
+                    setBlockState(BLOCK_INITIAL_STATE);
+                  }
+                  if (response?.user) {
+                    const destination = fromPath || resolveDestination(response.user.role);
+                    navigate(destination, { replace: true });
+                    return;
+                  }
+                  if (response?.partialToken) {
+                    navigate(ROUTES.register, {
+                      state: { partialToken: response.partialToken },
+                    });
+                  }
                 }}
-                />
+                onError={() => {
+                  if (limiterKey) {
+                    const limiterState = shouldRateLimit(limiterKey);
+                    setBlockState(limiterState);
+                  }
+                }}
+              />
             ) : import.meta.env.DEV ? (
               <small className="hint">
                 Configura VITE_MSAL_CLIENT_ID y el tenant para habilitar Microsoft.
@@ -319,9 +335,9 @@ export default function Login() {
               </Link>
             </div>
           </form>
-        </div>
-      </section>
+        </section>
 
+<<<<<<< HEAD
       <Motion.section
         className="login-right"
         initial={{ opacity: 0, x: 40 }}
@@ -336,6 +352,21 @@ export default function Login() {
           className="hero-img"
         />
       </Motion.section>
+=======
+        <Motion.aside
+          className="login-hero"
+          initial={{ opacity: 0, x: 40 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.6 }}
+        >
+          <img
+            src={doctorImg}
+            alt="Profesional de salud usando un móvil"
+            className="login-hero__image"
+          />
+        </Motion.aside>
+      </div>
+>>>>>>> main
     </div>
   );
 }
