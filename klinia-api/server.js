@@ -18,6 +18,7 @@ import prescriptionsRouter from "./src/routes/prescriptions.js";
 import uploadsRouter from "./src/routes/uploads.js";
 import verifyRouter from "./src/routes/verify.js";
 import registerRouter from "./src/routes/register.js";
+import { ensureSeedUsers } from "./src/utils/seedUsers.js";
 
 const app = express();
 
@@ -50,9 +51,20 @@ app.use("/api", prescriptionsRouter);
 app.use("/api", sessionsRouter);
 app.use(errorMiddleware);
 
-const server = app.listen(env.port, () => {
-  console.log(`Mock Klinia API listening on http://localhost:${env.port}`);
-});
+let server;
+
+async function bootstrap() {
+  try {
+    await ensureSeedUsers();
+  } catch (error) {
+    console.warn("[seed] unable to ensure default users", error);
+  }
+
+  server = app.listen(env.port, () => {
+    console.log(`Mock Klinia API listening on http://localhost:${env.port}`);
+  });
+}
+bootstrap();
 
 function gracefulShutdown(signal) {
   console.log(`\n${signal} received. Closing server...`);
