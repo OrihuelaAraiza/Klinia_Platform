@@ -11,7 +11,8 @@ export const ROLES_LABEL = {
 };
 
 export const ROUTES = {
-  login: "/",
+  home: "/",
+  login: "/login",
   register: "/register",
   dashboard: "/dashboard",
   patients: "/patients",

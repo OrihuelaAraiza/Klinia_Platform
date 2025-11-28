@@ -1,23 +1,9 @@
 import { useCallback, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { loginWithMicrosoft as msalLoginPopup, msalEnabled } from "../services/msal";
 import auditService from "../services/auditService";
 import { useToast } from "./UI/Toast";
 import microsoftLogo from "../assets/logos/microsoft-icon.png";
-import { ROLES, ROUTES } from "../utils/constants";
 import authService from "../services/authService";
-
-function resolveRedirect(role) {
-  switch (role) {
-    case ROLES.ADMIN:
-      return ROUTES.dashboard;
-    case ROLES.PROFESSIONAL:
-    case ROLES.ASSISTANT:
-      return ROUTES.patients;
-    default:
-      return ROUTES.dashboard;
-  }
-}
 
 function mapErrorMessage(error) {
   const code = error?.code;
@@ -43,7 +29,6 @@ export default function AuthProviders({
   onBusyChange,
 }) {
   const toast = useToast();
-  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -64,23 +49,21 @@ export default function AuthProviders({
     setBusy(true);
     setErrorMessage("");
 
-   try {
+    try {
       const msalResponse = await msalLoginPopup();
-       const idToken = msalResponse?.idToken;
+      const idToken = msalResponse?.idToken;
 
-    if (!idToken) {
-    throw new Error("No se pudo obtener el token de Microsoft.");
-   }
+      if (!idToken) {
+        throw new Error("No se pudo obtener el token de Microsoft.");
+      }
 
-   const backendResponse = await authService.loginMicrosoft(idToken);
-    
-   if (typeof onSuccess === "function") {
-     onSuccess(backendResponse);
-   }
-
-  } catch (error) {
-   const friendly = mapErrorMessage(error);
-   setErrorMessage(friendly);
+      const backendResponse = await authService.loginMicrosoft(idToken);
+      if (typeof onSuccess === "function") {
+        onSuccess(backendResponse);
+      }
+    } catch (error) {
+      const friendly = mapErrorMessage(error);
+      setErrorMessage(friendly);
 
       auditService
         .logAudit(
