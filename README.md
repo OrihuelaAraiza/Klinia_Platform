@@ -116,6 +116,27 @@ npm run dev
 
 Por defecto escucha en `http://localhost:4000`. Ajusta `VITE_API_BASE_URL` para apuntar a este servidor o a tu backend real.
 
+### Variables de entorno del API y Neon
+
+1. Copia el archivo de ejemplo: `cp klinia-api/.env.example klinia-api/.env`.
+2. Completa los valores reales (Azure, Twilio, JWT, etc.) únicamente en tu `.env` local o en los secretos de la plataforma de despliegue.
+3. Para la base de datos usa la cadena que genera Neon en tu proyecto. El formato recomendado ya viene en el ejemplo:
+
+   ```
+   postgresql://<usuario>:<password>@<host>/<database>?sslmode=require&channel_binding=require
+   ```
+
+   En tu instancia actual bastará con pegar la cadena de conexión que Neon muestra para la base `klinia_db`. No la confirmes en el repositorio: el `.env` se ignora por Git para protegerla.
+
+4. Ejecuta las migraciones apuntando a Neon:
+
+   ```bash
+   cd klinia-api
+   npx prisma migrate deploy   # o `npx prisma db push` si es un entorno nuevo
+   ```
+
+5. En Vercel (o cualquier hosting), crea los mismos nombres de variables (`DATABASE_URL`, `AZURE_*`, `TWILIO_*`, `JWT_SECRET`, etc.) en la sección de Environment Variables. Así la API usará la base de Neon sin exponer la cadena.
+
 ## Convenciones y buenas prácticas
 
 - Componentes reutilizables viven en `components/UI` y exponen props consistentes.
@@ -147,5 +168,4 @@ Por defecto escucha en `http://localhost:4000`. Ajusta `VITE_API_BASE_URL` para 
 ---
 
 ¿Necesitas extender funcionalidades? Revisa los servicios existentes y mantén la auditoría y validaciones coherentes con los módulos actuales. ¡Feliz desarrollo! 💚
-
 
