@@ -202,23 +202,12 @@ export default function Login() {
             <ThemeToggle className="login-theme-toggle" />
           </header>
 
-<<<<<<< HEAD
-          <h1 className="login-title">
-            {userType === 'professional' ? 'Portal Profesionales' : 'Portal Pacientes'}
-          </h1>
-          <p className="login-subtitle">
-            {userType === 'professional' 
-              ? 'Gestiona tus consultas y pacientes.' 
-              : 'Accede a tu historial y recetas.'}
-          </p>
-=======
           <div className="stack-1">
             <h1 className="login-title">Inicio de sesión</h1>
             <p className="login-subtitle">
               Bienvenido de vuelta. Ingresa tus credenciales para continuar.
             </p>
           </div>
->>>>>>> main
 
           <div className="login-toggle">
             <button
@@ -337,22 +326,6 @@ export default function Login() {
           </form>
         </section>
 
-<<<<<<< HEAD
-      <Motion.section
-        className="login-right"
-        initial={{ opacity: 0, x: 40 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.6 }}
-      >
-
-        {/*imagen decorativa cambiar*/}
-        <img
-          src={doctorImg} 
-          alt="Fondo decorativo"
-          className="hero-img"
-        />
-      </Motion.section>
-=======
         <Motion.aside
           className="login-hero"
           initial={{ opacity: 0, x: 40 }}
@@ -366,7 +339,6 @@ export default function Login() {
           />
         </Motion.aside>
       </div>
->>>>>>> main
     </div>
   );
 }

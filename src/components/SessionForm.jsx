@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import InputField from "./InputField";
-import Field from "./UI/Field";
-import Button from "./UI/Button";
-import { listPatients } from "../services/patientsService";
-import { useToast } from "./UI/Toast";
-import { SESSION_MODALITY, SESSION_MODALITY_LABEL, SESSION_STATUS } from "../utils/constants";
+import Button from "./UI/Button.jsx"; 
+import InputField from "./InputField.jsx"; 
+import Field from "./UI/Field.jsx"; 
+import { listPatients } from "../services/patientsService.js"; 
+import { useToast } from "./UI/Toast.jsx"; 
+import { SESSION_MODALITY, SESSION_MODALITY_LABEL, SESSION_STATUS } from "../utils/constants.js"; 
 
 const DEFAULT_FORM = {
   patientId: "",
@@ -12,8 +12,8 @@ const DEFAULT_FORM = {
   durationMin: 50,
   professionalId: "",
   professionalName: "",
-  status: SESSION_STATUS.PROGRAMADA,
-  modality: SESSION_MODALITY.PRESENCIAL,
+  status: "SCHEDULED", 
+  modality: "IN_PERSON", 
   location: "",
   notes: "",
 };
@@ -43,7 +43,7 @@ function fromLocalInput(value) {
   if (Number.isNaN(date.getTime())) {
     return value;
   }
-  return date.toISOString();
+  return date.toISOString(); 
 }
 
 export default function SessionForm({
@@ -150,7 +150,7 @@ export default function SessionForm({
     if (!form.modality) {
       nextErrors.modality = "Selecciona la modalidad.";
     }
-    if (form.modality === SESSION_MODALITY.VIRTUAL) {
+    if (form.modality === "TELEMEDICINE") { 
       if (!form.location) {
         nextErrors.location = "Ingresa el link de la videollamada.";
       } else {
@@ -179,16 +179,16 @@ export default function SessionForm({
     try {
       const payload = {
         patientId: presetPatientId || form.patientId,
-        datetime: fromLocalInput(form.datetime),
-        durationMin: Number(form.durationMin) || 50,
-        status: form.status || SESSION_STATUS.PROGRAMADA,
+        datetime: fromLocalInput(form.datetime), 
+        durationMinutes: Number(form.durationMin) || 60, 
+        status: "SCHEDULED", 
         professionalId: form.professionalId || defaultProfessionalId || "",
-        professionalName: form.professionalName || defaultProfessional || "",
-        modality: form.modality || SESSION_MODALITY.PRESENCIAL,
+        modality: form.modality || "IN_PERSON", 
         location: form.location?.trim() || undefined,
         notes: form.notes?.trim() || undefined,
       };
-      await onSubmit?.(payload);
+      
+      await onSubmit?.(payload); 
     } finally {
       setSubmitting(false);
     }
@@ -255,8 +255,8 @@ export default function SessionForm({
             disabled={readOnly}
             aria-invalid={Boolean(errors.modality)}
           >
-            {Object.values(SESSION_MODALITY).map((value) => (
-              <option key={value} value={value}>
+            {Object.entries(SESSION_MODALITY).map(([key, value]) => (
+              <option key={key} value={key}>
                 {SESSION_MODALITY_LABEL[value]}
               </option>
             ))}
@@ -265,16 +265,16 @@ export default function SessionForm({
       </Field>
 
       <InputField
-        label={form.modality === SESSION_MODALITY.VIRTUAL ? "Link de conexión" : "Ubicación (opcional)"}
-        type={form.modality === SESSION_MODALITY.VIRTUAL ? "url" : "text"}
+        label={form.modality === "TELEMEDICINE" ? "Link de conexión" : "Ubicación (opcional)"}
+        type={form.modality === "TELEMEDICINE" ? "url" : "text"}
         name="location"
         value={form.location}
         onChange={handleChange}
         error={errors.location}
         disabled={readOnly}
-        required={form.modality === SESSION_MODALITY.VIRTUAL}
-        placeholder={form.modality === SESSION_MODALITY.VIRTUAL ? "https://meet..." : "Consultorio 4B"}
-        assistiveText={form.modality === SESSION_MODALITY.VIRTUAL ? "Solo enlaces seguros (https)." : "Puedes indicar consultorio o link de respaldo."}
+        required={form.modality === "TELEMEDICINE"}
+        placeholder={form.modality === "TELEMEDICINE" ? "https://meet..." : "Consultorio 4B"}
+        assistiveText={form.modality === "TELEMEDICINE" ? "Solo enlaces seguros (https)." : "Puedes indicar consultorio o link de respaldo."}
       />
 
       <InputField
@@ -286,6 +286,7 @@ export default function SessionForm({
         disabled={readOnly}
         assistiveText="Nombre que aparecerá en la nota y registro."
       />
+      <input type="hidden" name="professionalId" value={form.professionalId} />
 
       <InputField
         label="Notas internas (opcional)"

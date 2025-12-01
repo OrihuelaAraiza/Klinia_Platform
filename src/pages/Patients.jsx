@@ -1,23 +1,24 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useOutletContext } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import Button from "../components/UI/Button";
-import Drawer from "../components/UI/Drawer";
-import Modal from "../components/UI/Modal";
-import Breadcrumbs from "../components/UI/Breadcrumbs";
-import { Table, TableEmpty } from "../components/UI/Table";
-import PatientForm from "../components/PatientForm";
-import auditService from "../services/auditService";
+// Corregir rutas de importación de componentes/servicios
+import Button from "../components/UI/Button.jsx";
+import Drawer from "../components/UI/Drawer.jsx";
+import Modal from "../components/UI/Modal.jsx";
+import Breadcrumbs from "../components/UI/Breadcrumbs.jsx";
+import { Table, TableEmpty } from "../components/UI/Table.jsx";
+import PatientForm from "../components/PatientForm.jsx";
+import auditService from "../services/auditService.js";
 import {
   listPatients,
   createPatient,
   updatePatient,
-} from "../services/patientsService";
+} from "../services/patientsService.js";
 import cieCatalog from "../assets/data/cie10-min.json";
-import { ROLES } from "../utils/constants";
-import InputField from "../components/InputField";
-import { formatDateISOToHuman } from "../utils/formatters";
-import { useToast } from "../components/UI/Toast";
+import { ROLES } from "../utils/constants.js";
+import InputField from "../components/InputField.jsx";
+import { formatDateISOToHuman } from "../utils/formatters.js";
+import { useToast } from "../components/UI/Toast.jsx";
 
 const DEFAULT_PAGE_SIZE = 10;
 
@@ -159,19 +160,30 @@ export default function Patients() {
   };
 
   const handleCreateOrUpdate = async (payload) => {
+    // 🛑 CORRECCIÓN: Construir el payload con los nombres de campo correctos y completos.
     const basePayload = {
       firstName: payload.firstName,
       lastName: payload.lastName,
-      curp: payload.curp.toUpperCase(),
+      curp: payload.curp?.toUpperCase() || undefined,
       birthDate: payload.birthDate,
-      sex: payload.sex,
+      
+      // 🛑 CAMBIO 1: Renombrar 'sex' (del formulario) a 'gender' (para la API)
+      gender: payload.gender, 
+      
       phone: payload.phone,
       email: payload.email,
       attachments: payload.attachments,
+
+      // 🛑 CAMBIO 2: Añadir campos requeridos por la DB/Zod que PatientForm ahora proporciona
+      referral: payload.referral,
+      purpose: payload.purpose,
+      emergencyName: payload.emergencyName,
+      emergencyPhone: payload.emergencyPhone,
     };
 
     try {
       if (editingPatient) {
+        // En el caso de UPDATE, Zod permite campos opcionales, por lo que este payload es correcto.
         await updatePatient(editingPatient.id, basePayload);
         auditService.logAudit("patient_update", {
           id: editingPatient.id,
@@ -179,6 +191,7 @@ export default function Patients() {
         });
         toast.success("Paciente actualizado correctamente");
       } else {
+        // En el caso de CREATE, el backend espera TODOS los campos
         const created = await createPatient(basePayload);
         auditService.logAudit("patient_create", {
           id: created?.id,
@@ -190,7 +203,14 @@ export default function Patients() {
       await refreshList();
       handleCloseDrawer();
     } catch (err) {
-      const message = err.message || "No pudimos guardar el paciente.";
+      // Intenta obtener un mensaje de error detallado del backend
+      let message = "No pudimos guardar el paciente.";
+      if (err.response && err.response.data && err.response.data.message) {
+          message = err.response.data.message;
+      } else if (err.message) {
+          message = err.message;
+      }
+      
       setError(message);
       toast.error(message);
       throw err;
