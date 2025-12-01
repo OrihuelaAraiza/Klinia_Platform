@@ -2,18 +2,64 @@ import { getToken, clearAll } from "./storage";
 import { ROUTES } from "../utils/constants";
 
 const RAW_BASE = import.meta.env.VITE_API_BASE_URL || "/api";
-const BASE_URL = RAW_BASE.endsWith("/") ? RAW_BASE.slice(0, -1) : RAW_BASE;
+
+// Normalizar BASE_URL: si parece ser un dominio (contiene puntos y no empieza con /)
+// pero no tiene protocolo, agregar https:// automáticamente
+function normalizeBaseUrl(url) {
+  if (!url || url.startsWith("/")) {
+    return url;
+  }
+  
+  // Si ya tiene protocolo, retornar tal cual
+  if (/^https?:\/\//i.test(url)) {
+    return url;
+  }
+  
+  // Si parece ser un dominio (contiene al menos un punto y no es una ruta)
+  // y no tiene protocolo, agregar https://
+  if (url.includes(".") && !url.includes("://")) {
+    return `https://${url}`;
+  }
+  
+  return url;
+}
+
+const NORMALIZED_BASE = normalizeBaseUrl(RAW_BASE);
+const BASE_URL = NORMALIZED_BASE.endsWith("/") ? NORMALIZED_BASE.slice(0, -1) : NORMALIZED_BASE;
+
+// Debug: Log en desarrollo para verificar la configuración
+if (import.meta.env.DEV) {
+  console.log("[API Client] RAW_BASE:", RAW_BASE);
+  console.log("[API Client] NORMALIZED_BASE:", NORMALIZED_BASE);
+  console.log("[API Client] BASE_URL:", BASE_URL);
+}
 
 function buildUrl(path = "") {
+  // Si el path ya es una URL completa, retornarla tal cual
   if (/^https?:\/\//i.test(path)) {
     return path;
   }
 
+  // Construir la URL base + path
+  let finalUrl;
   if (!path.startsWith("/")) {
-    return `${BASE_URL}/${path}`;
+    finalUrl = `${BASE_URL}/${path}`;
+  } else {
+    finalUrl = `${BASE_URL}${path}`;
   }
 
-  return `${BASE_URL}${path}`;
+  // Validación final: si la URL resultante parece ser absoluta (tiene punto y no tiene protocolo)
+  // pero BASE_URL no empezaba con /, entonces agregar https://
+  if (!finalUrl.startsWith("/") && !/^https?:\/\//i.test(finalUrl) && finalUrl.includes(".")) {
+    finalUrl = `https://${finalUrl}`;
+  }
+
+  // Debug: Log en desarrollo
+  if (import.meta.env.DEV) {
+    console.log("[API Client] buildUrl:", { path, finalUrl });
+  }
+
+  return finalUrl;
 }
 
 async function request(path, options = {}) {

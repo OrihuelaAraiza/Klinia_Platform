@@ -44,7 +44,6 @@ function pickLatestTimestamp(items, field) {
   }, null);
 }
 
-// 🛑 REEMPLAZO: Función que ahora consulta Prisma para las sesiones de hoy
 async function collectTodaySessions() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -73,8 +72,8 @@ async function collectTodaySessions() {
   }
 }
 
-router.get("/stats", (req, res) => {
-  const todaySessions = collectTodaySessions();
+router.get("/stats", async (req, res) => {
+  const todaySessions = await collectTodaySessions();
   const prescriptions = getPrescriptions();
   const activePrescriptions = countActivePrescriptions();
   const lastPrescriptionTime = pickLatestTimestamp(prescriptions, "createdAt");
@@ -107,16 +106,28 @@ router.get("/stats", (req, res) => {
   });
 });
 
-router.get("/sessions/today", (req, res) => {
-  const todaySessions = collectTodaySessions()
+router.get("/sessions/today", async (req, res) => {
+  const todaySessions = await collectTodaySessions();
+  const payload = todaySessions
     .slice(0, 5)
-    .map((session) => ({
-      id: session.id,
-      time: session.datetime,
-      patientName: session.patientName || buildPatientName(session.patientId),
-      status: session.status,
-    }));
-  res.json(todaySessions);
+    .map((session) => {
+      const patient =
+        session.patient ||
+        (session.patientId ? patients.get(session.patientId) : null);
+      const patientNameFromDb = patient
+        ? [patient.firstName, patient.lastName].filter(Boolean).join(" ").trim() ||
+          patient.curp ||
+          patient.email
+        : null;
+
+      return {
+        id: session.id,
+        time: session.datetime,
+        patientName: session.patientName || patientNameFromDb || buildPatientName(session.patientId),
+        status: session.status,
+      };
+    });
+  res.json(payload);
 });
 
 router.get("/notes/recent", (req, res) => {
