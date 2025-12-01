@@ -73,50 +73,68 @@ async function collectTodaySessions() {
   }
 }
 
-router.get("/stats", (req, res) => {
-  const todaySessions = collectTodaySessions();
-  const prescriptions = getPrescriptions();
-  const activePrescriptions = countActivePrescriptions();
-  const lastPrescriptionTime = pickLatestTimestamp(prescriptions, "createdAt");
-  const auditEvents = getAuditEvents();
+router.get("/stats", async (req, res) => {
+  try {
+    const todaySessions = await collectTodaySessions();
+    const prescriptions = getPrescriptions();
+    const activePrescriptions = countActivePrescriptions();
+    const lastPrescriptionTime = pickLatestTimestamp(prescriptions, "createdAt");
+    const auditEvents = getAuditEvents();
 
-  const sessionsToday = todaySessions.length;
-  const sessionsCancelledToday = todaySessions.filter(
-    (session) => session.status === SESSION_STATUS.CANCELADA
-  ).length;
+    const sessionsToday = todaySessions.length;
+    const sessionsCancelledToday = todaySessions.filter(
+      (session) => session.status === SESSION_STATUS.CANCELADA
+    ).length;
 
-  const patientsActive = patients.size;
-  const reportsGeneratedBase = Math.max(
-    4,
-    Math.round(auditEvents.length / 3) + sessionsToday + patientsActive
-  );
+    const patientsActive = patients.size;
+    const reportsGeneratedBase = Math.max(
+      4,
+      Math.round(auditEvents.length / 3) + sessionsToday + patientsActive
+    );
 
-  const reportsProgress = Math.min(
-    100,
-    Math.max(12, Math.round((reportsGeneratedBase / Math.max(patientsActive || 1, 1)) * 42))
-  );
+    const reportsProgress = Math.min(
+      100,
+      Math.max(12, Math.round((reportsGeneratedBase / Math.max(patientsActive || 1, 1)) * 42))
+    );
 
-  res.json({
-    patientsActive,
-    sessionsToday,
-    sessionsCancelledToday,
-    prescriptionsActive: activePrescriptions,
-    lastPrescriptionTime,
-    reportsGenerated: reportsGeneratedBase,
-    reportsProgress,
-  });
+    res.json({
+      patientsActive,
+      sessionsToday,
+      sessionsCancelledToday,
+      prescriptionsActive: activePrescriptions,
+      lastPrescriptionTime,
+      reportsGenerated: reportsGeneratedBase,
+      reportsProgress,
+    });
+  } catch (error) {
+    console.error("[Dashboard] Error in /stats:", error);
+    res.status(500).json({ message: "Error al obtener estadísticas" });
+  }
 });
 
-router.get("/sessions/today", (req, res) => {
-  const todaySessions = collectTodaySessions()
-    .slice(0, 5)
-    .map((session) => ({
-      id: session.id,
-      time: session.datetime,
-      patientName: session.patientName || buildPatientName(session.patientId),
-      status: session.status,
-    }));
-  res.json(todaySessions);
+router.get("/sessions/today", async (req, res) => {
+  try {
+    const todaySessions = await collectTodaySessions();
+    const result = todaySessions
+      .slice(0, 5)
+      .map((session) => {
+        // Construir nombre del paciente desde la relación o usar función helper
+        const patientName = session.patient 
+          ? [session.patient.firstName, session.patient.lastName].filter(Boolean).join(" ") || session.patient.curp || session.patient.email || "Paciente sin nombre"
+          : buildPatientName(session.patientId);
+        
+        return {
+          id: session.id,
+          time: session.datetime,
+          patientName: patientName,
+          status: session.status,
+        };
+      });
+    res.json(result);
+  } catch (error) {
+    console.error("[Dashboard] Error in /sessions/today:", error);
+    res.status(500).json({ message: "Error al obtener sesiones de hoy" });
+  }
 });
 
 router.get("/notes/recent", (req, res) => {
