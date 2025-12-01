@@ -44,7 +44,6 @@ function pickLatestTimestamp(items, field) {
   }, null);
 }
 
-// 🛑 REEMPLAZO: Función que ahora consulta Prisma para las sesiones de hoy
 async function collectTodaySessions() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
