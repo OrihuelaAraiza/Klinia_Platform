@@ -43,10 +43,9 @@ app.use("/api/verify", verifyRouter);
 
 
 // 2. RUTAS DE SERVICIOS CENTRALES (General App)
-// Montamos las rutas explícitamente.
+app.use("/api", sessionsRouter); // <-- Aquí montamos el router de sesiones directamente
 app.use("/api/dashboard", dashboardRouter); // Monta /api/dashboard/...
 app.use("/api/prescriptions", prescriptionsRouter); // Monta /api/prescriptions/...
-app.use("/api/sessions", sessionsRouter); // Monta /api/sessions/... (Esto arregla el 404)
 
 
 // 3. RUTAS DE PACIENTES (Lista y Detalle)

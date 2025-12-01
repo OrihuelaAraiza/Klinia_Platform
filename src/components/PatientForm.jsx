@@ -1,23 +1,26 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import Button from "./UI/Button";
-import InputField from "./InputField";
-import Field from "./UI/Field";
+import Button from "./UI/Button.jsx"; 
+import InputField from "./InputField.jsx"; 
+import Field from "./UI/Field.jsx"; 
 import {
   isValidEmail,
   isValidPhone,
   isValidCURP,
   isValidDateYYYYMMDD,
   required,
-} from "../utils/validators";
-
+} from "../utils/validators.js"; 
 const DEFAULT_FORM = {
   firstName: "",
   lastName: "",
   curp: "",
   birthDate: "",
-  sex: "",
+  gender: "",
   phone: "",
   email: "",
+  referral: "",
+  purpose: "",
+  emergencyName: "",
+  emergencyPhone: "",
 };
 
 const SEX_OPTIONS = [
@@ -47,20 +50,32 @@ function validateForm({ form }) {
   if (!required(form.lastName)) {
     errors.lastName = "Apellido obligatorio";
   }
-  if (!isValidCURP(form.curp)) {
+  if (required(form.curp) && !isValidCURP(form.curp)) {
     errors.curp = "CURP inválida";
   }
   if (!isValidDateYYYYMMDD(form.birthDate)) {
     errors.birthDate = "Fecha inválida";
   }
-  if (!required(form.sex)) {
-    errors.sex = "Selecciona un sexo";
+  if (!required(form.gender)) {
+    errors.gender = "Selecciona un sexo";
   }
   if (!isValidPhone(form.phone)) {
     errors.phone = "Teléfono inválido";
   }
   if (!isValidEmail(form.email)) {
     errors.email = "Correo inválido";
+  }
+  if (!required(form.referral)) {
+    errors.referral = "Referencia obligatoria";
+  }
+  if (!required(form.purpose)) {
+    errors.purpose = "Motivo de consulta obligatorio";
+  }
+  if (!required(form.emergencyName)) {
+    errors.emergencyName = "Nombre de contacto obligatorio";
+  }
+  if (!isValidPhone(form.emergencyPhone)) {
+    errors.emergencyPhone = "Teléfono de emergencia inválido";
   }
 
   return errors;
@@ -72,7 +87,17 @@ export default function PatientForm({
   onCancel,
   readOnly = false,
 }) {
-  const [form, setForm] = useState({ ...DEFAULT_FORM, ...(initialValue || {}) });
+  const mergedInitialValue = useMemo(() => {
+    const defaults = { ...DEFAULT_FORM };
+    if (initialValue) {
+      const patientData = { ...initialValue, gender: initialValue.sex || initialValue.gender };
+      return { ...defaults, ...patientData };
+    }
+    return defaults;
+  }, [initialValue]);
+
+
+  const [form, setForm] = useState(mergedInitialValue);
   const [attachments, setAttachments] = useState(initialValue?.attachments ?? []);
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
@@ -80,11 +105,11 @@ export default function PatientForm({
   const fileInputRef = useRef(null);
 
   useEffect(() => {
-    setForm({ ...DEFAULT_FORM, ...(initialValue || {}) });
+    setForm(mergedInitialValue);
     setAttachments(initialValue?.attachments ?? []);
     setFormError("");
     setErrors({});
-  }, [initialValue]);
+  }, [initialValue, mergedInitialValue]);
 
   const isReadOnly = Boolean(readOnly);
 
@@ -128,7 +153,7 @@ export default function PatientForm({
       return;
     }
 
-    const validation = validateForm({ form: formData });
+    const validation = validateForm({ form: { ...formData, gender: formData.gender } }); 
     const hasErrors = Object.keys(validation).length > 0;
     setErrors(validation);
 
@@ -187,16 +212,16 @@ export default function PatientForm({
           disabled={isReadOnly}
           error={errors.birthDate}
         />
-        <Field label="Sexo" name="sex" required error={errors.sex}>
+        <Field label="Sexo" name="gender" required error={errors.gender}> 
           {({ fieldId, describedBy }) => (
             <select
               id={fieldId}
-              name="sex"
-              className={`role-select${errors.sex ? " has-error" : ""}`}
-              value={form.sex}
+              name="gender" // <-- CAMBIO
+              className={`role-select${errors.gender ? " has-error" : ""}`}
+              value={form.gender}
               onChange={handleChange}
               disabled={isReadOnly}
-              aria-invalid={Boolean(errors.sex)}
+              aria-invalid={Boolean(errors.gender)}
               aria-describedby={describedBy}
             >
               <option value="">Selecciona</option>
@@ -226,6 +251,44 @@ export default function PatientForm({
           disabled={isReadOnly}
           error={errors.email}
         />
+        {/* --- NUEVOS CAMPOS OBLIGATORIOS --- */}
+        <InputField
+          label="Referencia"
+          name="referral"
+          value={form.referral}
+          onChange={handleChange}
+          required
+          disabled={isReadOnly}
+          error={errors.referral}
+        />
+        <InputField
+          label="Motivo de consulta"
+          name="purpose"
+          value={form.purpose}
+          onChange={handleChange}
+          required
+          disabled={isReadOnly}
+          error={errors.purpose}
+        />
+        <InputField
+          label="Contacto de emergencia"
+          name="emergencyName"
+          value={form.emergencyName}
+          onChange={handleChange}
+          required
+          disabled={isReadOnly}
+          error={errors.emergencyName}
+        />
+        <InputField
+          label="Teléfono de emergencia"
+          name="emergencyPhone"
+          value={form.emergencyPhone}
+          onChange={handleChange}
+          required
+          disabled={isReadOnly}
+          error={errors.emergencyPhone}
+        />
+        {/* ---------------------------------- */}
       </div>
 
       {formError ? (

@@ -70,7 +70,9 @@ export default function AppRoutes() {
     <BrowserRouter>
       <RouteAuditor />
       <Suspense fallback={<PageSkeleton />}>
+
         <Routes>
+          {/* PÚBLICAS */}
           <Route path={ROUTES.home} element={<Home />} />
           <Route path={ROUTES.login} element={<Login />} />
           <Route path={ROUTES.register} element={<Register />} />

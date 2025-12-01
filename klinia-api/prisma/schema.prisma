@@ -31,6 +31,7 @@ model User {
 
   // Lista de recetas creadas por este terapeuta (Relación 1:N)
   issuedPrescriptions Prescription[] @relation("IssuedPrescriptions")
+  sessionsAsProfessional Session[] @relation("ProfessionalSessions")
 }
 
 model Upload {
@@ -94,6 +95,7 @@ model PatientRecord {
 
   // Lista de recetas que tiene este paciente (Relación 1:N)
   prescriptions   Prescription[] @relation("PatientPrescriptions")
+  sessions        Session[]
 }
 
 //Recetas
@@ -109,4 +111,45 @@ model Prescription {
   // Relación N:1 con Paciente (El dueño de la receta)
   patientRecordId String
   patientRecord   PatientRecord @relation("PatientPrescriptions", fields: [patientRecordId], references: [id])
+}
+
+//sesiones
+model Session {
+  id                String    @id @default(cuid())
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // RELACIONES
+  professionalId    String
+  patientId         String
+  
+  // DATOS DE LA CITA
+  datetime          DateTime  // Fecha y hora de la cita
+  durationMinutes   Int       @default(60) // Duración estándar de 60 minutos
+
+  modality          Modality  // Presencial, Telemedicina, etc.
+  status            Status    // Programada, Completada, Cancelada
+
+  // FKs
+  patient           PatientRecord @relation(fields: [patientId], references: [id])
+  professional      User          @relation("ProfessionalSessions", fields: [professionalId], references: [id])
+  
+  // Índices para optimizar búsquedas por profesional/paciente y fecha
+  @@index([professionalId, datetime])
+  @@index([patientId])
+
+}
+
+// --- ENUMS ---
+enum Modality {
+  IN_PERSON
+  TELEMEDICINE
+  HOME_VISIT
+}
+
+enum Status {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
 }

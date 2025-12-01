@@ -8,6 +8,7 @@ import {
     patientUpdateSchema,
 } from "../validators/patientSchemas.js";
 
+
 const querySchema = z.object({
     q: z.string().optional().default(""),
     page: z.coerce.number().int().positive().default(1),
@@ -16,7 +17,6 @@ const querySchema = z.object({
 
 const router = Router();
 
-// --- HELPERS (Normalización de datos para salida) ---
 
 function normalizePatientOutput(record) {
     if (!record) return null;
@@ -46,7 +46,6 @@ function normalizePatientOutput(record) {
         updatedAt: patientRecord.updatedAt,
     };
 }
-// --- FIN HELPERS ---
 
 
 // --- 1. GET / (Obtener Lista y Buscar) ---

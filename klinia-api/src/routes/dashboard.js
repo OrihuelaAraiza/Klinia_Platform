@@ -1,57 +1,76 @@
 import { Router } from "express";
+// 🛑 NUEVO: Importamos Prisma
+import { prisma } from "../services/dbClient.js"; 
+// El resto de importaciones en memoria se mantienen temporalmente
 import { patients, notesByPatient, getAuditEvents } from "../store/memory.js";
-import { SESSION_STATUS, getSessionsArray, getTodayBounds } from "./sessions.js";
+// 🛑 Eliminamos la importación de funciones obsoletas
+import { SESSION_STATUS } from "./sessions.js"; 
 import { getPrescriptions, countActivePrescriptions } from "../store/prescriptions.js";
 
 const router = Router();
 
+// 🛑 ADAPTACIÓN DE FUNCIONES OBSOLETAS
+// Ya no usamos getSessionsArray/getTodayBounds de memoria.
+
 function buildPatientName(patientId) {
-  const patient = patients.get(patientId);
-  if (!patient) {
-    return "Paciente sin expediente";
-  }
-  const parts = [patient.firstName, patient.lastName].filter(Boolean);
-  const full = parts.join(" ").trim();
-  return full || patient.curp || patient.email || "Paciente sin nombre";
+  // Esta función sigue usando la memoria patients.get()
+  const patient = patients.get(patientId);
+  if (!patient) {
+    return "Paciente sin expediente";
+  }
+  const parts = [patient.firstName, patient.lastName].filter(Boolean);
+  const full = parts.join(" ").trim();
+  return full || patient.curp || patient.email || "Paciente sin nombre";
 }
 
 function pickLatestTimestamp(items, field) {
-  return items.reduce((latest, item) => {
-    const candidate = item[field];
-    if (!candidate) {
-      return latest;
-    }
-    const candidateDate = Date.parse(candidate);
-    if (Number.isNaN(candidateDate)) {
-      return latest;
-    }
-    if (!latest) {
-      return candidate;
-    }
-    const latestDate = Date.parse(latest);
-    if (Number.isNaN(latestDate) || candidateDate > latestDate) {
-      return candidate;
-    }
-    return latest;
-  }, null);
+  return items.reduce((latest, item) => {
+    const candidate = item[field];
+    if (!candidate) {
+      return latest;
+    }
+    const candidateDate = Date.parse(candidate);
+    if (Number.isNaN(candidateDate)) {
+      return latest;
+    }
+    if (!latest) {
+      return candidate;
+    }
+    const latestDate = Date.parse(latest);
+    if (Number.isNaN(latestDate) || candidateDate > latestDate) {
+      return candidate;
+    }
+    return latest;
+  }, null);
 }
 
-function collectTodaySessions() {
-  const list = getSessionsArray();
-  const { startMs, endMs } = getTodayBounds();
-  return list
-    .filter((session) => {
-      const timestamp = session.datetime ? Date.parse(session.datetime) : NaN;
-      if (Number.isNaN(timestamp)) {
-        return false;
-      }
-      return timestamp >= startMs && timestamp < endMs;
-    })
-    .sort((a, b) => {
-      const timeA = a.datetime ? Date.parse(a.datetime) : 0;
-      const timeB = b.datetime ? Date.parse(b.datetime) : 0;
-      return timeA - timeB;
-    });
+// 🛑 REEMPLAZO: Función que ahora consulta Prisma para las sesiones de hoy
+async function collectTodaySessions() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  try {
+    const sessions = await prisma.session.findMany({
+      where: {
+        datetime: {
+          gte: today,
+          lt: tomorrow,
+        },
+      },
+      // Incluimos paciente y profesional para la función getSessionPatientName en el frontend
+      include: {
+        patient: { select: { id: true, firstName: true, lastName: true, email: true, curp: true } },
+        professional: { select: { id: true, name: true } }
+      },
+      orderBy: { datetime: 'asc' },
+    });
+    return sessions;
+  } catch (error) {
+    console.error("[Dashboard] Error fetching today sessions from Prisma:", error);
+    return [];
+  }
 }
 
 router.get("/stats", (req, res) => {
@@ -140,4 +159,5 @@ router.get("/prescriptions/recent", (req, res) => {
   res.json(prescriptions.slice(0, 5));
 });
 
+// 🛑 EXPORTACIÓN FALTANTE
 export default router;
