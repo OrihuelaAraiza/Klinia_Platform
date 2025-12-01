@@ -186,7 +186,7 @@ function assertStatusTransition(current, next) {
   }
 }
 
-router.get("/sessions/today-counts", (req, res) => {
+router.get("/today-counts", (req, res) => {
   const { startMs, endMs } = getTodayBounds();
   const list = getSessionsArray().filter((session) => {
     const time = session.datetime ? Date.parse(session.datetime) : NaN;
@@ -213,7 +213,7 @@ router.get("/sessions/today-counts", (req, res) => {
   res.json(counts);
 });
 
-router.get("/sessions", (req, res) => {
+router.get("/", (req, res) => {
   const parsed = querySchema.safeParse(req.query);
   if (!parsed.success) {
     return res.status(400).json({ message: parsed.error.issues[0]?.message || "Parámetros inválidos" });
@@ -243,7 +243,7 @@ router.get("/patients/:id/sessions", (req, res) => {
   res.json(paginate(list.map(normalizeSessionOutput), Number(page), Number(size)));
 });
 
-router.post("/sessions", (req, res) => {
+router.post("/", (req, res) => {
   const parsed = sessionCreateSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ message: parsed.error.issues[0]?.message || "Datos inválidos" });
@@ -279,7 +279,7 @@ router.post("/sessions", (req, res) => {
   res.status(201).json(normalizeSessionOutput(session));
 });
 
-router.put("/sessions/:id", (req, res) => {
+router.put("/:id", (req, res) => {
   const parsed = sessionUpdateSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ message: parsed.error.issues[0]?.message || "Datos inválidos" });
@@ -323,7 +323,7 @@ router.put("/sessions/:id", (req, res) => {
   res.json(normalizeSessionOutput(existing));
 });
 
-router.put("/sessions/:id/status", (req, res) => {
+router.put("/:id/status", (req, res) => {
   const parsed = sessionStatusSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ message: parsed.error.issues[0]?.message || "Datos inválidos" });
@@ -349,7 +349,7 @@ router.put("/sessions/:id/status", (req, res) => {
   res.json(normalizeSessionOutput(existing));
 });
 
-router.put("/sessions/:id/link-note", (req, res) => {
+router.put("/:id/link-note", (req, res) => {
   const parsed = sessionLinkNoteSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ message: parsed.error.issues[0]?.message || "Datos inválidos" });
@@ -375,7 +375,7 @@ router.put("/sessions/:id/link-note", (req, res) => {
   res.json(normalizeSessionOutput(existing));
 });
 
-router.get("/sessions/:id.ics", (req, res) => {
+router.get("/:id.ics", (req, res) => {
   const existing = sessions.get(req.params.id);
   if (!existing) {
     return res.status(404).json({ message: "Sesión no encontrada" });

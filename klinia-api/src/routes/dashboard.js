@@ -54,7 +54,7 @@ function collectTodaySessions() {
     });
 }
 
-router.get("/dashboard/stats", (req, res) => {
+router.get("/stats", (req, res) => {
   const todaySessions = collectTodaySessions();
   const prescriptions = getPrescriptions();
   const activePrescriptions = countActivePrescriptions();
@@ -88,7 +88,7 @@ router.get("/dashboard/stats", (req, res) => {
   });
 });
 
-router.get("/dashboard/sessions/today", (req, res) => {
+router.get("/sessions/today", (req, res) => {
   const todaySessions = collectTodaySessions()
     .slice(0, 5)
     .map((session) => ({
@@ -100,7 +100,7 @@ router.get("/dashboard/sessions/today", (req, res) => {
   res.json(todaySessions);
 });
 
-router.get("/dashboard/notes/recent", (req, res) => {
+router.get("/notes/recent", (req, res) => {
   const entries = [];
   notesByPatient.forEach((collection, patientId) => {
     collection.forEach((note) => {
@@ -122,7 +122,7 @@ router.get("/dashboard/notes/recent", (req, res) => {
   res.json(entries.slice(0, 5));
 });
 
-router.get("/dashboard/prescriptions/recent", (req, res) => {
+router.get("/prescriptions/recent", (req, res) => {
   const prescriptions = getPrescriptions()
     .map((item) => ({
       id: item.id,
