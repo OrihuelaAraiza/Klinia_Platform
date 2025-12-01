@@ -11,6 +11,8 @@ import auditService from "../services/auditService";
 import { getPatient, updatePatient } from "../services/patientsService";
 import { listConsents, signConsent, revokeConsent } from "../services/consentsService";
 import * as prescriptionsService from "../services/prescriptionsService";
+import * as ordersService from "../services/ordersService";
+import * as reportsService from "../services/reportsService";
 import { formatDateISOToHuman, formatPhone } from "../utils/formatters";
 import { ROLES, ROUTES } from "../utils/constants";
 import { useToast } from "../components/UI/Toast";
@@ -58,6 +60,17 @@ export default function PatientDetail() {
     loading: true,
     error: "",
   });
+  const [ordersState, setOrdersState] = useState({
+    items: [],
+    loading: true,
+    error: "",
+  });
+  const [reportsState, setReportsState] = useState({
+    items: [],
+    loading: true,
+    error: "",
+  });
+  const [cancelOrderModal, setCancelOrderModal] = useState({ open: false, orderId: null });
   const fileInputRef = useRef(null);
 
 useEffect(() => {
@@ -116,6 +129,44 @@ useEffect(() => {
       const message =
         err?.status === 404 ? "" : err?.message || "No pudimos cargar las prescripciones.";
       setPrescriptionsState({ items: [], loading: false, error: message });
+    });
+  return () => {
+    active = false;
+  };
+}, [id]);
+
+useEffect(() => {
+  let active = true;
+  setOrdersState((prev) => ({ ...prev, loading: true, error: "" }));
+  ordersService
+    .listByPatient(id)
+    .then((items) => {
+      if (!active) return;
+      setOrdersState({ items, loading: false, error: "" });
+    })
+    .catch((err) => {
+      if (!active) return;
+      const message = err?.status === 404 ? "" : err?.message || "No pudimos cargar las órdenes.";
+      setOrdersState({ items: [], loading: false, error: message });
+    });
+  return () => {
+    active = false;
+  };
+}, [id]);
+
+useEffect(() => {
+  let active = true;
+  setReportsState((prev) => ({ ...prev, loading: true, error: "" }));
+  reportsService
+    .listByPatient(id)
+    .then((items) => {
+      if (!active) return;
+      setReportsState({ items, loading: false, error: "" });
+    })
+    .catch((err) => {
+      if (!active) return;
+      const message = err?.status === 404 ? "" : err?.message || "No pudimos cargar los informes.";
+      setReportsState({ items: [], loading: false, error: message });
     });
   return () => {
     active = false;
@@ -240,6 +291,19 @@ useEffect(() => {
 
   const handleEditPatient = () => {
     navigate("/patients", { state: { editId: id } });
+  };
+
+  const handleCancelOrder = async () => {
+    if (!cancelOrderModal.orderId || isAssistant) return;
+    try {
+      await ordersService.cancel(cancelOrderModal.orderId);
+      const items = await ordersService.listByPatient(id);
+      setOrdersState({ items, loading: false, error: "" });
+      toast.success("Orden cancelada correctamente.");
+      setCancelOrderModal({ open: false, orderId: null });
+    } catch (err) {
+      toast.error(err?.message || "No pudimos cancelar la orden.");
+    }
   };
 
   if (loading) {
@@ -467,6 +531,153 @@ useEffect(() => {
           </CardBody>
         </Card>
 
+        <Card hoverable={false} id="ordenes-informes">
+          <CardHeader className="cluster justify-between align-center wrap">
+            <div>
+              <h2>Órdenes e informes</h2>
+              <p className="helper-text">Órdenes clínicas e informes asociados al expediente.</p>
+            </div>
+          </CardHeader>
+          <CardBody className="stack-4">
+            {/* Sección de Órdenes */}
+            <div className="stack-3">
+              <div className="cluster justify-between align-center wrap">
+                <h3>Órdenes clínicas</h3>
+                {!isAssistant && (
+                  <Button
+                    variant="secondary"
+                    onClick={() => navigate(`/patients/${id}/orders/new`)}
+                  >
+                    Nueva orden
+                  </Button>
+                )}
+              </div>
+              {ordersState.loading ? (
+                <p>Cargando órdenes…</p>
+              ) : ordersState.error ? (
+                <p className="form-error" role="alert">
+                  {ordersState.error}
+                </p>
+              ) : ordersState.items.length === 0 ? (
+                <p className="helper-text">No hay órdenes registradas para este paciente.</p>
+              ) : (
+                <div className="table-container">
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>Folio</th>
+                        <th>Tipo</th>
+                        <th>Fecha</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {ordersState.items.map((item) => {
+                        const statusLabel = item.status === "cancelada" ? "Cancelada" : "Vigente";
+                        const variant = item.status === "cancelada" ? "danger" : "success";
+                        return (
+                          <tr key={item.id}>
+                            <td>{item.folio}</td>
+                            <td>{item.tipo}</td>
+                            <td>{formatDateISOToHuman(item.createdAt || item.updatedAt)}</td>
+                            <td>
+                              <Badge variant={variant}>{statusLabel}</Badge>
+                            </td>
+                            <td>
+                              <div className="cluster gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => navigate(`/patients/${id}/orders/${item.id}`)}
+                                >
+                                  Ver detalle
+                                </Button>
+                                {!isAssistant && item.status === "vigente" && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setCancelOrderModal({ open: true, orderId: item.id })}
+                                  >
+                                    Cancelar
+                                  </Button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Sección de Informes */}
+            <div className="stack-3">
+              <div className="cluster justify-between align-center wrap">
+                <h3>Informes clínicos</h3>
+                {!isAssistant && (
+                  <Button
+                    variant="secondary"
+                    onClick={() => navigate(`/patients/${id}/reports/new`)}
+                  >
+                    Nuevo informe
+                  </Button>
+                )}
+              </div>
+              {reportsState.loading ? (
+                <p>Cargando informes…</p>
+              ) : reportsState.error ? (
+                <p className="form-error" role="alert">
+                  {reportsState.error}
+                </p>
+              ) : reportsState.items.length === 0 ? (
+                <p className="helper-text">No hay informes clínicos registrados para este paciente.</p>
+              ) : (
+                <div className="table-container">
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>Folio</th>
+                        <th>Título</th>
+                        <th>Fecha</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {reportsState.items.map((item) => {
+                        const statusLabel = item.status === "cerrado" ? "Cerrado" : "Borrador";
+                        const variant = item.status === "cerrado" ? "success" : "neutral";
+                        return (
+                          <tr key={item.id}>
+                            <td>{item.folio}</td>
+                            <td>{item.titulo}</td>
+                            <td>{formatDateISOToHuman(item.createdAt || item.updatedAt)}</td>
+                            <td>
+                              <Badge variant={variant}>{statusLabel}</Badge>
+                            </td>
+                            <td>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => navigate(`/patients/${id}/reports/${item.id}`)}
+                              >
+                                {item.status === "cerrado" ? "Ver detalle" : "Ver / editar"}
+                              </Button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </CardBody>
+        </Card>
+
         <Card hoverable={false}>
           <CardHeader>
             <h2>Consentimientos</h2>
@@ -541,6 +752,26 @@ useEffect(() => {
           {confirmModal.action === "sign"
             ? "Esta acción registrará el consentimiento como firmado con tu usuario."
             : "Esta acción marcará el consentimiento como revocado."}
+        </p>
+      </Modal>
+
+      <Modal
+        open={cancelOrderModal.open}
+        onClose={() => setCancelOrderModal({ open: false, orderId: null })}
+        title="Confirmar cancelación"
+        footer={
+          <div className="cluster">
+            <Button variant="ghost" onClick={() => setCancelOrderModal({ open: false, orderId: null })}>
+              Cancelar
+            </Button>
+            <Button variant="danger" onClick={handleCancelOrder}>
+              Confirmar cancelación
+            </Button>
+          </div>
+        }
+      >
+        <p className="helper-text">
+          Esta acción marcará la orden como cancelada. Esta acción no se puede deshacer.
         </p>
       </Modal>
     </section>
