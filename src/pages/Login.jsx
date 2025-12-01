@@ -212,17 +212,6 @@ export default function Login() {
             <img src={logo} alt="ROMI Klinia" className="login-logo" />
             <ThemeToggle className="login-theme-toggle" />
           </header>
-
-<<<<<<< HEAD
-          <h1 className="login-title">
-            {userType === 'professional' ? 'Portal Profesionales' : 'Portal Pacientes'}
-          </h1>
-          <p className="login-subtitle">
-            {userType === 'professional' 
-              ? 'Gestiona tus consultas y pacientes.' 
-              : 'Accede a tu historial y recetas.'}
-          </p>
-=======
           <div className="stack-1">
             <h1 className="login-title">{heroCopy.title}</h1>
             <p className="login-subtitle">{heroCopy.subtitle}</p>
@@ -359,23 +348,6 @@ export default function Login() {
             </div>
           </form>
         </section>
-
-<<<<<<< HEAD
-      <Motion.section
-        className="login-right"
-        initial={{ opacity: 0, x: 40 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.6 }}
-      >
-
-        {/*imagen decorativa cambiar*/}
-        <img
-          src={doctorImg} 
-          alt="Fondo decorativo"
-          className="hero-img"
-        />
-      </Motion.section>
-=======
         <Motion.aside
           className="login-hero"
           initial={{ opacity: 0, x: 40 }}
