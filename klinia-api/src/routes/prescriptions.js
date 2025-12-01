@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../services/dbClient.js";
-import { uid } from "../store/memory.js"; 
+import { uid } from "../store/memory.js";
 
 const router = Router();
 
@@ -27,7 +27,7 @@ const createSchema = z.object({
 });
 
 
-router.post("/prescriptions", async (req, res) => {
+router.post("/", async (req, res) => {
   const parsed = createSchema.safeParse(req.body);
   if (!parsed.success) {
     const issue = parsed.error.issues[0];
@@ -36,7 +36,7 @@ router.post("/prescriptions", async (req, res) => {
 
   const payload = parsed.data;
 
-  const therapistId = req.user?.id || "U_ADMIN_TEST"; 
+  const therapistId = req.user?.id || "U_ADMIN_TEST";
 
   try {
     const patient = await prisma.patientRecord.findUnique({
@@ -66,32 +66,10 @@ router.post("/prescriptions", async (req, res) => {
 });
 
 
-router.get("/patients/:id/prescriptions", async (req, res) => {
-  const patientRecordId = req.params.id;
-
-  try {
-    const patient = await prisma.patientRecord.findUnique({
-      where: { id: patientRecordId },
-    });
-
-    if (!patient) {
-      return res.status(404).json({ message: "Paciente no encontrado" });
-    }
-
-    const items = await prisma.prescription.findMany({
-      where: { patientRecordId },
-      orderBy: { createdAt: "desc" },
-    });
-
-    res.json(items);
-  } catch (e) {
-    console.error("[Prescriptions] List DB Error:", e);
-    res.status(500).json({ message: "Error al consultar las prescripciones." });
-  }
-});
 
 
-router.get("/prescriptions/:id", async (req, res) => {
+
+router.get("/:id", async (req, res) => {
   const id = req.params.id;
 
   try {
@@ -115,7 +93,7 @@ router.get("/prescriptions/:id", async (req, res) => {
 });
 
 
-router.post("/prescriptions/:id/suspend", async (req, res) => {
+router.post("/:id/suspend", async (req, res) => {
   const id = req.params.id;
 
   try {
