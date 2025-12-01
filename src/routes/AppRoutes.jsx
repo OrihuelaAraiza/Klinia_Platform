@@ -1,5 +1,11 @@
 import { Suspense, lazy, useEffect } from "react";
-import { BrowserRouter, Routes, Route, useLocation, useNavigate } from "react-router-dom";
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
 import ProtectedRoute from "../components/ProtectedRoute";
 import ErrorBoundary from "../components/ErrorBoundary";
 import auditService from "../services/auditService";
@@ -28,7 +34,6 @@ const Prescriptions = lazy(() => import("../pages/Prescriptions"));
 const PrescriptionDetail = lazy(() => import("../pages/PrescriptionDetail"));
 const Reports = lazy(() => import("../pages/Reports"));
 const NotFound = lazy(() => import("../pages/NotFound"));
-
 
 function RouteAuditor() {
   const location = useLocation();
@@ -60,7 +65,6 @@ function RouteAuditor() {
   return null;
 }
 
-
 export default function AppRoutes() {
   return (
     <BrowserRouter>
@@ -75,44 +79,83 @@ export default function AppRoutes() {
           <Route path="/register/patient" element={<PatientRegister />} />
           <Route path="/health" element={<Health />} />
 
-          {/* ADMIN */}
           <Route element={<ProtectedRoute allow={[ROLES.ADMIN]} />}>
             <Route path={ROUTES.dashboard} element={<Dashboard />} />
             <Route path="/auth/debug" element={<AuthDebug />} />
           </Route>
 
-          {/* ACCESO GENERAL */}
-          <Route element={<ProtectedRoute allow={[ROLES.ADMIN, ROLES.PROFESSIONAL, ROLES.ASSISTANT, ROLES.PATIENT]} />}>
-
+          <Route
+            element={
+              <ProtectedRoute
+                allow={[
+                  ROLES.ADMIN,
+                  ROLES.PROFESSIONAL,
+                  ROLES.ASSISTANT,
+                  ROLES.PATIENT,
+                ]}
+              />
+            }
+          >
             <Route path="/patient/dashboard" element={<PatientDashboard />} />
-
             <Route path={ROUTES.patients} element={<Patients />} />
             <Route path={`${ROUTES.patients}/:id`} element={<PatientDetail />} />
-
+            <Route
+              path={`${ROUTES.patients}/:id/history`}
+              element={<History />}
+            />
             <Route path={ROUTES.sessions} element={<Sessions />} />
-            <Route path={ROUTES.sessionsCalendar} element={<SessionsCalendar />} />
-            <Route path="/patients/:id/sessions" element={<PatientSessions />} />
-
+            <Route
+              path={ROUTES.sessionsCalendar}
+              element={<SessionsCalendar />}
+            />
+            <Route
+              path="/patients/:id/sessions"
+              element={<PatientSessions />}
+            />
             <Route path={ROUTES.consents} element={<Consents />} />
             <Route path={ROUTES.reports} element={<Reports />} />
-
             <Route path="/profile/medical" element={<Dashboard />} />
           </Route>
 
-          {/* STAFF */}
-          <Route element={<ProtectedRoute allow={[ROLES.ADMIN, ROLES.PROFESSIONAL, ROLES.ASSISTANT]} />}>
-            <Route path="/patients/:id/notes" element={<ErrorBoundary><Notes /></ErrorBoundary>} />
-            <Route path="/patients/:id/notes/:noteId" element={<ErrorBoundary><NoteDetail /></ErrorBoundary>} />
-            <Route path="/patients/:id/consents" element={<PatientDetail />} />
-            <Route path={ROUTES.prescriptions} element={<Prescriptions />} />
-            <Route path={ROUTES.prescriptionsNew} element={<Prescriptions />} />
-            <Route path={ROUTES.prescriptionDetail} element={<PrescriptionDetail />} />
+          <Route
+            element={
+              <ProtectedRoute
+                allow={[ROLES.ADMIN, ROLES.PROFESSIONAL, ROLES.ASSISTANT]}
+              />
+            }
+          >
+            <Route
+              path="/patients/:id/notes"
+              element={
+                <ErrorBoundary>
+                  <Notes />
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path="/patients/:id/notes/:noteId"
+              element={
+                <ErrorBoundary>
+                  <NoteDetail />
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path={ROUTES.prescriptions}
+              element={<Prescriptions />}
+            />
+            <Route
+              path={ROUTES.prescriptionsNew}
+              element={<Prescriptions />}
+            />
+            <Route
+              path={ROUTES.prescriptionDetail}
+              element={<PrescriptionDetail />}
+            />
           </Route>
 
-          {/* NOT FOUND */}
           <Route path="*" element={<NotFound />} />
         </Routes>
-
       </Suspense>
     </BrowserRouter>
   );

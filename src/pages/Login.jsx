@@ -68,7 +68,7 @@ export default function Login() {
   const [blockState, setBlockState] = useState(BLOCK_INITIAL_STATE);
   const toast = useToast();
 
-  const [userType, setUserType] = useState('profesional');
+  const [userType, setUserType] = useState("professional");
 
   const limiterKey = useMemo(() => buildLimiterKey(form.email), [form.email]);
   const combinedBusy = loading || providersBusy;
@@ -193,6 +193,17 @@ export default function Login() {
     }
   };
 
+  const heroCopy =
+    userType === "professional"
+      ? {
+          title: "Portal Profesionales",
+          subtitle: "Gestiona tus consultas y pacientes.",
+        }
+      : {
+          title: "Portal Pacientes",
+          subtitle: "Accede a tu historial y recetas.",
+        };
+
   return (
     <div className="login-page">
       <div className="login-layout">
@@ -202,25 +213,37 @@ export default function Login() {
             <ThemeToggle className="login-theme-toggle" />
           </header>
 
+<<<<<<< HEAD
+          <h1 className="login-title">
+            {userType === 'professional' ? 'Portal Profesionales' : 'Portal Pacientes'}
+          </h1>
+          <p className="login-subtitle">
+            {userType === 'professional' 
+              ? 'Gestiona tus consultas y pacientes.' 
+              : 'Accede a tu historial y recetas.'}
+          </p>
+=======
           <div className="stack-1">
-            <h1 className="login-title">Inicio de sesión</h1>
-            <p className="login-subtitle">
-              Bienvenido de vuelta. Ingresa tus credenciales para continuar.
-            </p>
+            <h1 className="login-title">{heroCopy.title}</h1>
+            <p className="login-subtitle">{heroCopy.subtitle}</p>
           </div>
 
           <div className="login-toggle">
             <button
               type="button"
-              className={`login-toggle__btn ${userType === 'professional' ? 'is-active' : ''}`}
-              onClick={() => setUserType('professional')}
+              className={`login-toggle__btn ${
+                userType === "professional" ? "is-active" : ""
+              }`}
+              onClick={() => setUserType("professional")}
             >
               Soy Especialista
             </button>
             <button
               type="button"
-              className={`login-toggle__btn ${userType === 'patient' ? 'is-active' : ''}`}
-              onClick={() => setUserType('patient')}
+              className={`login-toggle__btn ${
+                userType === "patient" ? "is-active" : ""
+              }`}
+              onClick={() => setUserType("patient")}
             >
               Soy Paciente
             </button>
@@ -306,26 +329,53 @@ export default function Login() {
               </p>
             ) : null}
 
-            <div className="register" style={{ borderTop: '1px solid var(--border)', paddingTop: '1rem', marginTop: '1rem' }}>
+            <div
+              className="register"
+              style={{
+                borderTop: "1px solid var(--border)",
+                paddingTop: "1rem",
+                marginTop: "1rem",
+              }}
+            >
               <p style={{ margin: 0 }}>
-                {userType === 'professional' 
-                  ? "¿Eres nuevo en Klinia?" 
+                {userType === "professional"
+                  ? "¿Eres nuevo en Klinia?"
                   : "¿Primera vez aquí?"}
               </p>
-              
-              <Link 
-                className="link" 
-                to={userType === 'professional' ? ROUTES.register : "/register/patient"}
-                style={{ display: 'block', marginTop: '0.25rem', fontSize: '1rem' }}
+
+              <Link
+                className="link"
+                to={
+                  userType === "professional"
+                    ? ROUTES.register
+                    : "/register/patient"
+                }
+                style={{ display: "block", marginTop: "0.25rem", fontSize: "1rem" }}
               >
-                {userType === 'professional' 
-                  ? "Registrar mi Consultorio" 
+                {userType === "professional"
+                  ? "Registrar mi Consultorio"
                   : "Crear cuenta de Paciente"}
               </Link>
             </div>
           </form>
         </section>
 
+<<<<<<< HEAD
+      <Motion.section
+        className="login-right"
+        initial={{ opacity: 0, x: 40 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.6 }}
+      >
+
+        {/*imagen decorativa cambiar*/}
+        <img
+          src={doctorImg} 
+          alt="Fondo decorativo"
+          className="hero-img"
+        />
+      </Motion.section>
+=======
         <Motion.aside
           className="login-hero"
           initial={{ opacity: 0, x: 40 }}
@@ -334,7 +384,7 @@ export default function Login() {
         >
           <img
             src={doctorImg}
-            alt="Profesional de salud usando un móvil"
+            alt="Profesional de salud usando la plataforma Klinia"
             className="login-hero__image"
           />
         </Motion.aside>
