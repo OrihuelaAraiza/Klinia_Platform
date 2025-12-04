@@ -72,8 +72,13 @@ async function bootstrap() {
     console.warn("[seed] unable to ensure default users", error);
   }
 
-  server = app.listen(env.port, () => {
-    console.log(`Mock Klinia API listening on http://localhost:${env.port}`);
+  const port = env.port;
+  // Escuchar en 0.0.0.0 para aceptar conexiones externas (necesario en Railway)
+  const host = '0.0.0.0';
+  
+  server = app.listen(port, host, () => {
+    console.log(`Klinia API listening on http://${host}:${port}`);
+    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   });
 }
 bootstrap();
