@@ -130,6 +130,9 @@ model Session {
   modality          Modality  // Presencial, Telemedicina, etc.
   status            Status    // Programada, Completada, Cancelada
 
+  location         String? 
+  notes            String?
+
   // FKs
   patient           PatientRecord @relation(fields: [patientId], references: [id])
   professional      User          @relation("ProfessionalSessions", fields: [professionalId], references: [id])

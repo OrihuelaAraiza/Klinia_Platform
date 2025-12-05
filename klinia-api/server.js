@@ -21,6 +21,7 @@ import registerRouter from "./src/routes/register.js";
 import { ensureSeedUsers } from "./src/utils/seedUsers.js";
 
 const app = express();
+const PORT = process.env.PORT || env.port;
 
 app.use(
   cors({
@@ -43,7 +44,7 @@ app.use("/api/verify", verifyRouter);
 
 
 // 2. RUTAS DE SERVICIOS CENTRALES (General App)
-app.use("/api", sessionsRouter); // <-- Aquí montamos el router de sesiones directamente
+app.use("/api/sessions", sessionsRouter); // <-- Aquí montamos el router de sesiones directamente
 app.use("/api/dashboard", dashboardRouter); // Monta /api/dashboard/...
 app.use("/api/prescriptions", prescriptionsRouter); // Monta /api/prescriptions/...
 
@@ -72,9 +73,9 @@ async function bootstrap() {
     console.warn("[seed] unable to ensure default users", error);
   }
 
-  server = app.listen(env.port, () => {
-    console.log(`Mock Klinia API listening on http://localhost:${env.port}`);
-  });
+  server = app.listen(PORT, () => {
+  console.log(`Klinia API running on port ${PORT}`);
+});
 }
 bootstrap();
 

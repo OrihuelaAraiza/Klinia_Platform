@@ -1,19 +1,14 @@
 import { Router } from "express";
 // 🛑 NUEVO: Importamos Prisma
 import { prisma } from "../services/dbClient.js"; 
-// El resto de importaciones en memoria se mantienen temporalmente
 import { patients, notesByPatient, getAuditEvents } from "../store/memory.js";
-// 🛑 Eliminamos la importación de funciones obsoletas
 import { SESSION_STATUS } from "./sessions.js"; 
 import { getPrescriptions, countActivePrescriptions } from "../store/prescriptions.js";
 
 const router = Router();
 
-// 🛑 ADAPTACIÓN DE FUNCIONES OBSOLETAS
-// Ya no usamos getSessionsArray/getTodayBounds de memoria.
 
 function buildPatientName(patientId) {
-  // Esta función sigue usando la memoria patients.get()
   const patient = patients.get(patientId);
   if (!patient) {
     return "Paciente sin expediente";
@@ -44,7 +39,6 @@ function pickLatestTimestamp(items, field) {
   }, null);
 }
 
-// 🛑 REEMPLAZO: Función que ahora consulta Prisma para las sesiones de hoy
 async function collectTodaySessions() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -59,7 +53,6 @@ async function collectTodaySessions() {
           lt: tomorrow,
         },
       },
-      // Incluimos paciente y profesional para la función getSessionPatientName en el frontend
       include: {
         patient: { select: { id: true, firstName: true, lastName: true, email: true, curp: true } },
         professional: { select: { id: true, name: true } }
@@ -74,9 +67,7 @@ async function collectTodaySessions() {
 }
 
 
-// 🛑 ROUTER GET /dashboard/stats (Estadísticas del Dashboard)
 router.get("/dashboard/stats", async (req, res) => {
-  // 🛑 CONSULTAMOS SESIONES DE HOY CON PRISMA
   const todaySessions = await collectTodaySessions();
   
   const prescriptions = getPrescriptions();
@@ -112,15 +103,12 @@ router.get("/dashboard/stats", async (req, res) => {
 });
 
 
-// 🛑 ROUTER GET /dashboard/sessions/today (Lista de Sesiones de Hoy)
 router.get("/dashboard/sessions/today", async (req, res) => {
-  // 🛑 CONSULTAMOS SESIONES DE HOY CON PRISMA
   const todaySessions = (await collectTodaySessions())
     .slice(0, 5)
     .map((session) => ({
       id: session.id,
       time: session.datetime,
-      // Usamos el objeto paciente anidado de Prisma (session.patient)
       patientName: session.patient ? `${session.patient.firstName} ${session.patient.lastName}`.trim() : 'Paciente',
       status: session.status,
     }));
@@ -128,7 +116,6 @@ router.get("/dashboard/sessions/today", async (req, res) => {
 });
 
 
-// Las siguientes rutas siguen usando memoria y se dejan sin modificar:
 router.get("/dashboard/notes/recent", (req, res) => {
   const entries = [];
   notesByPatient.forEach((collection, patientId) => {
@@ -169,5 +156,4 @@ router.get("/dashboard/prescriptions/recent", (req, res) => {
   res.json(prescriptions.slice(0, 5));
 });
 
-// 🛑 EXPORTACIÓN FALTANTE
 export default router;
