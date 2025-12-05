@@ -33,6 +33,10 @@ const Consents = lazy(() => import("../pages/Consents"));
 const Prescriptions = lazy(() => import("../pages/Prescriptions"));
 const PrescriptionDetail = lazy(() => import("../pages/PrescriptionDetail"));
 const Reports = lazy(() => import("../pages/Reports"));
+const OrderForm = lazy(() => import("../pages/OrderForm"));
+const OrderDetail = lazy(() => import("../pages/OrderDetail"));
+const ReportForm = lazy(() => import("../pages/ReportForm"));
+const ReportDetail = lazy(() => import("../pages/ReportDetail"));
 const NotFound = lazy(() => import("../pages/NotFound"));
 
 function RouteAuditor() {
@@ -151,6 +155,22 @@ export default function AppRoutes() {
             <Route
               path={ROUTES.prescriptionDetail}
               element={<PrescriptionDetail />}
+            />
+            <Route
+              path={ROUTES.orderNew}
+              element={<OrderForm />}
+            />
+            <Route
+              path={ROUTES.orderDetail}
+              element={<OrderDetail />}
+            />
+            <Route
+              path={ROUTES.reportNew}
+              element={<ReportForm />}
+            />
+            <Route
+              path={ROUTES.reportDetail}
+              element={<ReportDetail />}
             />
           </Route>
 

@@ -25,6 +25,10 @@ export const ROUTES = {
   prescriptionsNew: "/prescriptions/new",
   prescriptionDetail: "/prescriptions/:id",
   reports: "/reports",
+  orderNew: "/patients/:patientId/orders/new",
+  orderDetail: "/patients/:patientId/orders/:orderId",
+  reportNew: "/patients/:patientId/reports/new",
+  reportDetail: "/patients/:patientId/reports/:reportId",
 };
 
 export const SESSION_STATUS = {

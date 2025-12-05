@@ -85,7 +85,11 @@ router.post("/", async (req, res) => {
         });
     }
 
-    const data = parsed.data;
+function ensurePatientExists(patientId) {
+  if (!patients.has(patientId)) {
+    throw Object.assign(new Error("Patient not found"), { status: 404 });
+  }
+}
 
     try {
         const [patient, professional] = await prisma.$transaction([
@@ -171,7 +175,30 @@ router.get("/today-counts", async (req, res) => {
     }
 });
 
-
+router.post("/sessions", (req, res) => {
+  const parsed = sessionCreateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ message: parsed.error.issues[0]?.message || "Datos inválidos" });
+  }
+  const payload = parsed.data;
+  ensurePatientExists(payload.patientId);
+  const now = new Date().toISOString();
+  const id = uid("ses_");
+  const session = {
+    id,
+    patientId: payload.patientId,
+    patientName: payload.patientName || "",
+    professionalId: payload.professionalId || "",
+    professionalName: payload.professionalName || "",
+    datetime: payload.datetime,
+    durationMin: payload.durationMin,
+    status: payload.status,
+    noteId: payload.noteId || null,
+    notes: payload.notes || "",
+    createdAt: now,
+    updatedAt: now,
+  };
+});
 // ---------------------------------------------
 // 3. GET / (Listar sesiones) | Mapea a GET /api/sessions
 // ---------------------------------------------
@@ -227,6 +254,41 @@ router.get("/", async (req, res) => {
     }
 });
 
+router.put("/sessions/:id", (req, res) => {
+  const parsed = sessionUpdateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ message: parsed.error.issues[0]?.message || "Datos inválidos" });
+  }
+  const existing = sessions.get(req.params.id);
+  if (!existing) {
+    return res.status(404).json({ message: "Sesión no encontrada" });
+  }
+});
 
+router.put("/sessions/:id/link-note", (req, res) => {
+  const parsed = sessionLinkNoteSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ message: parsed.error.issues[0]?.message || "Datos inválidos" });
+  }
+  const existing = sessions.get(req.params.id);
+  if (!existing) {
+    return res.status(404).json({ message: "Sesión no encontrada" });
+  }
+  const noteId = parsed.data.noteId;
+  const patientNotes = notesByPatient.get(existing.patientId) || [];
+  const noteExists = patientNotes.some((note) => note.id === noteId);
+  if (!noteExists) {
+    return res.status(404).json({ message: "Nota no encontrada para este paciente" });
+  }
+  existing.noteId = noteId;
+  existing.updatedAt = new Date().toISOString();
+  sessions.set(existing.id, existing);
+  pushAuditEvent({
+    event: "session_note_link",
+    meta: { sessionId: existing.id, patientId: existing.patientId, noteId },
+    at: existing.updatedAt,
+  });
+  res.json(normalizeSessionOutput(existing));
+});
 
 export default router;
