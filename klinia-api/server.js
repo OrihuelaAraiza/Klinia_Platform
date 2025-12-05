@@ -21,13 +21,17 @@ import registerRouter from "./src/routes/register.js";
 import { ensureSeedUsers } from "./src/utils/seedUsers.js";
 
 const app = express();
+
+// CORRECCIÓN CLAVE: Usamos process.env.PORT directamente.
+// Si process.env.PORT está definido por Azure (ej. 8080), usa 8080.
+// Si no, usa el puerto local (env.port).
 const PORT = process.env.PORT || env.port;
 
 app.use(
-  cors({
-    origin: env.allowOrigin,
-    credentials: true,
-  })
+    cors({
+        origin: env.allowOrigin,
+        credentials: true,
+    })
 );
 app.use(express.json());
 app.use(delayMiddleware);
@@ -67,29 +71,32 @@ app.use(errorMiddleware);
 let server;
 
 async function bootstrap() {
-  try {
-    await ensureSeedUsers();
-  } catch (error) {
-    console.warn("[seed] unable to ensure default users", error);
-  }
+    try {
+        await ensureSeedUsers();
+    } catch (error) {
+        console.warn("[seed] unable to ensure default users", error);
+    }
 
-  const port = env.port;
-  // Escuchar en 0.0.0.0 para aceptar conexiones externas (necesario en Railway)
-  const host = '0.0.0.0';
-  
-  server = app.listen(port, host, () => {
-    console.log(`Klinia API listening on http://${host}:${port}`);
-    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-  });
+    // AHORA USAMOS LA CONSTANTE PORT QUE YA TIENE process.env.PORT
+    const port = PORT; 
+    
+    // Escuchar en 0.0.0.0 para aceptar conexiones externas (necesario en la nube)
+    const host = '0.0.0.0';
+    
+    server = app.listen(port, host, () => {
+        // En este console.log deberías ver el puerto 8080
+        console.log(`Klinia API listening on http://${host}:${port}`); 
+        console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+    });
 }
 bootstrap();
 
 function gracefulShutdown(signal) {
-  console.log(`\n${signal} received. Closing server...`);
-  server.close(() => {
-    console.log("Server closed. Bye!");
-    process.exit(0);
-  });
+    console.log(`\n${signal} received. Closing server...`);
+    server.close(() => {
+        console.log("Server closed. Bye!");
+        process.exit(0);
+    });
 }
 
 process.on("SIGINT", () => gracefulShutdown("SIGINT"));
