@@ -7,6 +7,16 @@ function getKey(date) {
     return date.toISOString().slice(0, 10);
 }
 
+function toLocalDateKey(isoString) {
+    if (!isoString) return null;
+    const date = new Date(isoString);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+
 function startOfMonth(date) {
     return new Date(date.getFullYear(), date.getMonth(), 1);
 }
@@ -57,17 +67,18 @@ export default function SessionMiniCalendar({
         month: "long",
         year: "numeric",
     }).format(visibleDate);
-
     const sessionsByDay = useMemo(() => {
         return sessions.reduce((acc, session) => {
             if (!session?.datetime) {
                 return acc;
             }
-            const date = new Date(session.datetime);
-            if (Number.isNaN(date.getTime())) {
+            
+            const key = toLocalDateKey(session.datetime); 
+
+            if (!key) {
                 return acc;
             }
-            const key = getKey(date);
+            
             acc[key] = acc[key] ? acc[key] + 1 : 1;
             return acc;
         }, {});
@@ -129,7 +140,9 @@ export default function SessionMiniCalendar({
                         return <span key={`empty-${index}`} className="sessions-mini-calendar__cell is-empty" aria-hidden="true" />;
                     }
                     const dateKey = getKey(new Date(visibleDate.getFullYear(), visibleDate.getMonth(), cell));
-                    const count = sessionsByDay[dateKey] || 0;
+                    
+                    const count = sessionsByDay[dateKey] || 0; 
+                    
                     const isSelected = selectedKey === dateKey;
                     return (
                         <button

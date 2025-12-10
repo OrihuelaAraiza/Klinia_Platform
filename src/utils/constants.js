@@ -32,11 +32,11 @@ export const ROUTES = {
 };
 
 export const SESSION_STATUS = {
-  PROGRAMADA: "programada",
-  CONFIRMADA: "confirmada",
-  ATENDIDA: "atendida",
-  NO_PRESENTADA: "no_presentada",
-  CANCELADA: "cancelada",
+  PROGRAMADA: "SCHEDULED", 
+  CONFIRMADA: "CONFIRMED", 
+  ATENDIDA: "COMPLETED",
+  NO_PRESENTADA: "NO_SHOW",
+  CANCELADA: "CANCELLED", 
 };
 
 export const SESSION_STATUS_LABEL = {

@@ -160,27 +160,26 @@ export default function Patients() {
   };
 
   const handleCreateOrUpdate = async (payload) => {
-    // 🛑 CORRECCIÓN: Construir el payload con los nombres de campo correctos y completos.
     const basePayload = {
       firstName: payload.firstName,
       lastName: payload.lastName,
       curp: payload.curp?.toUpperCase() || undefined,
       birthDate: payload.birthDate,
       
-      // 🛑 CAMBIO 1: Renombrar 'sex' (del formulario) a 'gender' (para la API)
       gender: payload.gender, 
       
       phone: payload.phone,
       email: payload.email,
       attachments: payload.attachments,
 
-      // 🛑 CAMBIO 2: Añadir campos requeridos por la DB/Zod que PatientForm ahora proporciona
       referral: payload.referral,
       purpose: payload.purpose,
       emergencyName: payload.emergencyName,
       emergencyPhone: payload.emergencyPhone,
-    };
 
+      
+    };
+    console.log("PAYLOAD ENVIADO AL BACKEND:", basePayload);
     try {
       if (editingPatient) {
         // En el caso de UPDATE, Zod permite campos opcionales, por lo que este payload es correcto.

@@ -1,9 +1,6 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL") 
@@ -14,134 +11,153 @@ generator client {
 }
 
 
-//Terapeuta modelo
+// --- 1. MODELOS DE USUARIO Y KYC ---
 
+// Terapeuta / Usuario del Sistema
 model User {
-  id            String    @id 
-  email         String    @unique
-  name          String
-  passwordHash  String
-  role          String    @default("PROFESSIONAL")
-  createdAt     DateTime  @default(now())
+  id                    String            @id 
+  email                 String            @unique
+  name                  String
+  passwordHash          String
+  role                  String            @default("PROFESSIONAL")
+  createdAt             DateTime          @default(now())
 
-  kycRecord     KycRecord?
-  patientRecord PatientRecord?
-  uploads       Upload[]
+  kycRecord             KycRecord?
+  patientRecord         PatientRecord?
+  uploads               Upload[]
 
-
-  // Lista de recetas creadas por este terapeuta (Relación 1:N)
-  issuedPrescriptions Prescription[] @relation("IssuedPrescriptions")
-  sessionsAsProfessional Session[] @relation("ProfessionalSessions")
+  // Relaciones 1:N
+  issuedPrescriptions   Prescription[]    @relation("IssuedPrescriptions")
+  sessionsAsProfessional Session[]        @relation("ProfessionalSessions")
+  patientsInCharge      PatientRecord[]   @relation("PatientInCharge")
 }
 
 model Upload {
-  id           String    @id 
-  name         String
-  mime         String
-  size         Int
-  blobName     String
-  blobUrl      String
-  uploadedAt   DateTime  @default(now())
-  userId       String?
-  user         User?     @relation(fields: [userId], references: [id])
+  id                    String            @id 
+  name                  String
+  mime                  String
+  size                  Int
+  blobName              String
+  blobUrl               String
+  uploadedAt            DateTime          @default(now())
+  userId                String?
+  user                  User?             @relation(fields: [userId], references: [id])
 }
 
 model KycRecord {
-  id        String   @id
-  createdAt DateTime @default(now())
-  userId    String   @unique
-  user      User     @relation(fields: [userId], references: [id])
-  firstName String
-  lastName  String
-  curp      String
-  birthDate String
-  certificateFolio String
-  phone String
-  phoneIsVerified Boolean @default(false)
-  emergencyName   String
-  emergencyPhone  String
-  street       String
-  neighborhood String
-  postalCode   String
-  city         String
-  state        String
-  nombreCoincide Boolean
-  curpCoincide   Boolean
-  faceMatch      Boolean @default(false) // Para el futuro
-  faceConfidence String  // Para guardar "SKIPPED_AZURE_403" o el score
+  id                    String            @id
+  createdAt             DateTime          @default(now())
+  userId                String            @unique
+  user                  User              @relation(fields: [userId], references: [id])
+  firstName             String
+  lastName              String
+  curp                  String
+  birthDate             String
+  certificateFolio      String
+  phone                 String
+  phoneIsVerified       Boolean           @default(false)
+  emergencyName         String
+  emergencyPhone        String
+  street                String
+  neighborhood          String
+  postalCode            String
+  city                  String
+  state                 String
+  nombreCoincide        Boolean
+  curpCoincide          Boolean
+  faceMatch             Boolean           @default(false)
+  faceConfidence        String
 }
 
-//paciente
+
+// --- 2. MODELOS DE PACIENTE Y RECETAS ---
+
+// Paciente
 model PatientRecord {
-  id            String    @id @default(cuid()) 
-  createdAt     DateTime  @default(now())
-  userId        String    @unique
-  updatedAt     DateTime  @updatedAt
-  user          User      @relation(fields: [userId], references: [id])
+  id                    String            @id @default(cuid()) 
+  createdAt             DateTime          @default(now())
+  userId                String            @unique
+  updatedAt             DateTime          @updatedAt
+  user                  User              @relation(fields: [userId], references: [id])
 
-  firstName     String
-  lastName      String
-  curp          String?
-  birthDate     String
-  gender        String? 
+  firstName             String
+  lastName              String
+  curp                  String?
+  birthDate             String
+  gender                String?
   
-  referral      String 
-  purpose       String 
+  referral              String
+  purpose               String
   
-  phone         String
-  emergencyName String
-  emergencyPhone String
-  phoneIsVerified Boolean @default(false)
+  phone                 String
+  emergencyName         String
+  emergencyPhone        String
+  phoneIsVerified       Boolean           @default(false)
 
-  // Lista de recetas que tiene este paciente (Relación 1:N)
-  prescriptions   Prescription[] @relation("PatientPrescriptions")
-  sessions        Session[]
+  prescriptions         Prescription[]    @relation("PatientPrescriptions")
+  sessions              Session[]
+
+ professionalInChargeId String? 
+  professionalInCharge   User?   @relation("PatientInCharge", fields: [professionalInChargeId], references: [id])
 }
 
-//Recetas
+// Recetas
 model Prescription {
-  id              String    @id @default(cuid()) 
-  description     String    // Campo provisional
-  createdAt       DateTime  @default(now())
+  id                    String            @id @default(cuid()) 
+  
+  // METADATOS
+  folio                 String            @default(cuid()) // Folio de trazabilidad
+  createdAt             DateTime          @default(now())
+  status                PrescriptionStatus @default(VIGENTE) // Nuevo campo de estado
 
-  // Relación N:1 con Terapeuta (El que crea la receta)
-  therapistId     String
-  therapist       User      @relation("IssuedPrescriptions", fields: [therapistId], references: [id])
+  // DATOS RELACIONALES
+  therapistId           String
+  therapist             User              @relation("IssuedPrescriptions", fields: [therapistId], references: [id])
 
-  // Relación N:1 con Paciente (El dueño de la receta)
-  patientRecordId String
-  patientRecord   PatientRecord @relation("PatientPrescriptions", fields: [patientRecordId], references: [id])
+  patientRecordId       String
+  patientRecord         PatientRecord     @relation("PatientPrescriptions", fields: [patientRecordId], references: [id])
+  
+  substance             String
+  form                  String
+  dose                  String
+  route                 String
+  frequency             String
+  duration              String
+  notes                 String?           // Almacena las indicaciones
 }
 
-//sesiones
+
+// --- 3. MODELO DE SESIONES (CORREGIDO) ---
+
+// Sesiones/Citas
 model Session {
-  id                String    @id @default(cuid())
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  id                    String            @id @default(cuid())
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
 
   // RELACIONES
-  professionalId    String
-  patientId         String
+  professionalId        String
+  patientId             String
   
   // DATOS DE LA CITA
-  datetime          DateTime  // Fecha y hora de la cita
-  durationMinutes   Int       @default(60) // Duración estándar de 60 minutos
+  datetime              DateTime
+  durationMinutes       Int               @default(60)
 
-  modality          Modality  // Presencial, Telemedicina, etc.
-  status            Status    // Programada, Completada, Cancelada
+  modality              Modality
+  status                Status
 
-  location         String? 
-  notes            String?
+  location              String? 
+  notes                 String?
 
   // FKs
-  patient           PatientRecord @relation(fields: [patientId], references: [id])
-  professional      User          @relation("ProfessionalSessions", fields: [professionalId], references: [id])
+  patient               PatientRecord     @relation(fields: [patientId], references: [id])
+  professional          User              @relation("ProfessionalSessions", fields: [professionalId], references: [id])
   
   // Índices para optimizar búsquedas por profesional/paciente y fecha
   @@index([professionalId, datetime])
   @@index([patientId])
-
 }
+
 
 // --- ENUMS ---
 enum Modality {
@@ -153,6 +169,13 @@ enum Modality {
 enum Status {
   SCHEDULED
   COMPLETED
+  CONFIRMED
   CANCELLED
   NO_SHOW
+}
+
+
+enum PrescriptionStatus {
+    VIGENTE
+    SUSPENDIDA
 }

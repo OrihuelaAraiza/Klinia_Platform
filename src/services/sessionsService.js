@@ -6,7 +6,7 @@ function buildQuery(params = {}) {
     if (value === undefined || value === null || value === "") {
       return;
     }
-    query.set(key, value);
+    query.set(key, value); 
   });
   const qs = query.toString();
   return qs ? `?${qs}` : "";
@@ -23,8 +23,17 @@ async function safeGet(url, options) {
   }
 }
 
-export async function listSessions({ q, from, to, status, page = 1, size = 10 } = {}, options = {}) {
-  const query = buildQuery({ q, from, to, status, page, size });
+export async function listSessions({ 
+    q, 
+    from, 
+    to, 
+    status, 
+    professionalId, 
+    page = 1, 
+    size = 10 
+} = {}, options = {}) {
+  const query = buildQuery({ q, from, to, status, professionalId, page, size });
+  
   const response = await safeGet(`/sessions${query}`, options);
   if (Array.isArray(response)) {
     return { items: response, total: response.length, page, size };
@@ -59,9 +68,6 @@ export function updateSession(id, payload, options = {}) {
   return api.put(`/sessions/${id}`, payload, options);
 }
 
-export function changeStatus(id, status, options = {}) {
-  return api.put(`/sessions/${id}/status`, { status }, options);
-}
 
 export function linkNote(id, noteId, options = {}) {
   return api.put(`/sessions/${id}/link-note`, { noteId }, options);
@@ -76,10 +82,10 @@ export function getTodayCounts(options = {}) {
 }
 
 export async function exportIcs(id, options = {}) {
-  const response = await api.get(`/sessions/${id}.ics`, {
-    headers: { Accept: "text/calendar", ...(options.headers || {}) },
-    ...options,
-  });
+  const response = await api.get(`/sessions/${id}?export=ics`, { 
+    headers: { Accept: "text/calendar", ...(options.headers || {}) },
+    ...options,
+  });
   if (typeof window === "undefined") {
     return response;
   }
@@ -95,6 +101,15 @@ export async function exportIcs(id, options = {}) {
   return true;
 }
 
+export function changeStatus(id, payload, options = {}) {
+  return api.put(`/sessions/${id}/status`, payload, options);
+}
+
+
+export function getOne(id, options = {}) {
+  return api.get(`/sessions/${id}`, options);
+}
+
 export default {
   listSessions,
   listSessionsByPatient,
@@ -105,4 +120,5 @@ export default {
   linkNote,
   getTodayCounts,
   exportIcs,
+  getOne,
 };

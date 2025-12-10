@@ -3,6 +3,7 @@ import Button from "./UI/Button";
 import Modal from "./UI/Modal";
 import { SESSION_STATUS, SESSION_STATUS_LABEL } from "../utils/constants";
 
+
 const TRANSITIONS = {
   [SESSION_STATUS.PROGRAMADA]: [SESSION_STATUS.CONFIRMADA, SESSION_STATUS.CANCELADA],
   [SESSION_STATUS.CONFIRMADA]: [SESSION_STATUS.ATENDIDA, SESSION_STATUS.NO_PRESENTADA, SESSION_STATUS.CANCELADA],
@@ -32,60 +33,52 @@ const ACTION_TOOLTIP = {
   [SESSION_STATUS.CANCELADA]: "Cancelar sesión",
 };
 
+function getPatientFullName(session) {
+    if (!session) return "la paciente";
+    
+    if (session.patientFirstName && session.patientLastName) {
+        return `${session.patientFirstName} ${session.patientLastName}`.trim();
+    }
+    
+    if (session.patientName) {
+        return session.patientName;
+    }
+
+    if (session.patientId) {
+        return `el paciente ID: ${session.patientId.slice(0, 8)}...`;
+    }
+    
+    return "la paciente";
+}
+
+
 export default function SessionRowActions({ session, isAssistant, onChangeStatus, changing }) {
-  const available = TRANSITIONS[session.status] || [];
-  if (!available.length || isAssistant) {
-    return null;
-  }
+    // 🚨 Esta línea ahora encontrará las transiciones si las constantes resuelven a 'SCHEDULED'
+    const available = TRANSITIONS[session.status] || []; 
+    
+    if (!available.length || isAssistant) {
+      return null;
+    }
 
-  const [pendingStatus, setPendingStatus] = useState("");
+    const [pendingStatus, setPendingStatus] = useState("");
 
-  return (
-    <>
-      <div className="session-row-actions">
-        {available.map((status) => (
-          <Button
-            key={status}
-            variant={ACTION_VARIANT[status] || "ghost"}
-            size="sm"
-            onClick={() => setPendingStatus(status)}
-            loading={changing === status}
-            title={ACTION_TOOLTIP[status] || ACTION_LABEL[status]}
-          >
-            {ACTION_LABEL[status] || SESSION_STATUS_LABEL[status]}
-          </Button>
-        ))}
-      </div>
-      {pendingStatus ? (
-        <Modal
-          open
-          onClose={() => setPendingStatus("")}
-          title="Confirmar cambio de estado"
-          footer={
-            <div className="cluster" style={{ justifyContent: "flex-end" }}>
-              <Button variant="ghost" onClick={() => setPendingStatus("")}>
-                Volver
-              </Button>
-              <Button
-                onClick={() => {
-                  const status = pendingStatus;
-                  setPendingStatus("");
-                  onChangeStatus?.(status, {
-                    label: SESSION_STATUS_LABEL[status] || status,
-                  });
-                }}
-              >
-                Confirmar
-              </Button>
-            </div>
-          }
-        >
-          <p>
-            ¿Confirmas cambiar la sesión de {session.patientName || session.patient?.name || "la paciente"} a{" "}
-            {SESSION_STATUS_LABEL[pendingStatus] || pendingStatus}?
-          </p>
-        </Modal>
-      ) : null}
-    </>
-  );
+    return (
+      <>
+        <div className="session-row-actions">
+          {available.map((status) => (
+            <Button
+              key={status}
+              variant={ACTION_VARIANT[status] || "ghost"}
+              size="sm"
+              onClick={() => setPendingStatus(status)}
+              loading={changing === status}
+              title={ACTION_TOOLTIP[status] || ACTION_LABEL[status]}
+            >
+              {ACTION_LABEL[status] || SESSION_STATUS_LABEL[status]}
+            </Button>
+          ))}
+        </div>
+       
+      </>
+    );
 }

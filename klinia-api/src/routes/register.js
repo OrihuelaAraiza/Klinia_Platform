@@ -282,55 +282,64 @@ router.post("/register-msal", async (req, res, next) => {
 
 // --- RUTA 3: REGISTRO DE PACIENTES (/register/patient) ---
 router.post("/register/patient", async (req, res, next) => {
-  const timestamp = new Date().toISOString();
-  
-  try {
-    const payload = patientRegisterSchema.parse(req.body);
-    const email = payload.access.email.toLowerCase();
+    const timestamp = new Date().toISOString();
+    
+    try {
+        const payload = patientRegisterSchema.parse(req.body);
+        const email = payload.access.email.toLowerCase();
 
-    // ... (Lógica de chequeo de usuario y creación de PatientRecord) ...
-    
-    // Asumo que tu lógica de transacción y creación de PatientRecord está aquí
-    
-    const passwordHash = await bcrypt.hash(payload.access.password, 8);
-    const userId = uid("U_");
-    const fullName = `${payload.identity.firstName} ${payload.identity.lastName}`;
-    
-    const newUser = await prisma.$transaction(async (tx) => {
-        const user = await tx.user.create({
-            data: { id: userId, email, name: fullName, role: "PATIENT", passwordHash, createdAt: timestamp, }
+        // 🚨 CORRECCIÓN P2002: Chequeo de unicidad ANTES de la transacción
+        const existingUser = await prisma.user.findUnique({ where: { email } });
+        if (existingUser) {
+             emitAudit("auth_register_failed", { email, reason: "duplicate" });
+             return res.status(409).json({ message: "Este correo ya esta registrado." });
+        }
+        
+        const passwordHash = await bcrypt.hash(payload.access.password, 8);
+        const userId = uid("U_");
+        const fullName = `${payload.identity.firstName} ${payload.identity.lastName}`;
+        
+        const newUser = await prisma.$transaction(async (tx) => {
+            const user = await tx.user.create({
+                data: { id: userId, email, name: fullName, role: "PATIENT", passwordHash, createdAt: timestamp, }
+            });
+
+            await tx.patientRecord.create({
+                data: {
+                    id: uid("PAT_"),
+                    userId: user.id,
+                    firstName: payload.identity.firstName,
+                    lastName: payload.identity.lastName,
+                    curp: payload.identity.curp || null,
+                    birthDate: payload.identity.birthDate,
+                    gender: payload.identity.gender || null,
+                    referral: payload.source.referral,
+                    purpose: payload.source.purpose,
+                    phone: payload.contact.phone,
+                    emergencyName: payload.contact.emergencyName,
+                    emergencyPhone: payload.contact.emergencyPhone,
+                    phoneIsVerified: payload.contact.phoneIsVerified,
+                }
+            });
+
+            return user;
         });
 
-        await tx.patientRecord.create({
-            data: {
-                id: uid("PAT_"),
-                userId: user.id,
-                firstName: payload.identity.firstName,
-                lastName: payload.identity.lastName,
-                curp: payload.identity.curp || null,
-                birthDate: payload.identity.birthDate,
-                gender: payload.identity.gender || null,
-                referral: payload.source.referral,
-                purpose: payload.source.purpose,
-                phone: payload.contact.phone,
-                emergencyName: payload.contact.emergencyName,
-                emergencyPhone: payload.contact.emergencyPhone,
-                phoneIsVerified: payload.contact.phoneIsVerified,
-            }
-        });
+        emitAudit("auth_register_success", { email, role: "PATIENT" });
+        
+        return res.status(201).json({ userId: newUser.id, email: newUser.email, role: "PATIENT" });
 
-        return user;
-    });
-
-    emitAudit("auth_register_success", { email, role: "PATIENT" });
-    return res.status(201).json({ userId: newUser.id, email: newUser.email, role: "PATIENT" });
-
-  } catch (error) {
-    if (error instanceof z.ZodError) { return res.status(400).json({ message: "Error de validación en el formulario.", details: error.errors }); }
-    console.error("Error en el registro de paciente:", error);
-    return next(error);
-  }
-
+    } catch (error) {
+        if (error instanceof z.ZodError) { return res.status(400).json({ message: "Error de validación en el formulario.", details: error.errors }); }
+        
+        // Manejo explícito del error de unicidad P2002 para cualquier caso imprevisto
+        if (error.code === 'P2002') {
+             return res.status(409).json({ message: "El correo electrónico ya está registrado." });
+        }
+        
+        console.error("Error en el registro de paciente:", error);
+        return next(error);
+    }
 });
 
 export default router;

@@ -19,12 +19,10 @@ import uploadsRouter from "./src/routes/uploads.js";
 import verifyRouter from "./src/routes/verify.js";
 import registerRouter from "./src/routes/register.js";
 import { ensureSeedUsers } from "./src/utils/seedUsers.js";
+import { authenticateToken } from './src/middlewares/authmiddleware.js';
 
 const app = express();
 
-// CORRECCIÓN CLAVE: Usamos process.env.PORT directamente.
-// Si process.env.PORT está definido por Azure (ej. 8080), usa 8080.
-// Si no, usa el puerto local (env.port).
 const PORT = process.env.PORT || env.port;
 
 app.use(
@@ -48,13 +46,13 @@ app.use("/api/verify", verifyRouter);
 
 
 // 2. RUTAS DE SERVICIOS CENTRALES (General App)
-app.use("/api/sessions", sessionsRouter); // <-- Aquí montamos el router de sesiones directamente
-app.use("/api/dashboard", dashboardRouter); // Monta /api/dashboard/...
-app.use("/api/prescriptions", prescriptionsRouter); // Monta /api/prescriptions/...
+app.use('/api/sessions', authenticateToken, sessionsRouter);
+app.use("/api/dashboard", authenticateToken, dashboardRouter); 
+app.use("/api/prescriptions", authenticateToken, prescriptionsRouter); 
 
 
 // 3. RUTAS DE PACIENTES (Lista y Detalle)
-app.use("/api/patients", patientsRouter); 
+app.use('/api/patients', authenticateToken, patientsRouter);
 
 // 4. RUTAS PARAMETRIZADAS (Siempre van al final de las listas)
 // Estas rutas dependen de un :id
@@ -77,14 +75,11 @@ async function bootstrap() {
         console.warn("[seed] unable to ensure default users", error);
     }
 
-    // AHORA USAMOS LA CONSTANTE PORT QUE YA TIENE process.env.PORT
     const port = PORT; 
     
-    // Escuchar en 0.0.0.0 para aceptar conexiones externas (necesario en la nube)
     const host = '0.0.0.0';
     
     server = app.listen(port, host, () => {
-        // En este console.log deberías ver el puerto 8080
         console.log(`Klinia API listening on http://${host}:${port}`); 
         console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
     });

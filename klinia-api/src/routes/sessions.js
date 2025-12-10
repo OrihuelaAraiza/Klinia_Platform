@@ -1,11 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
-
-// Servicios
 import { prisma } from "../services/dbClient.js";
 import { pushAuditEvent } from "../store/memory.js";
-
-// Schemas
 import {
     sessionCreateSchema,
     sessionUpdateSchema,
@@ -13,8 +9,6 @@ import {
     sessionLinkNoteSchema,
 } from "../validators/sessionSchemas.js";
 
-
-// --- ENUMS Y ESQUEMAS ---
 
 export const SESSION_STATUS = {
     PROGRAMADA: "SCHEDULED",
@@ -29,19 +23,26 @@ const querySchema = z.object({
     from: z.string().optional(),
     to: z.string().optional(),
     status: z.nativeEnum(SESSION_STATUS).optional(),
+    professionalId: z.string().optional(), 
     page: z.coerce.number().int().positive().default(1),
     size: z.coerce.number().int().positive().max(100).default(10),
 });
 
 const router = Router();
 
+const FALLBACK_PROFESSIONAL_ID = "U_ADMIN_TEST_FALLBACK"; 
 
-// ---------------------------------------------
-// 🔧 Funciones Auxiliares
-// ---------------------------------------------
+function getProfessionalId(req) {
+    const id = req.user?.id || FALLBACK_PROFESSIONAL_ID; 
+    
+    if (id === FALLBACK_PROFESSIONAL_ID) {
+        console.warn("[AUTH] Using fallback professional ID for sessions.");
+    }
+    return id;
+}
 
 function mapStatusToPrisma(status) {
-    switch (status) {
+    switch (status.toLowerCase()) {
         case "programada": return "SCHEDULED";
         case "confirmada": return "CONFIRMED";
         case "atendida": return "COMPLETED";
@@ -63,14 +64,26 @@ function parseDateParam(value, { endOfDay = false } = {}) {
     return date;
 }
 
+function normalizeSessionOutput(session) {
+    if (!session) return null;
+    
+    const { patient, professional, ...sessionData } = session;
 
-// ---------------------------------------------
-// 1. POST / (Crear sesión) | Mapea a POST /api/sessions
-// ---------------------------------------------
+    return {
+        ...sessionData,
+        patientFirstName: patient?.firstName || null,
+        patientLastName: patient?.lastName || null,
+        patientCurp: patient?.curp || null,
+        
+        professionalName: professional?.name || null,
+        professionalEmail: professional?.email || null,
+    };
+}
+
 router.post("/", async (req, res) => {
     const rawPayload = req.body;
+    const professionalId = getProfessionalId(req);
 
-    // Transformación para compatibilidad (duración)
     if (rawPayload.durationMin !== undefined) {
         rawPayload.durationMinutes = rawPayload.durationMin;
         delete rawPayload.durationMin;
@@ -85,27 +98,18 @@ router.post("/", async (req, res) => {
         });
     }
 
-function ensurePatientExists(patientId) {
-  if (!patients.has(patientId)) {
-    throw Object.assign(new Error("Patient not found"), { status: 404 });
-  }
-}
+    const data = parsed.data; 
 
     try {
-        const [patient, professional] = await prisma.$transaction([
-            prisma.patientRecord.findUnique({ where: { id: data.patientId } }),
-            prisma.user.findUnique({ where: { id: data.professionalId } }),
-        ]);
-
+        const patient = await prisma.patientRecord.findUnique({ where: { id: data.patientId } }); 
         if (!patient) return res.status(404).json({ message: "Paciente no encontrado." });
         
-        // 🚨 La validación que está fallando por el ID "user"
-        if (!professional) return res.status(404).json({ message: "Profesional no encontrado." }); 
+        const professional = await prisma.user.findUnique({ where: { id: professionalId } });
+        if (!professional) return res.status(404).json({ message: "Profesional no encontrado o ID inválido." }); 
 
-        // Crear sesión
         const newSession = await prisma.session.create({
             data: {
-                professionalId: data.professionalId,
+                professionalId: professionalId, 
                 patientId: data.patientId,
                 datetime: new Date(data.datetime),
                 durationMinutes: data.durationMinutes,
@@ -113,6 +117,10 @@ function ensurePatientExists(patientId) {
                 status: data.status,
                 location: rawPayload.location || null,
                 notes: rawPayload.notes || null,
+            },
+            include: {
+                patient: { select: { id: true, firstName: true, lastName: true, curp: true } },
+                professional: { select: { id: true, name: true, email: true } },
             },
         });
 
@@ -122,16 +130,7 @@ function ensurePatientExists(patientId) {
             at: new Date().toISOString(),
         });
 
-        // Devolver con detalles
-        const full = await prisma.session.findUnique({
-            where: { id: newSession.id },
-            include: {
-                patient: { select: { id: true, firstName: true, lastName: true, curp: true } },
-                professional: { select: { id: true, name: true, email: true } },
-            },
-        });
-
-        return res.status(201).json(full);
+        return res.status(201).json(normalizeSessionOutput(newSession));
 
     } catch (error) {
         console.error("[Sessions] Creation error:", error);
@@ -139,70 +138,9 @@ function ensurePatientExists(patientId) {
     }
 });
 
-
-// ---------------------------------------------
-// 2. GET /today-counts | Mapea a GET /api/sessions/today-counts
-// ---------------------------------------------
-router.get("/today-counts", async (req, res) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
-    try {
-        const list = await prisma.session.findMany({
-            where: {
-                datetime: { gte: today, lt: tomorrow },
-            },
-            select: { status: true },
-        });
-
-        const counts = list.reduce(
-            (acc, session) => {
-                if (session.status === "CANCELLED") acc.cancelled += 1;
-                if (session.status === "SCHEDULED") acc.scheduled += 1;
-                acc.total += 1;
-                return acc;
-            },
-            { scheduled: 0, cancelled: 0, total: 0 }
-        );
-
-        return res.json(counts);
-
-    } catch (error) {
-        return res.status(500).json({ message: "Error al obtener conteos de hoy." });
-    }
-});
-
-router.post("/sessions", (req, res) => {
-  const parsed = sessionCreateSchema.safeParse(req.body);
-  if (!parsed.success) {
-    return res.status(400).json({ message: parsed.error.issues[0]?.message || "Datos inválidos" });
-  }
-  const payload = parsed.data;
-  ensurePatientExists(payload.patientId);
-  const now = new Date().toISOString();
-  const id = uid("ses_");
-  const session = {
-    id,
-    patientId: payload.patientId,
-    patientName: payload.patientName || "",
-    professionalId: payload.professionalId || "",
-    professionalName: payload.professionalName || "",
-    datetime: payload.datetime,
-    durationMin: payload.durationMin,
-    status: payload.status,
-    noteId: payload.noteId || null,
-    notes: payload.notes || "",
-    createdAt: now,
-    updatedAt: now,
-  };
-});
-// ---------------------------------------------
-// 3. GET / (Listar sesiones) | Mapea a GET /api/sessions
-// ---------------------------------------------
 router.get("/", async (req, res) => {
+    const professionalId = getProfessionalId(req);
+    
     const parsed = querySchema.safeParse(req.query);
 
     if (!parsed.success) {
@@ -215,9 +153,10 @@ router.get("/", async (req, res) => {
     const skip = (page - 1) * size;
 
     const fromDate = parseDateParam(from);
-    const toDate = parseDateParam(to, { endOfDay: true });
-
-    const where = {
+    const toDate = parseDateParam(to); 
+    
+    let where = {
+        professionalId: professionalId, 
         datetime: {
             ...(fromDate ? { gte: fromDate } : {}),
             ...(toDate ? { lte: toDate } : {}),
@@ -226,10 +165,12 @@ router.get("/", async (req, res) => {
     };
 
     if (q) {
-        where.OR = [
-            { patientId: { contains: q, mode: "insensitive" } },
-            { professionalId: { contains: q, mode: "insensitive" } },
-        ];
+        where = {
+            ...where,
+            OR: [
+                { patientId: { contains: q, mode: "insensitive" } },
+            ],
+        };
     }
 
     try {
@@ -247,48 +188,282 @@ router.get("/", async (req, res) => {
             }),
         ]);
 
-        return res.json({ items: records, total, page, size });
+        const normalizedRecords = records.map(normalizeSessionOutput);
+
+        return res.json({ items: normalizedRecords, total, page, size });
 
     } catch (error) {
         return res.status(500).json({ message: "Error al consultar sesiones." });
     }
 });
 
-router.put("/sessions/:id", (req, res) => {
-  const parsed = sessionUpdateSchema.safeParse(req.body);
-  if (!parsed.success) {
-    return res.status(400).json({ message: parsed.error.issues[0]?.message || "Datos inválidos" });
-  }
-  const existing = sessions.get(req.params.id);
-  if (!existing) {
-    return res.status(404).json({ message: "Sesión no encontrada" });
-  }
+// 3. GET /:id (Obtener Detalle o ICS)
+router.get("/:id", async (req, res) => {
+    const sessionId = req.params.id;
+    const professionalId = getProfessionalId(req); 
+    
+    // 🚨 NUEVA LÓGICA: Verificar si la solicitud es para exportar ICS
+    if (req.query.export === 'ics') {
+        // Ejecutar la lógica de generación ICS
+        try {
+            const session = await prisma.session.findUnique({
+                where: { id: sessionId, professionalId: professionalId },
+                include: {
+                    patient: { select: { firstName: true, lastName: true } },
+                    professional: { select: { name: true } },
+                },
+            });
+
+            if (!session) {
+                return res.status(404).json({ message: "Sesión no encontrada o sin permisos." });
+            }
+
+            // --- Lógica de GENERACIÓN ICS (La misma que definimos antes) ---
+            const dateStart = new Date(session.datetime);
+            const dateEnd = new Date(dateStart.getTime() + session.durationMinutes * 60000);
+            const patientName = `${session.patient.firstName} ${session.patient.lastName}`;
+            const professionalName = session.professional.name;
+
+            const icsContent = [
+                // ... (Contenido ICS)
+                "BEGIN:VCALENDAR",
+                "VERSION:2.0",
+                "PRODID:-//Klinia Platform//Session Export//ES",
+                "BEGIN:VEVENT",
+                `UID:${session.id}@klinia.app`,
+                `DTSTAMP:${new Date().toISOString().replace(/[-:]|\.\d{3}/g, '').replace('Z', '')}`,
+                `DTSTART:${dateStart.toISOString().replace(/[-:]|\.\d{3}/g, '').replace('Z', '')}`,
+                `DTEND:${dateEnd.toISOString().replace(/[-:]|\.\d{3}/g, '').replace('Z', '')}`,
+                `SUMMARY:Cita: ${patientName} con ${professionalName}`,
+                `LOCATION:${session.location || 'Consultorio Virtual'}`,
+                "END:VEVENT",
+                "END:VCALENDAR"
+            ].join('\r\n');
+            // ----------------------------------------------------------------
+
+            res.setHeader('Content-Type', 'text/calendar');
+            res.setHeader('Content-Disposition', `attachment; filename=sesion-${sessionId}.ics`);
+            return res.send(icsContent);
+
+        } catch (error) {
+            console.error("[Sessions] ICS Export Error (in GET /:id):", error);
+            return res.status(500).json({ message: "Error al generar el archivo de calendario." });
+        }
+    }
+    
+    // 🚨 CONTINUACIÓN DE LA RUTA GET /:id NORMAL
+    try {
+        const record = await prisma.session.findUnique({
+            where: { 
+                id: sessionId,
+                professionalId: professionalId, 
+            },
+            include: {
+                patient: { select: { id: true, firstName: true, lastName: true, curp: true } },
+                professional: { select: { id: true, name: true, email: true } },
+            },
+        });
+
+        if (!record) {
+            return res.status(404).json({ message: "Sesión no encontrada o sin permisos." });
+        }
+        
+        return res.json(normalizeSessionOutput(record)); 
+
+    } catch (error) {
+        console.error("[Sessions] Detail DB Error:", error);
+        return res.status(500).json({ message: "Error al obtener el detalle de la sesión." });
+    }
 });
 
-router.put("/sessions/:id/link-note", (req, res) => {
-  const parsed = sessionLinkNoteSchema.safeParse(req.body);
-  if (!parsed.success) {
-    return res.status(400).json({ message: parsed.error.issues[0]?.message || "Datos inválidos" });
-  }
-  const existing = sessions.get(req.params.id);
-  if (!existing) {
-    return res.status(404).json({ message: "Sesión no encontrada" });
-  }
-  const noteId = parsed.data.noteId;
-  const patientNotes = notesByPatient.get(existing.patientId) || [];
-  const noteExists = patientNotes.some((note) => note.id === noteId);
-  if (!noteExists) {
-    return res.status(404).json({ message: "Nota no encontrada para este paciente" });
-  }
-  existing.noteId = noteId;
-  existing.updatedAt = new Date().toISOString();
-  sessions.set(existing.id, existing);
-  pushAuditEvent({
-    event: "session_note_link",
-    meta: { sessionId: existing.id, patientId: existing.patientId, noteId },
-    at: existing.updatedAt,
-  });
-  res.json(normalizeSessionOutput(existing));
+
+// 5. PUT /:id (Actualizar campos de Sesión)
+router.put("/:id", async (req, res) => {
+    const sessionId = req.params.id;
+    const professionalId = getProfessionalId(req); 
+
+    const parsed = sessionUpdateSchema.safeParse(req.body);
+    if (!parsed.success) {
+        return res.status(400).json({
+            message: "Error de validación al actualizar la sesión.",
+            details: parsed.error.errors,
+        });
+    }
+    const updates = parsed.data;
+
+    try {
+        const existingSession = await prisma.session.findUnique({
+            where: {
+                id: sessionId,
+                professionalId: professionalId, 
+            },
+        });
+
+        if (!existingSession) {
+            return res.status(404).json({ message: "Sesión no encontrada o sin permisos." });
+        }
+        
+        const sessionData = {
+            datetime: updates.datetime ? new Date(updates.datetime) : undefined,
+            durationMinutes: updates.durationMinutes,
+            modality: updates.modality,
+            location: updates.location,
+            notes: updates.notes,
+        };
+
+        const updatedRecord = await prisma.session.update({
+            where: { id: sessionId },
+            data: sessionData,
+            include: {
+                patient: { select: { id: true, firstName: true, lastName: true, curp: true } },
+                professional: { select: { id: true, name: true, email: true } },
+            },
+        });
+
+        return res.json(normalizeSessionOutput(updatedRecord));
+
+    } catch (error) {
+        console.error("[Sessions] Update error:", error);
+        return res.status(500).json({ message: "Error al actualizar la sesión." });
+    }
 });
+
+
+router.put("/:id/status", async (req, res) => {
+    const sessionId = req.params.id;
+    const professionalId = getProfessionalId(req);
+
+    const parsed = sessionStatusSchema.safeParse(req.body);
+    if (!parsed.success) {
+        return res.status(400).json({ 
+            message: "Estado o datos de actualización inválidos.", 
+            details: parsed.error.errors 
+        });
+    }
+
+    const { status: newStatus, reason } = parsed.data; 
+
+    try {
+        const existingSession = await prisma.session.findUnique({
+            where: { id: sessionId, professionalId: professionalId },
+        });
+
+        if (!existingSession) {
+            return res.status(404).json({ message: "Sesión no encontrada o sin permisos." });
+        }
+
+        // Lógica de Notas: Si hay una razón proporcionada, la usamos. Si no, forzamos NULL.
+        const notesToUpdate = (reason && reason.trim().length > 0) 
+            ? reason.trim() 
+            : null; 
+
+        const updatedSession = await prisma.session.update({
+            where: { id: sessionId },
+            data: { 
+                status: newStatus, 
+                updatedAt: new Date().toISOString(), 
+                notes: notesToUpdate,
+            },
+            include: {
+                patient: { select: { id: true, firstName: true, lastName: true, curp: true } },
+                professional: { select: { id: true, name: true, email: true } },
+            },
+        });
+
+        // Registrar evento de auditoría
+        pushAuditEvent({
+            event: "session_status_changed",
+            meta: { sessionId, newStatus, professionalId, reason: notesToUpdate },
+            at: updatedSession.updatedAt,
+        });
+
+        return res.json(normalizeSessionOutput(updatedSession));
+    } catch (error) {
+        console.error("[Sessions] Status Update Failed:", error);
+        console.error("[Sessions] Status Change Error:", error);
+
+        return res.status(500).json({ message: "Error al cambiar el estado de la sesión." });
+    }
+});
+
+
+// 7. PUT /:id/link-note (Vincular Nota)
+router.put("/:id/link-note", async (req, res) => {
+    const sessionId = req.params.id;
+    const professionalId = getProfessionalId(req);
+    
+    const parsed = sessionLinkNoteSchema.safeParse(req.body);
+    if (!parsed.success) {
+        return res.status(400).json({ message: "ID de nota inválido." });
+    }
+    const { noteId } = parsed.data;
+    
+    try {
+        const existingSession = await prisma.session.findUnique({
+            where: { id: sessionId, professionalId: professionalId },
+        });
+
+        if (!existingSession) {
+            return res.status(404).json({ message: "Sesión no encontrada o sin permisos." });
+        }
+
+        
+        const updatedSession = await prisma.session.update({
+            where: { id: sessionId },
+            data: { noteId, updatedAt: new Date().toISOString() },
+            include: {
+                patient: { select: { id: true, firstName: true, lastName: true, curp: true } },
+                professional: { select: { id: true, name: true, email: true } },
+            },
+        });
+
+        return res.json(normalizeSessionOutput(updatedSession));
+    } catch (error) {
+        console.error("[Sessions] Link Note Error:", error);
+        return res.status(500).json({ message: "Error al vincular la nota." });
+    }
+});
+
+
+// --- 8. RUTAS MÁS GENÉRICAS (Ordenadas al final) ---
+
+// 9. GET /today-counts
+router.get("/today-counts", async (req, res) => {
+    const professionalId = getProfessionalId(req);
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    const whereClause = {
+        professionalId: professionalId,
+        datetime: { gte: today, lt: tomorrow },
+    };
+
+    try {
+        const list = await prisma.session.findMany({
+            where: whereClause,
+            select: { status: true },
+        });
+        
+        const counts = list.reduce(
+            (acc, session) => {
+                if (session.status === "CANCELLED") acc.cancelled += 1;
+                if (session.status === "SCHEDULED") acc.scheduled += 1;
+                acc.total += 1;
+                return acc;
+            },
+            { scheduled: 0, cancelled: 0, total: 0 }
+        );
+
+        return res.json(counts);
+
+    } catch (error) {
+        return res.status(500).json({ message: "Error al obtener conteos de hoy." });
+    }
+});
+
 
 export default router;

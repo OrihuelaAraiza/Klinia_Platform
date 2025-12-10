@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useOutletContext } from "react-router-dom"; 
 import SessionMiniCalendar from "../components/SessionMiniCalendar";
 import Table, { TableEmpty } from "../components/UI/Table";
 import Badge from "../components/UI/Badge";
@@ -30,6 +30,16 @@ function toDateKey(date) {
     return date.toISOString().slice(0, 10);
 }
 
+function toLocalDateKey(isoString) {
+    if (!isoString) return null;
+    const date = new Date(isoString);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+
 function getMonthRange(date) {
     const start = new Date(date.getFullYear(), date.getMonth(), 1);
     const end = new Date(date.getFullYear(), date.getMonth() + 1, 0);
@@ -54,6 +64,10 @@ function getWeekStart(date) {
 export default function SessionsCalendar() {
     const navigate = useNavigate();
     const toast = useToast();
+    
+    const { user } = useOutletContext() ?? {};
+    const professionalId = user?.id || "";
+
     const [selectedDate, setSelectedDate] = useState(toDateKey(new Date()));
     const [visibleMonth, setVisibleMonth] = useState(new Date());
     const [viewMode, setViewMode] = useState("month");
@@ -66,12 +80,18 @@ export default function SessionsCalendar() {
         let active = true; 
 
         async function loadSessions() {
+            if (!professionalId) { 
+                 setLoading(false);
+                 setError("No se puede cargar el calendario sin ID de profesional.");
+                 return;
+            }
+
             setLoading(true);
             setError("");
             const { from, to } = getMonthRange(visibleMonth);
 
             try {
-                const response = await listSessions({ from, to, size: 100 }); 
+                const response = await listSessions({ from, to, size: 100, professionalId }); 
 
                 if (!active) return; 
 
@@ -80,7 +100,7 @@ export default function SessionsCalendar() {
                 auditService.logAudit("sessions_list", { scope: "calendar", from, to });
             } catch (err) {
                 if (!active) return;
-                const message = err?.message || "No pudimos cargar el calendario.";
+                const message = err?.message || "No pudimos cargar tu calendario.";
                 setError(message);
                 toast.error(message);
             } finally {
@@ -90,12 +110,14 @@ export default function SessionsCalendar() {
             }
         }
         
-        loadSessions();
+        if (professionalId) {
+            loadSessions();
+        }
 
         return () => {
             active = false; 
         };
-    }, [visibleMonth, toast]); 
+    }, [visibleMonth, toast, professionalId]); 
 
 
     const periodSessions = useMemo(() => {
@@ -123,14 +145,12 @@ export default function SessionsCalendar() {
                 }
                 
                 return dt >= weekStart && dt <= weekEnd;
-            });
+            }).sort((a, b) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime()); 
         }
 
         return monthSessions.filter(
-            (session) =>
-                session.datetime &&
-                session.datetime.slice(0, 10) === selectedDate
-        );
+            (session) => toLocalDateKey(session.datetime) === selectedDate
+        ).sort((a, b) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime()); 
     }, [monthSessions, viewMode, selectedDate]);
 
 
@@ -204,6 +224,11 @@ export default function SessionsCalendar() {
                             </tr>
                         </thead>
                         <tbody>
+                            {loading ? (
+                                <tr>
+                                     <td colSpan={4}>Cargando tus sesiones...</td>
+                                </tr>
+                            ) : null}
                             {!loading && periodSessions.length === 0 ? (
                                 <tr>
                                     <td colSpan={4}>
