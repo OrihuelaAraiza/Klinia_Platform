@@ -146,6 +146,7 @@ router.get("/", async (req, res) => {
     if (!parsed.success) {
         return res.status(400).json({
             message: parsed.error.issues[0]?.message || "Parámetros inválidos",
+            details: parsed.error.errors, 
         });
     }
 
@@ -154,6 +155,12 @@ router.get("/", async (req, res) => {
 
     const fromDate = parseDateParam(from);
     const toDate = parseDateParam(to); 
+
+    let prismaStatus = status;
+
+if (prismaStatus === 'CONFIRMED' && !['SCHEDULED', 'COMPLETED', 'CANCELLED', 'NO_SHOW'].includes('CONFIRMED')) {
+    prismaStatus = 'SCHEDULED';
+}
     
     let where = {
         professionalId: professionalId, 
@@ -161,7 +168,7 @@ router.get("/", async (req, res) => {
             ...(fromDate ? { gte: fromDate } : {}),
             ...(toDate ? { lte: toDate } : {}),
         },
-        ...(status ? { status: mapStatusToPrisma(status) } : {}),
+        ...(prismaStatus ? { status: prismaStatus } : {}),
     };
 
     if (q) {
@@ -193,18 +200,18 @@ router.get("/", async (req, res) => {
         return res.json({ items: normalizedRecords, total, page, size });
 
     } catch (error) {
+        console.error("[Sessions] Consulta DB Error:", error);
         return res.status(500).json({ message: "Error al consultar sesiones." });
     }
 });
+
 
 // 3. GET /:id (Obtener Detalle o ICS)
 router.get("/:id", async (req, res) => {
     const sessionId = req.params.id;
     const professionalId = getProfessionalId(req); 
     
-    // 🚨 NUEVA LÓGICA: Verificar si la solicitud es para exportar ICS
     if (req.query.export === 'ics') {
-        // Ejecutar la lógica de generación ICS
         try {
             const session = await prisma.session.findUnique({
                 where: { id: sessionId, professionalId: professionalId },
@@ -218,28 +225,21 @@ router.get("/:id", async (req, res) => {
                 return res.status(404).json({ message: "Sesión no encontrada o sin permisos." });
             }
 
-            // --- Lógica de GENERACIÓN ICS (La misma que definimos antes) ---
             const dateStart = new Date(session.datetime);
             const dateEnd = new Date(dateStart.getTime() + session.durationMinutes * 60000);
             const patientName = `${session.patient.firstName} ${session.patient.lastName}`;
             const professionalName = session.professional.name;
 
             const icsContent = [
-                // ... (Contenido ICS)
-                "BEGIN:VCALENDAR",
-                "VERSION:2.0",
-                "PRODID:-//Klinia Platform//Session Export//ES",
-                "BEGIN:VEVENT",
+                "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Klinia Platform//Session Export//ES", "BEGIN:VEVENT",
                 `UID:${session.id}@klinia.app`,
                 `DTSTAMP:${new Date().toISOString().replace(/[-:]|\.\d{3}/g, '').replace('Z', '')}`,
                 `DTSTART:${dateStart.toISOString().replace(/[-:]|\.\d{3}/g, '').replace('Z', '')}`,
                 `DTEND:${dateEnd.toISOString().replace(/[-:]|\.\d{3}/g, '').replace('Z', '')}`,
                 `SUMMARY:Cita: ${patientName} con ${professionalName}`,
                 `LOCATION:${session.location || 'Consultorio Virtual'}`,
-                "END:VEVENT",
-                "END:VCALENDAR"
+                "END:VEVENT", "END:VCALENDAR"
             ].join('\r\n');
-            // ----------------------------------------------------------------
 
             res.setHeader('Content-Type', 'text/calendar');
             res.setHeader('Content-Disposition', `attachment; filename=sesion-${sessionId}.ics`);
@@ -251,7 +251,7 @@ router.get("/:id", async (req, res) => {
         }
     }
     
-    // 🚨 CONTINUACIÓN DE LA RUTA GET /:id NORMAL
+    // CONTINUACIÓN DE LA RUTA GET /:id NORMAL
     try {
         const record = await prisma.session.findUnique({
             where: { 
@@ -453,7 +453,7 @@ router.get("/today-counts", async (req, res) => {
                 if (session.status === "CANCELLED") acc.cancelled += 1;
                 if (session.status === "SCHEDULED") acc.scheduled += 1;
                 acc.total += 1;
-                return acc;
+                return acc; 
             },
             { scheduled: 0, cancelled: 0, total: 0 }
         );

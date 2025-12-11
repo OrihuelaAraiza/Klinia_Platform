@@ -20,15 +20,16 @@ import {
     formatSessionModality,
     getSessionPatientName, 
     getSessionNoteLabel,
-    // La función isSessionNoteDisabled ya no se usa directamente aquí
 } from "../utils/sessionHelpers";
+
 
 const STATUS_OPTIONS = [
     { label: "Todos", value: "" },
     { label: SESSION_STATUS_LABEL[SESSION_STATUS.PROGRAMADA], value: SESSION_STATUS.PROGRAMADA },
-    { label: SESSION_STATUS_LABEL[SESSION_STATUS.CONFIRMADA], value: SESSION_STATUS.CONFIRMADA },
+    { label: SESSION_STATUS_LABEL[SESSION_STATUS.ATENDIDA], value: SESSION_STATUS.ATENDIDA },
     { label: SESSION_STATUS_LABEL[SESSION_STATUS.CANCELADA], value: SESSION_STATUS.CANCELADA },
 ];
+
 
 function formatDateTime(value) {
     if (!value) return "—";
@@ -256,7 +257,6 @@ export default function Sessions() {
         const session = pendingNoteSession;
         setPendingNoteSession(null);
         
-        // Navega a la pantalla de notas del paciente para crearla o vincularla
         navigate(`${ROUTES.patients}/${session.patientId}/notes`);
     };
 
@@ -265,12 +265,10 @@ export default function Sessions() {
     };
 
     const handleLinkDirect = (session) => {
-        // Navega a la vista de detalle de la nota clínica del paciente (si existe) o a la lista de notas.
         if (session.noteId) {
             navigate(`${ROUTES.patients}/${session.patientId}/notes/${session.noteId}`);
             return;
         }
-        // Navega a la lista principal de notas del paciente
         navigate(`${ROUTES.patients}/${session.patientId}/notes`);
     };
 
@@ -309,7 +307,6 @@ export default function Sessions() {
             return "—";
         }
 
-        // 🚨 CORRECCIÓN DEL ERROR UNDEFINED: Usar patientLastName
         if (session.patientFirstName && session.patientLastName) {
             return `${session.patientFirstName} ${session.patientLastName}`.trim();
         }
@@ -391,7 +388,6 @@ export default function Sessions() {
                                                 handleLinkDirect(session);
                                             }}
                                         >
-                                            {/* 🚨 CORRECCIÓN: Mostrar 'Nota' o la etiqueta de nota vinculada */}
                                             {session.noteId ? getSessionNoteLabel(session, isAssistant) : 'Nota'}
                                         </Button>
                                         <Button
@@ -524,7 +520,6 @@ export default function Sessions() {
                                         <Badge variant={badgeVariant}>{SESSION_STATUS_LABEL[session.status] || session.status}</Badge>
                                     </td>
                                     
-                                    {/* COLUMNA NOTA: SOLO BOTÓN DE ACCIÓN (Activo) */}
                                     <td onClick={(e) => e.stopPropagation()}> 
                                         <Button
                                             variant="ghost"
@@ -535,7 +530,6 @@ export default function Sessions() {
                                             }}
                                             title={session.noteId ? 'Ver nota clínica' : 'Crear/Vincular nota clínica'}
                                         >
-                                            {/* 🚨 CORRECCIÓN: Mostrar 'Nota' o la etiqueta de nota vinculada */}
                                             {session.noteId ? getSessionNoteLabel(session, isAssistant) : 'Nota'}
                                         </Button>
                                     </td>
@@ -556,7 +550,6 @@ export default function Sessions() {
                                             >
                                                 .ics
                                             </Button>
-                                            {/* 🚨 SessionRowActions ahora debe devolver null para eliminar los botones de estado. */}
                                             <SessionRowActions
                                                 session={session}
                                                 isAssistant={isAssistant}

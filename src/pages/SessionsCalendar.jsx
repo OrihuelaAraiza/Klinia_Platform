@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom"; 
+// 🚨 Importar componentes necesarios
+import SessionDetailDrawer from "../components/SessionDetailDrawer"; // 🚨 IMPORTADO
 import SessionMiniCalendar from "../components/SessionMiniCalendar";
 import Table, { TableEmpty } from "../components/UI/Table";
 import Badge from "../components/UI/Badge";
@@ -74,6 +76,9 @@ export default function SessionsCalendar() {
     const [monthSessions, setMonthSessions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+    
+    // 🚨 ESTADO PARA ABRIR EL DRAWER DE DETALLE
+    const [selectedSessionId, setSelectedSessionId] = useState(null); 
 
 
     useEffect(() => {
@@ -158,107 +163,127 @@ export default function SessionsCalendar() {
         setVisibleMonth(date);
         setSelectedDate(toDateKey(date));
     };
+    
+    const handleSessionUpdate = (updatedSession) => {
+        setMonthSessions(prev => 
+            prev.map(s => (s.id === updatedSession.id ? updatedSession : s))
+        );
+    };
 
     return (
-        <section className="page stack-5">
-            <div className="page-header sessions-header">
-                <div className="sessions-header__intro">
-                    <h1>Calendario de sesiones</h1>
-                    <p className="sessions-header__subtitle">
-                        Visualiza tu agenda mensual o semanal y navega rápidamente entre días.
-                    </p>
+        <>
+            <section className="page stack-5">
+                <div className="page-header sessions-header">
+                    <div className="sessions-header__intro">
+                        <h1>Calendario de sesiones</h1>
+                        <p className="sessions-header__subtitle">
+                            Visualiza tu agenda mensual o semanal y navega rápidamente entre días.
+                        </p>
+                    </div>
+                    <div className="sessions-header__actions">
+                        <Button variant="ghost" size="sm" onClick={() => navigate(ROUTES.sessions)}>
+                            Volver a la lista
+                        </Button>
+                    </div>
                 </div>
-                <div className="sessions-header__actions">
-                    <Button variant="ghost" size="sm" onClick={() => navigate(ROUTES.sessions)}>
-                        Volver a la lista
-                    </Button>
-                </div>
-            </div>
 
-            <div className="sessions-calendar__layout">
-                <SessionMiniCalendar
-                    sessions={monthSessions}
-                    selectedDate={selectedDate}
-                    onSelectDate={setSelectedDate}
-                    onMonthChange={handleMonthChange}
-                />
-                <div className="sessions-calendar__panel">
-                    <div className="sessions-calendar__panel-header">
-                        <h2>{viewMode === "week" ? "Semana seleccionada" : "Sesiones del día"}</h2>
-                        <div className="sessions-calendar__toggle">
-                            {VIEW_OPTIONS.map((option) => (
-                                <button
-                                    key={option.value}
-                                    type="button"
-                                    className={viewMode === option.value ? "is-active" : ""}
-                                    onClick={() => setViewMode(option.value)}
-                                >
-                                    {option.label}
-                                </button>
-                            ))}
+                <div className="sessions-calendar__layout">
+                    <SessionMiniCalendar
+                        sessions={monthSessions}
+                        selectedDate={selectedDate}
+                        onSelectDate={setSelectedDate}
+                        onMonthChange={handleMonthChange}
+                    />
+                    <div className="sessions-calendar__panel">
+                        <div className="sessions-calendar__panel-header">
+                            <h2>{viewMode === "week" ? "Semana seleccionada" : "Sesiones del día"}</h2>
+                            <div className="sessions-calendar__toggle">
+                                {VIEW_OPTIONS.map((option) => (
+                                    <button
+                                        key={option.value}
+                                        type="button"
+                                        className={viewMode === option.value ? "is-active" : ""}
+                                        onClick={() => setViewMode(option.value)}
+                                    >
+                                        {option.label}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
-                    </div>
-                    <div className="sessions-calendar__summary">
-                        {viewMode === "week" ? (
-                            <p>
-                                Mostrando sesiones de la semana del{" "}
-                                {new Date(selectedDate).toLocaleDateString("es-MX", { dateStyle: "medium" })}
-                            </p>
-                        ) : (
-                            <p>
-                                {new Date(selectedDate).toLocaleDateString("es-MX", {
-                                    weekday: "long",
-                                    day: "numeric",
-                                    month: "long",
-                                })}
-                            </p>
-                        )}
-                    </div>
-                    <Table density="comfortable">
-                        <thead>
-                            <tr>
-                                <th>Fecha y hora</th>
-                                <th>Paciente</th>
-                                <th>Profesional</th>
-                                <th>Estado</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {loading ? (
+                        <div className="sessions-calendar__summary">
+                            {viewMode === "week" ? (
+                                <p>
+                                    Mostrando sesiones de la semana del{" "}
+                                    {new Date(selectedDate).toLocaleDateString("es-MX", { dateStyle: "medium" })}
+                                </p>
+                            ) : (
+                                <p>
+                                    {new Date(selectedDate).toLocaleDateString("es-MX", {
+                                        weekday: "long",
+                                        day: "numeric",
+                                        month: "long",
+                                    })}
+                                </p>
+                            )}
+                        </div>
+                        <Table density="comfortable">
+                            <thead>
                                 <tr>
-                                     <td colSpan={4}>Cargando tus sesiones...</td>
+                                    <th>Fecha y hora</th>
+                                    <th>Paciente</th>
+                                    <th>Profesional</th>
+                                    <th>Estado</th>
                                 </tr>
-                            ) : null}
-                            {!loading && periodSessions.length === 0 ? (
-                                <tr>
-                                    <td colSpan={4}>
-                                        <TableEmpty
-                                            title="Sin sesiones registradas"
-                                            description={error || "No hay sesiones para el periodo seleccionado."}
-                                        />
-                                    </td>
-                                </tr>
-                            ) : null}
-                            {periodSessions.map((session) => {
-                                const variant = SESSION_STATUS_VARIANT[session.status] || "neutral";
-                                return (
-                                    <tr key={session.id}>
-                                        <td>
-                                            <p className="sessions-table__primary">{formatDateTime(session.datetime)}</p>
-                                            <p className="sessions-table__meta">{formatSessionModality(session)}</p>
-                                        </td>
-                                        <td>{getSessionPatientName(session)}</td>
-                                        <td>{session.professional?.name || session.professionalName || "—"}</td>
-                                        <td>
-                                            <Badge variant={variant}>{SESSION_STATUS_LABEL[session.status] || session.status}</Badge>
+                            </thead>
+                            <tbody>
+                                {loading ? (
+                                    <tr>
+                                       <td colSpan={4}>Cargando tus sesiones...</td>
+                                    </tr>
+                                ) : null}
+                                {!loading && periodSessions.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={4}>
+                                            <TableEmpty
+                                                title="Sin sesiones registradas"
+                                                description={error || "No hay sesiones para el periodo seleccionado."}
+                                            />
                                         </td>
                                     </tr>
-                                );
-                            })}
-                        </tbody>
-                    </Table>
+                                ) : null}
+                                {periodSessions.map((session) => {
+                                    const variant = SESSION_STATUS_VARIANT[session.status] || "neutral";
+                                    return (
+                                        <tr 
+                                            key={session.id} 
+                                            className="cursor-pointer" 
+                                            onClick={() => setSelectedSessionId(session.id)}
+                                        >
+                                            <td>
+                                                <p className="sessions-table__primary">{formatDateTime(session.datetime)}</p>
+                                                <p className="sessions-table__meta">{formatSessionModality(session)}</p>
+                                            </td>
+                                            <td>{getSessionPatientName(session)}</td>
+                                            <td>{session.professional?.name || session.professionalName || "—"}</td>
+                                            <td>
+                                                <Badge variant={variant}>{SESSION_STATUS_LABEL[session.status] || session.status}</Badge>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </Table>
+                    </div>
                 </div>
-            </div>
-        </section>
+            </section>
+            
+            <SessionDetailDrawer
+                sessionId={selectedSessionId}
+                onClose={() => setSelectedSessionId(null)}
+                onUpdate={handleSessionUpdate} 
+                user={user}
+                isAssistant={false} 
+            />
+        </>
     );
 }
