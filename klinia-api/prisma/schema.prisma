@@ -30,6 +30,11 @@ model User {
   issuedPrescriptions   Prescription[]    @relation("IssuedPrescriptions")
   sessionsAsProfessional Session[]        @relation("ProfessionalSessions")
   patientsInCharge      PatientRecord[]   @relation("PatientInCharge")
+  
+  notesWritten          Note[]            @relation("ProfessionalNotes") 
+  auditActions          AuditLog[]        @relation("AuditActions")
+  ordersIssued          Order[]           @relation("IssuedOrders")
+  issuedReports          Report[]          @relation("IssuedReports")
 }
 
 model Upload {
@@ -96,9 +101,12 @@ model PatientRecord {
 
   prescriptions         Prescription[]    @relation("PatientPrescriptions")
   sessions              Session[]
+  notes                 Note[]            @relation("PatientNotes") 
+  orders                Order[]           @relation("PatientOrders") 
 
- professionalInChargeId String? 
-  professionalInCharge   User?   @relation("PatientInCharge", fields: [professionalInChargeId], references: [id])
+  professionalInChargeId String? 
+  professionalInCharge   User?             @relation("PatientInCharge", fields: [professionalInChargeId], references: [id])
+  reports        Report[]          @relation("PatientReports")
 }
 
 // Recetas
@@ -106,9 +114,9 @@ model Prescription {
   id                    String            @id @default(cuid()) 
   
   // METADATOS
-  folio                 String            @default(cuid()) // Folio de trazabilidad
+  folio                 String            @default(cuid()) 
   createdAt             DateTime          @default(now())
-  status                PrescriptionStatus @default(VIGENTE) // Nuevo campo de estado
+  status                PrescriptionStatus @default(VIGENTE) 
 
   // DATOS RELACIONALES
   therapistId           String
@@ -123,11 +131,11 @@ model Prescription {
   route                 String
   frequency             String
   duration              String
-  notes                 String?           // Almacena las indicaciones
+  notes                 String?           
 }
 
 
-// --- 3. MODELO DE SESIONES (CORREGIDO) ---
+// --- 3. MODELO DE SESIONES ---
 
 // Sesiones/Citas
 model Session {
@@ -159,7 +167,87 @@ model Session {
 }
 
 
+// --- 4. MODELO DE NOTAS DE EVOLUCIÓN (SOAP) ---
+model Note {
+  id                    String            @id @default(cuid())
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+  
+  // RELACIONES
+  patientId             String
+  professionalId        String // Autor de la nota
+  
+  // CONTENIDO SOAP
+  subjective            String            
+  objective             String            
+  analysis              String            
+  plan                  String            
+  diagnosesJson         String            // Array de diagnósticos (CIE-10) en JSON
+  
+  // ESTADO DE LA NOTA
+  status                NoteStatus        @default(open) 
+  closedAt              DateTime?
+  
+  // ADENDA
+  addendaJson           String            @default("[]") 
+  
+  // FKs
+  patient               PatientRecord     @relation("PatientNotes", fields: [patientId], references: [id])
+  professional          User              @relation("ProfessionalNotes", fields: [professionalId], references: [id])
+  
+  @@index([patientId, createdAt])
+}
+
+
+// --- 5. MODELO DE ÓRDENES CLÍNICAS ---
+model Order {
+    id                  String            @id @default(cuid())
+    createdAt           DateTime          @default(now())
+    updatedAt           DateTime          @updatedAt
+
+    // RELACIONES
+    patientId           String
+    professionalId      String            // Terapeuta que emitió la orden
+    
+    // DATOS DE LA ORDEN
+    folio               String            @default(cuid())
+    tipo                String            // Laboratorio, Imagenología, etc.
+    descripcion         String
+    indicaciones        String?
+    status              String            @default("vigente") // 'vigente', 'cancelada'
+    
+    patient             PatientRecord     @relation("PatientOrders", fields: [patientId], references: [id])
+    professional        User              @relation("IssuedOrders", fields: [professionalId], references: [id])
+    
+    @@index([patientId, createdAt])
+}
+
+
+// --- 6. MODELO DE REGISTRO DE AUDITORÍA ---
+model AuditLog {
+  id            String    @id @default(cuid())
+  createdAt     DateTime  @default(now())
+  
+  // Datos de la acción
+  action        String    
+  
+  // Relación con el terapeuta (usuario que realizó la acción)
+  therapistId   String
+  therapist     User      @relation("AuditActions", fields: [therapistId], references: [id])
+  
+  // Objetivo de la acción (ID de la prescripción, paciente, sesión, etc.)
+  targetId      String?
+  
+  // Información adicional de la acción (Folio, datos de cambio, etc.)
+  metadata      Json      @default("{}")
+  
+  @@index([therapistId])
+  @@index([action])
+}
+
+
 // --- ENUMS ---
+
 enum Modality {
   IN_PERSON
   TELEMEDICINE
@@ -178,4 +266,39 @@ enum Status {
 enum PrescriptionStatus {
     VIGENTE
     SUSPENDIDA
+}
+
+enum NoteStatus {
+  open
+  closed
+}
+
+
+model Report {
+    id             String            @id @default(cuid())
+    createdAt      DateTime          @default(now())
+    updatedAt      DateTime          @updatedAt
+    
+    // RELACIONES
+    patientId      String
+    professionalId String            // Terapeuta que emitió/editó el informe
+    
+    // DATOS DEL INFORME
+    folio          String            @default(cuid())
+    titulo         String
+    contenido      String
+    
+    // ESTADO DE SEGURIDAD
+    status         ReportStatus      @default(borrador) // 'borrador', 'cerrado'
+    lockedAt       DateTime?         // Fecha de cierre (inmutabilidad)
+    
+    patient        PatientRecord     @relation("PatientReports", fields: [patientId], references: [id])
+    professional   User              @relation("IssuedReports", fields: [professionalId], references: [id])
+    
+    @@index([patientId, createdAt])
+}
+
+enum ReportStatus {
+    borrador
+    cerrado
 }

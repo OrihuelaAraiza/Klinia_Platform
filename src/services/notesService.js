@@ -1,46 +1,73 @@
 import { api } from "./apiClient";
+import auditService from "./auditService";
 
-export async function listNotes(patientId, { page = 1, size = 10 } = {}, options = {}) {
-  const response = await api.get(`/patients/${patientId}/notes?page=${page}&size=${size}`, options);
-
-  if (Array.isArray(response)) {
-    return {
-      items: response,
-      page,
-      size,
-      total: response.length,
-    };
-  }
-
-  const items = Array.isArray(response?.items) ? response.items : [];
-  return {
-    items,
-    page: Number(response?.page ?? page),
-    size: Number(response?.size ?? size),
-    total: Number(response?.total ?? items.length),
-  };
+function ensurePatientId(patientId) {
+    const normalized = String(patientId || "").trim();
+    if (!normalized) {
+        throw new Error("ID de paciente requerido.");
+    }
+    return normalized;
 }
 
-export function getNote(patientId, noteId, options = {}) {
-  return api.get(`/patients/${patientId}/notes/${noteId}`, options);
+function ensureNoteId(noteId) {
+    const normalized = String(noteId || "").trim();
+    if (!normalized) {
+        throw new Error("ID de nota requerido.");
+    }
+    return normalized;
 }
 
-export function createNote(patientId, payload, options = {}) {
-  return api.post(`/patients/${patientId}/notes`, payload, options);
+function buildAuditMeta(patientId, noteId) {
+    return { patientId, noteId };
 }
 
-export function closeNote(patientId, noteId, options = {}) {
-  return api.put(`/patients/${patientId}/notes/${noteId}/close`, {}, options);
+
+export async function listNotes(patientId, params = {}) {
+    const normalizedPatientId = ensurePatientId(patientId);
+    const response = await api.get(`/notes/${normalizedPatientId}`, { params, auth: true });
+    await auditService.logAudit("notes_list", buildAuditMeta(patientId));
+    return response; 
 }
 
-export function addAddendum(patientId, noteId, text, options = {}) {
-  return api.put(`/patients/${patientId}/notes/${noteId}/addendum`, { text }, options);
+
+export async function createNote(patientId, payload) {
+    const normalizedPatientId = ensurePatientId(patientId);
+    const response = await api.post(`/notes/${normalizedPatientId}`, payload, { auth: true });
+    await auditService.logAudit("note_create", buildAuditMeta(patientId, response.id));
+    return response;
+}
+
+
+export async function getNote(patientId, noteId) {
+    const normalizedPatientId = ensurePatientId(patientId);
+    const normalizedNoteId = ensureNoteId(noteId);
+    const response = await api.get(`/notes/${normalizedPatientId}/${normalizedNoteId}`, { auth: true });
+    await auditService.logAudit("note_view", buildAuditMeta(patientId, noteId));
+    return response;
+}
+
+
+export async function closeNote(patientId, noteId) {
+    const normalizedPatientId = ensurePatientId(patientId);
+    const normalizedNoteId = ensureNoteId(noteId);
+    const response = await api.post(`/notes/${normalizedPatientId}/${normalizedNoteId}/close`, {}, { auth: true });
+    await auditService.logAudit("note_close", buildAuditMeta(patientId, noteId));
+    return response;
+}
+
+
+export async function addAddendum(patientId, noteId, text) {
+    const normalizedPatientId = ensurePatientId(patientId);
+    const normalizedNoteId = ensureNoteId(noteId);
+    const response = await api.post(`/notes/${normalizedPatientId}/${normalizedNoteId}/addendum`, { text }, { auth: true });
+    await auditService.logAudit("note_addendum", buildAuditMeta(patientId, noteId));
+    return response;
 }
 
 export default {
-  listNotes,
-  getNote,
-  createNote,
-  closeNote,
-  addAddendum,
+    listNotes,
+    createNote,
+    getNote,
+    closeNote,
+    addAddendum,
 };

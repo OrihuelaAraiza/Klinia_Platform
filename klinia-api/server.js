@@ -20,6 +20,8 @@ import verifyRouter from "./src/routes/verify.js";
 import registerRouter from "./src/routes/register.js";
 import { ensureSeedUsers } from "./src/utils/seedUsers.js";
 import { authenticateToken } from './src/middlewares/authmiddleware.js';
+import ordersRouter from "./src/routes/orders.js";
+import reportsRouter from "./src/routes/reports.js";
 
 const app = express();
 
@@ -49,7 +51,9 @@ app.use("/api/verify", verifyRouter);
 app.use('/api/sessions', authenticateToken, sessionsRouter);
 app.use("/api/dashboard", authenticateToken, dashboardRouter); 
 app.use("/api/prescriptions", authenticateToken, prescriptionsRouter); 
-
+app.use("/api/notes", authenticateToken, notesRouter);
+app.use("/api/orders", authenticateToken, ordersRouter);
+app.use("/api/reports", authenticateToken, reportsRouter);
 
 // 3. RUTAS DE PACIENTES (Lista y Detalle)
 app.use('/api/patients', authenticateToken, patientsRouter);
@@ -58,7 +62,6 @@ app.use('/api/patients', authenticateToken, patientsRouter);
 // Estas rutas dependen de un :id
 app.use("/api/patients/:id/consents", consentsRouter);
 app.use("/api/patients/:id/history", historyRouter);
-app.use("/api/patients/:id/notes", notesRouter);
 app.use("/api/patients/:id/export", exportRouter);
 
 // 5. RUTAS GENÉRICAS RESTANTES

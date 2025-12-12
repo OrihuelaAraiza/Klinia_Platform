@@ -22,6 +22,10 @@ export function updatePatient(id, payload, options = {}) {
   return api.put(`/patients/${id}`, payload, options);
 }
 
+export async function importAndReassign(payload) {
+    return api.post("/patients/import-reassign", payload, { auth: true });
+}
+
 export default {
   listPatients,
   getPatient,

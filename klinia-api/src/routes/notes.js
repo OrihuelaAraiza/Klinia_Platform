@@ -1,122 +1,242 @@
 import { Router } from "express";
 import { z } from "zod";
-import {
-  notesByPatient,
-  uid,
-  pushAuditEvent,
-} from "../store/memory.js";
-import { noteCreateSchema, noteAddendumSchema } from "../validators/noteSchemas.js";
+import { prisma } from "../services/dbClient.js";
+import { uid } from "../store/memory.js";
 
-const querySchema = z.object({
-  page: z.coerce.number().int().positive().default(1),
-  size: z.coerce.number().int().positive().max(50).default(10),
-});
+const router = Router();
 
-function getNotesCollection(patientId) {
-  if (!notesByPatient.has(patientId)) {
-    notesByPatient.set(patientId, []);
-  }
-  return notesByPatient.get(patientId);
+function getProfessionalId(req) {
+    return req.user?.id; 
 }
 
-const router = Router({ mergeParams: true });
+/**
+ * Verifica si el paciente asociado a un ID está bajo el cuidado del profesional autenticado.
+ */
+async function checkPatientOwnership(patientId, professionalId) {
+    if (!patientId || !professionalId) return false;
 
-router.get("/", (req, res) => {
-  const { page, size } = querySchema.parse(req.query);
-  const collection = getNotesCollection(req.params.id);
-  const sorted = [...collection].sort((a, b) => new Date(b.datetime) - new Date(a.datetime));
-  const start = (page - 1) * size;
-  const items = sorted.slice(start, start + size);
-  pushAuditEvent({ event: "notes_list", meta: { patientId: req.params.id }, at: new Date().toISOString() });
-  res.json({ items, page, size, total: sorted.length });
+    const patient = await prisma.patientRecord.findUnique({
+        where: { id: patientId, professionalInChargeId: professionalId },
+        select: { id: true },
+    });
+
+    return !!patient;
+}
+
+// --- ESQUEMAS ZOD ---
+
+const noteContentSchema = z.object({
+    subjective: z.string().trim().min(1),
+    objective: z.string().trim().min(1),
+    analysis: z.string().trim().min(1),
+    plan: z.string().trim().min(1),
+    diagnoses: z.array(z.object({
+        code: z.string(),
+        label: z.string().optional(),
+    })).optional(),
+    professional: z.object({ id: z.string(), name: z.string() }).optional(),
+    datetime: z.string().optional(), // opcional en el payload, pero usado en create
 });
 
-router.post("/", (req, res) => {
-  const parsed = noteCreateSchema.safeParse(req.body);
-  if (!parsed.success) {
-    return res.status(400).json({ message: parsed.error.issues[0]?.message || "Invalid data" });
-  }
+const addendumSchema = z.string().trim().min(5);
 
-  const now = new Date().toISOString();
-  const note = {
-    id: uid("note_"),
-    patientId: req.params.id,
-    datetime: now,
-    professional: parsed.data.professional,
-    subjective: parsed.data.subjective,
-    objective: parsed.data.objective,
-    analysis: parsed.data.analysis,
-    plan: parsed.data.plan,
-    diagnoses: parsed.data.diagnoses,
-    status: "open",
-    addenda: [],
-    createdAt: now,
-    updatedAt: now,
-  };
+// --- RUTA 1: POST /:patientId (Crear Nota) ---
+router.post("/:patientId", async (req, res) => {
+    const { patientId } = req.params;
+    const professionalId = getProfessionalId(req);
+    
+    if (!professionalId) return res.status(401).json({ message: "Autenticación requerida." });
 
-  const collection = getNotesCollection(req.params.id);
-  collection.push(note);
-  pushAuditEvent({ event: "note_create", meta: { patientId: req.params.id, noteId: note.id }, at: now });
+    if (!(await checkPatientOwnership(patientId, professionalId))) {
+        return res.status(403).json({ message: "No tienes permiso para crear notas para este paciente." });
+    }
 
-  res.status(201).json(note);
+    const parsed = noteContentSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: "Datos de nota inválidos." });
+
+    const data = parsed.data;
+
+    try {
+        const newNote = await prisma.note.create({
+            data: {
+                id: uid("NOTE_"),
+                patientId: patientId,
+                professionalId: professionalId,
+                subjective: data.subjective,
+                objective: data.objective,
+                analysis: data.analysis,
+                plan: data.plan,
+                diagnosesJson: JSON.stringify(data.diagnoses || []), // Guardar diagnósticos como JSON
+                // Status por defecto es 'open'
+            },
+        });
+        
+        // Normalizar la salida para el frontend (incluir el profesional)
+        const professionalName = data.professional?.name || (await prisma.user.findUnique({ where: { id: professionalId } }))?.name;
+        
+        return res.status(201).json({
+            ...newNote,
+            diagnoses: data.diagnoses, // Devolvemos el objeto JSON parseado al frontend
+            professional: { id: professionalId, name: professionalName }
+        });
+
+    } catch (e) {
+        console.error("[Notes] Create Note Error:", e);
+        return res.status(500).json({ message: "Error al guardar la nota." });
+    }
 });
 
-router.get("/:noteId", (req, res) => {
-  const collection = getNotesCollection(req.params.id);
-  const note = collection.find((item) => item.id === req.params.noteId);
-  if (!note) {
-    return res.status(404).json({ message: "Note not found" });
-  }
-  pushAuditEvent({ event: "note_view", meta: { patientId: req.params.id, noteId: note.id }, at: new Date().toISOString() });
-  res.json(note);
+// --- RUTA 2: GET /:patientId (Listar Notas) ---
+router.get("/:patientId", async (req, res) => {
+    const { patientId } = req.params;
+    const professionalId = getProfessionalId(req);
+
+    if (!professionalId) return res.status(401).json({ message: "Autenticación requerida." });
+    
+    if (!(await checkPatientOwnership(patientId, professionalId))) {
+        return res.status(403).json({ message: "No tienes permiso para ver las notas de este paciente." });
+    }
+
+    try {
+        const notes = await prisma.note.findMany({
+            where: { patientId },
+            orderBy: { createdAt: "desc" },
+            include: { professional: { select: { name: true, id: true } } },
+        });
+        
+        // Deserializar JSON antes de enviar al frontend
+        const normalizedNotes = notes.map(note => ({
+            ...note,
+            diagnoses: JSON.parse(note.diagnosesJson),
+            addenda: JSON.parse(note.addendaJson),
+        }));
+
+        return res.json({ items: normalizedNotes, total: normalizedNotes.length, page: 1, size: notes.length });
+
+    } catch (e) {
+        console.error("[Notes] List Notes Error:", e);
+        return res.status(500).json({ message: "Error al listar las notas." });
+    }
 });
 
-router.put("/:noteId/close", (req, res) => {
-  const collection = getNotesCollection(req.params.id);
-  const note = collection.find((item) => item.id === req.params.noteId);
-  if (!note) {
-    return res.status(404).json({ message: "Note not found" });
-  }
-  if (note.status === "closed") {
-    return res.status(409).json({ message: "Note already closed" });
-  }
-  note.status = "closed";
-  note.closedAt = new Date().toISOString();
-  note.updatedAt = note.closedAt;
-  pushAuditEvent({ event: "note_close", meta: { patientId: req.params.id, noteId: note.id, status: "closed" }, at: note.closedAt });
-  res.json(note);
+// --- RUTA 3: GET /:patientId/:noteId (Obtener Detalle) ---
+router.get("/:patientId/:noteId", async (req, res) => {
+    const { patientId, noteId } = req.params;
+    const professionalId = getProfessionalId(req);
+
+    if (!professionalId) return res.status(401).json({ message: "Autenticación requerida." });
+
+    if (!(await checkPatientOwnership(patientId, professionalId))) {
+        return res.status(403).json({ message: "No tienes permiso para ver esta nota." });
+    }
+
+    try {
+        const note = await prisma.note.findUnique({
+            where: { id: noteId, patientId: patientId },
+            include: { professional: { select: { name: true, id: true } } },
+        });
+
+        if (!note) return res.status(404).json({ message: "Nota no encontrada." });
+        
+        // Deserializar JSON
+        return res.json({
+            ...note,
+            diagnoses: JSON.parse(note.diagnosesJson),
+            addenda: JSON.parse(note.addendaJson),
+        });
+
+    } catch (e) {
+        console.error("[Notes] Get Detail Error:", e);
+        return res.status(500).json({ message: "Error al obtener la nota." });
+    }
 });
 
-router.put("/:noteId/addendum", (req, res) => {
-  const collection = getNotesCollection(req.params.id);
-  const note = collection.find((item) => item.id === req.params.noteId);
-  if (!note) {
-    return res.status(404).json({ message: "Note not found" });
-  }
-  if (note.status !== "closed") {
-    return res.status(409).json({ message: "Only closed notes accept addendum" });
-  }
+// --- RUTA 4: POST /:patientId/:noteId/close (Cerrar Nota) ---
+router.post("/:patientId/:noteId/close", async (req, res) => {
+    const { patientId, noteId } = req.params;
+    const professionalId = getProfessionalId(req);
 
-  const parsed = noteAddendumSchema.safeParse(req.body);
-  if (!parsed.success) {
-    return res.status(400).json({ message: parsed.error.issues[0]?.message || "Invalid data" });
-  }
+    if (!professionalId) return res.status(401).json({ message: "Autenticación requerida." });
 
-  const now = new Date().toISOString();
-  const addendum = {
-    datetime: now,
-    author: note.professional?.name || "Profesional",
-    text: parsed.data.text,
-  };
-  note.addenda = Array.isArray(note.addenda) ? [...note.addenda, addendum] : [addendum];
-  note.updatedAt = now;
+    if (!(await checkPatientOwnership(patientId, professionalId))) {
+        return res.status(403).json({ message: "No tienes permiso para cerrar notas de este paciente." });
+    }
 
-  pushAuditEvent({ event: "note_addendum", meta: { patientId: req.params.id, noteId: note.id }, at: now });
-  res.json(note);
+    try {
+        const updatedNote = await prisma.note.update({
+            where: { id: noteId, patientId: patientId, professionalId: professionalId, status: "open" },
+            data: { status: "closed", closedAt: new Date().toISOString() },
+            include: { professional: { select: { name: true, id: true } } },
+        });
+        
+        // Deserializar JSON
+        return res.json({
+            ...updatedNote,
+            diagnoses: JSON.parse(updatedNote.diagnosesJson),
+            addenda: JSON.parse(updatedNote.addendaJson),
+        });
+
+    } catch (e) {
+        if (e.code === 'P2025') {
+            return res.status(404).json({ message: "Nota ya cerrada o no encontrada." });
+        }
+        console.error("[Notes] Close Note Error:", e);
+        return res.status(500).json({ message: "Error al cerrar la nota." });
+    }
 });
 
-router.put("/:noteId/reopen", (req, res) => {
-  return res.status(501).json({ message: "Reopen not implemented" });
+// --- RUTA 5: POST /:patientId/:noteId/addendum (Agregar Addendum) ---
+router.post("/:patientId/:noteId/addendum", async (req, res) => {
+    const { patientId, noteId } = req.params;
+    const professionalId = getProfessionalId(req);
+    const parsed = addendumSchema.safeParse(req.body.text);
+
+    if (!professionalId) return res.status(401).json({ message: "Autenticación requerida." });
+    if (!parsed.success) return res.status(400).json({ message: "Contenido de addendum inválido." });
+
+    const addendumText = parsed.data;
+
+    if (!(await checkPatientOwnership(patientId, professionalId))) {
+        return res.status(403).json({ message: "No tienes permiso para agregar addendum a esta nota." });
+    }
+    
+    try {
+        const existingNote = await prisma.note.findUnique({
+             where: { id: noteId, patientId: patientId },
+             select: { addendaJson: true, professionalId: true, professional: { select: { name: true } } }
+        });
+
+        if (!existingNote) return res.status(404).json({ message: "Nota no encontrada." });
+
+        const currentAddenda = JSON.parse(existingNote.addendaJson || "[]");
+        const authorName = existingNote.professional.name; // Usar el nombre del creador/dueño
+
+        const newAddendum = {
+            datetime: new Date().toISOString(),
+            author: authorName, // Mantenemos el autor del terapeuta creador/dueño
+            text: addendumText,
+        };
+
+        const updatedAddenda = [...currentAddenda, newAddendum];
+
+        const updatedNote = await prisma.note.update({
+            where: { id: noteId, patientId: patientId },
+            data: { addendaJson: JSON.stringify(updatedAddenda), updatedAt: new Date().toISOString() },
+            include: { professional: { select: { name: true, id: true } } },
+        });
+
+        // Deserializar JSON
+        return res.json({
+            ...updatedNote,
+            diagnoses: JSON.parse(updatedNote.diagnosesJson),
+            addenda: updatedAddenda,
+        });
+
+    } catch (e) {
+        console.error("[Notes] Addendum Error:", e);
+        return res.status(500).json({ message: "Error al agregar addendum." });
+    }
 });
+
 
 export default router;
