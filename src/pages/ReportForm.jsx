@@ -132,16 +132,13 @@ export default function ReportForm() {
 
             let result;
             if (isEdit) {
-                // PUT para actualizar un informe existente
                 result = await reportsService.update(reportId, payload);
                 success("Informe actualizado correctamente.");
             } else {
-                // POST para crear un nuevo informe
                 result = await reportsService.create(payload);
                 success("Informe creado correctamente.");
             }
 
-            // 🚨 Navegar al listado de informes del paciente después de la acción
             navigate(`/patients/${patientId}/reports`); 
         } catch (err) {
             error(err?.message || "No pudimos guardar el informe.");
@@ -155,10 +152,8 @@ export default function ReportForm() {
 
         setLocking(true);
         try {
-            // Llama a POST /reports/:id/lock
             await reportsService.lock(reportId);
             
-            // Recargar el detalle para obtener el nuevo estado 'cerrado' y 'lockedAt'
             const updated = await reportsService.getOne(reportId);
             setReport(updated);
             success("Informe cerrado correctamente."); 

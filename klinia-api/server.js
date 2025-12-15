@@ -22,6 +22,8 @@ import { ensureSeedUsers } from "./src/utils/seedUsers.js";
 import { authenticateToken } from './src/middlewares/authmiddleware.js';
 import ordersRouter from "./src/routes/orders.js";
 import reportsRouter from "./src/routes/reports.js";
+import delegatesRouter from "./src/routes/delegates.js";
+import professionalRouter from "./src/routes/professional.js";
 
 const app = express();
 
@@ -54,6 +56,10 @@ app.use("/api/prescriptions", authenticateToken, prescriptionsRouter);
 app.use("/api/notes", authenticateToken, notesRouter);
 app.use("/api/orders", authenticateToken, ordersRouter);
 app.use("/api/reports", authenticateToken, reportsRouter);
+app.use("/api/professional", authenticateToken, professionalRouter);
+app.use("/api/delegates", authenticateToken, delegatesRouter);
+app.use("/api/audit", authenticateToken, auditRouter);
+
 
 // 3. RUTAS DE PACIENTES (Lista y Detalle)
 app.use('/api/patients', authenticateToken, patientsRouter);

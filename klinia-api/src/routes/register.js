@@ -18,71 +18,71 @@ const router = Router();
 // --- FUNCIONES HELPER ---
 
 function buildTokenPayload(user) {
-  return {
-    sub: user.id,
-    email: user.email,
-    role: user.role,
-  };
+    return {
+        sub: user.id,
+        email: user.email,
+        role: user.role,
+    };
 }
 
 function toPublicUser(user) {
-  return {
-    name: user.name,
-    email: user.email,
-    role: user.role,
-  };
+    return {
+        name: user.name,
+        email: user.email,
+        role: user.role,
+    };
 }
 
 function emitAudit(event, meta = {}) {
-  pushAuditEvent({
-    event,
-    meta,
-    at: new Date().toISOString(),
-  });
+    pushAuditEvent({
+        event,
+        meta,
+        at: new Date().toISOString(),
+    });
 }
 
 function isAdult(birthDate) {
-  if (!DATE_REGEX.test(birthDate)) return false;
-  const date = new Date(birthDate);
-  if (Number.isNaN(date.getTime())) return false;
-  const today = new Date();
-  let age = today.getFullYear() - date.getFullYear();
-  const monthDiff = today.getMonth() - date.getMonth();
-  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < date.getDate())) {
-    age -= 1;
-  }
-  return age >= 18;
+    if (!DATE_REGEX.test(birthDate)) return false;
+    const date = new Date(birthDate);
+    if (Number.isNaN(date.getTime())) return false;
+    const today = new Date();
+    let age = today.getFullYear() - date.getFullYear();
+    const monthDiff = today.getMonth() - date.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < date.getDate())) {
+        age -= 1;
+    }
+    return age >= 18;
 }
 
 // --- CONSTANTES ---
 const PASSWORD_REGEX = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
 const CURP_REGEX =
-  /^[A-Z][AEIOU][A-Z]{2}\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])[HM][A-Z]{5}[0-9A-Z]\d$/;
+    /^[A-Z][AEIOU][A-Z]{2}\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])[HM][A-Z]{5}[0-9A-Z]\d$/;
 const PHONE_REGEX = /^\d{10}$/;
 const POSTAL_CODE_REGEX = /^\d{5}$/;
 const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 const MEXICO_STATES = [
-  "AGUASCALIENTES", "BAJA_CALIFORNIA", "BAJA_CALIFORNIA_SUR", "CAMPECHE",
-  "COAHUILA", "COLIMA", "CHIAPAS", "CHIHUAHUA", "CIUDAD_DE_MEXICO", "DURANGO",
-  "GUANAJUATO", "GUERRERO", "HIDALGO", "JALISCO", "MEXICO", "MICHOACAN",
-  "MORELOS", "NAYARIT", "NUEVO_LEON", "OAXACA", "PUEBLA", "QUERETARO",
-  "QUINTANA_ROO", "SAN_LUIS_POTOSI", "SINALOA", "SONORA", "TABASCO",
-  "TAMAULIPAS", "TLAXCALA", "VERACRUZ", "YUCATAN", "ZACATECAS",
+    "AGUASCALIENTES", "BAJA_CALIFORNIA", "BAJA_CALIFORNIA_SUR", "CAMPECHE",
+    "COAHUILA", "COLIMA", "CHIAPAS", "CHIHUAHUA", "CIUDAD_DE_MEXICO", "DURANGO",
+    "GUANAJUATO", "GUERRERO", "HIDALGO", "JALISCO", "MEXICO", "MICHOACAN",
+    "MORELOS", "NAYARIT", "NUEVO_LEON", "OAXACA", "PUEBLA", "QUERETARO",
+    "QUINTANA_ROO", "SAN_LUIS_POTOSI", "SINALOA", "SONORA", "TABASCO",
+    "TAMAULIPAS", "TLAXCALA", "VERACRUZ", "YUCATAN", "ZACATECAS",
 ];
 
 // --- ESQUEMAS ZOD ---
 const emailSchema = z
-  .string({ required_error: "Correo requerido" })
-  .trim()
-  .email({ message: "Correo inválido" })
-  .transform((v) => v.toLowerCase());
+    .string({ required_error: "Correo requerido" })
+    .trim()
+    .email({ message: "Correo inválido" })
+    .transform((v) => v.toLowerCase());
 
 const passwordSchema = z
-  .string({ required_error: "Contraseña requerida" })
-  .min(8)
-  .regex(PASSWORD_REGEX, {
-    message: "Debe incluir al menos una letra y un numero",
-  });
+    .string({ required_error: "Contraseña requerida" })
+    .min(8)
+    .regex(PASSWORD_REGEX, {
+        message: "Debe incluir al menos una letra y un numero",
+    });
 
 const contactSchema = z.object({
   phone: z.string().trim().regex(PHONE_REGEX),
@@ -101,34 +101,34 @@ const addressSchema = z.object({
 
 // --- TERAPEUTA (registerCompleteSchema) ---
 const identitySchema = z.object({
-  firstName: z.string().trim().min(2),
-  lastName: z.string().trim().min(2),
-  curp: z.string().trim().refine((v) => CURP_REGEX.test(v), {
-    message: "CURP inválido",
-  }),
-  certificateFolio: z.string().trim().min(5),
-  birthDate: z.string().trim().regex(DATE_REGEX)
-    .refine((v) => isAdult(v), { message: "Debe ser mayor de 18 años." }),
+    firstName: z.string().trim().min(2),
+    lastName: z.string().trim().min(2),
+    curp: z.string().trim().refine((v) => CURP_REGEX.test(v), {
+        message: "CURP inválido",
+    }),
+    certificateFolio: z.string().trim().min(5),
+    birthDate: z.string().trim().regex(DATE_REGEX)
+        .refine((v) => isAdult(v), { message: "Debe ser mayor de 18 años." }),
 });
 
 const registerCompleteSchema = z.object({
-  access: z.object({
-    email: emailSchema,
-    password: passwordSchema,
-    confirmPassword: z.string().min(1),
-  }),
-  identity: identitySchema,
-  address: addressSchema,
-  contact: contactSchema,
-  documents: z.object({
-    idOrPassportFileId: z.string().min(1),
-    professionalLicenseFileId: z.string().min(1),
-    curpDocumentFileId: z.string().optional(),
-    proofOfAddressFileId: z.string().min(1),
-  }),
-  face: z.object({
-    selfieFileId: z.string().min(1),
-  }),
+    access: z.object({
+        email: emailSchema,
+        password: passwordSchema,
+        confirmPassword: z.string().min(1),
+    }),
+    identity: identitySchema,
+    address: addressSchema,
+    contact: contactSchema,
+    documents: z.object({
+        idOrPassportFileId: z.string().min(1),
+        professionalLicenseFileId: z.string().min(1),
+        curpDocumentFileId: z.string().optional(),
+        proofOfAddressFileId: z.string().min(1),
+    }),
+    face: z.object({
+        selfieFileId: z.string().min(1),
+    }),
 });
 
 // --- PACIENTE (patientRegisterSchema) ---

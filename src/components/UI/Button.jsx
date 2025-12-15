@@ -76,4 +76,8 @@ const Button = forwardRef(
 
 Button.displayName = "Button";
 
+export function ButtonPrimary(props) {
+    return <Button variant="primary" {...props} />;
+}
+
 export default Button;

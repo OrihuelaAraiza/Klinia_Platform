@@ -3,7 +3,7 @@
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL") 
+  url      = env("DATABASE_URL")
 }
 
 generator client {
@@ -15,63 +15,85 @@ generator client {
 
 // Terapeuta / Usuario del Sistema
 model User {
-  id                    String            @id 
-  email                 String            @unique
-  name                  String
-  passwordHash          String
-  role                  String            @default("PROFESSIONAL")
-  createdAt             DateTime          @default(now())
+  id                   String            @id
+  email                String            @unique
+  name                 String
+  passwordHash         String?           // Hacemos opcional para usuarios de login social/delegados
+  role                 String            @default("PROFESSIONAL")
+  createdAt            DateTime          @default(now())
 
-  kycRecord             KycRecord?
-  patientRecord         PatientRecord?
-  uploads               Upload[]
+  delegatedById        String?           // El ID del profesional que delegó a este asistente
+  delegatedBy          User?             @relation("DelegatedAssistants", fields: [delegatedById], references: [id])
+  delegatedAssistants  User[]            @relation("DelegatedAssistants") // Lista de asistentes delegados por este profesional
 
-  // Relaciones 1:N
-  issuedPrescriptions   Prescription[]    @relation("IssuedPrescriptions")
-  sessionsAsProfessional Session[]        @relation("ProfessionalSessions")
-  patientsInCharge      PatientRecord[]   @relation("PatientInCharge")
+  kycRecord            KycRecord?
+  // : Perfil General (Datos editables) 
+  professionalProfile  ProfessionalProfile? 
+
+  // Relaciones 1:1 / 1:N existentes:
+  patientRecord        PatientRecord?     
+  uploads              Upload[]
+
+  issuedPrescriptions  Prescription[]    @relation("IssuedPrescriptions")
+  sessionsAsProfessional Session[]       @relation("ProfessionalSessions")
+  patientsInCharge     PatientRecord[]   @relation("PatientInCharge")
+  notesWritten         Note[]            @relation("ProfessionalNotes")
   
-  notesWritten          Note[]            @relation("ProfessionalNotes") 
-  auditActions          AuditLog[]        @relation("AuditActions")
-  ordersIssued          Order[]           @relation("IssuedOrders")
-  issuedReports          Report[]          @relation("IssuedReports")
+  auditActions         AuditLog[]        @relation("AuditActions")
+  ordersIssued         Order[]           @relation("IssuedOrders")
+  issuedReports        Report[]          @relation("IssuedReports")
 }
 
+//  ProfessionalProfile (Datos editables del perfil)
+model ProfessionalProfile {
+  id                   String   @id @default(cuid())
+  userId               String   @unique
+  user                 User     @relation(fields: [userId], references: [id])
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  // Campos específicos del perfil (tomados de la vista frontend)
+  description          String?  
+  // Enlaces a documentos internos subidos por el profesional (opcional)
+  documentsJson        Json     @default("[]") 
+}
+
+
 model Upload {
-  id                    String            @id 
-  name                  String
-  mime                  String
-  size                  Int
-  blobName              String
-  blobUrl               String
-  uploadedAt            DateTime          @default(now())
-  userId                String?
-  user                  User?             @relation(fields: [userId], references: [id])
+  id                   String            @id
+  name                 String
+  mime                 String
+  size                 Int
+  blobName             String
+  blobUrl              String
+  uploadedAt           DateTime          @default(now())
+  userId               String?
+  user                 User?             @relation(fields: [userId], references: [id])
 }
 
 model KycRecord {
-  id                    String            @id
-  createdAt             DateTime          @default(now())
-  userId                String            @unique
-  user                  User              @relation(fields: [userId], references: [id])
-  firstName             String
-  lastName              String
-  curp                  String
-  birthDate             String
-  certificateFolio      String
-  phone                 String
-  phoneIsVerified       Boolean           @default(false)
-  emergencyName         String
-  emergencyPhone        String
-  street                String
-  neighborhood          String
-  postalCode            String
-  city                  String
-  state                 String
-  nombreCoincide        Boolean
-  curpCoincide          Boolean
-  faceMatch             Boolean           @default(false)
-  faceConfidence        String
+  id                   String            @id
+  createdAt            DateTime          @default(now())
+  userId               String            @unique
+  user                 User              @relation(fields: [userId], references: [id])
+  firstName            String
+  lastName             String
+  curp                 String
+  birthDate            String
+  certificateFolio     String
+  phone                String
+  phoneIsVerified      Boolean           @default(false)
+  emergencyName        String
+  emergencyPhone       String
+  street               String
+  neighborhood         String
+  postalCode           String
+  city                 String
+  state                String
+  nombreCoincide       Boolean
+  curpCoincide         Boolean
+  faceMatch            Boolean           @default(false)
+  faceConfidence       String
 }
 
 
@@ -79,59 +101,59 @@ model KycRecord {
 
 // Paciente
 model PatientRecord {
-  id                    String            @id @default(cuid()) 
-  createdAt             DateTime          @default(now())
-  userId                String            @unique
-  updatedAt             DateTime          @updatedAt
-  user                  User              @relation(fields: [userId], references: [id])
+  id                     String    @id @default(cuid())
+  createdAt              DateTime  @default(now())
+  userId                 String    @unique
+  updatedAt              DateTime  @updatedAt
+  user                   User      @relation(fields: [userId], references: [id])
 
-  firstName             String
-  lastName              String
-  curp                  String?
-  birthDate             String
-  gender                String?
+  firstName              String
+  lastName               String
+  curp                   String?
+  birthDate              String
+  gender                 String?
   
-  referral              String
-  purpose               String
+  referral               String
+  purpose                String
   
-  phone                 String
-  emergencyName         String
-  emergencyPhone        String
-  phoneIsVerified       Boolean           @default(false)
+  phone                  String
+  emergencyName          String
+  emergencyPhone         String
+  phoneIsVerified        Boolean   @default(false)
 
-  prescriptions         Prescription[]    @relation("PatientPrescriptions")
-  sessions              Session[]
-  notes                 Note[]            @relation("PatientNotes") 
-  orders                Order[]           @relation("PatientOrders") 
+  prescriptions          Prescription[] @relation("PatientPrescriptions")
+  sessions               Session[]
+  notes                  Note[]    @relation("PatientNotes")
+  orders                 Order[]   @relation("PatientOrders")
 
-  professionalInChargeId String? 
-  professionalInCharge   User?             @relation("PatientInCharge", fields: [professionalInChargeId], references: [id])
-  reports        Report[]          @relation("PatientReports")
+  professionalInChargeId String?
+  professionalInCharge   User?     @relation("PatientInCharge", fields: [professionalInChargeId], references: [id])
+  reports                Report[]  @relation("PatientReports")
 }
 
 // Recetas
 model Prescription {
-  id                    String            @id @default(cuid()) 
+  id              String             @id @default(cuid())
   
   // METADATOS
-  folio                 String            @default(cuid()) 
-  createdAt             DateTime          @default(now())
-  status                PrescriptionStatus @default(VIGENTE) 
+  folio           String             @default(cuid())
+  createdAt       DateTime           @default(now())
+  status          PrescriptionStatus @default(VIGENTE)
 
   // DATOS RELACIONALES
-  therapistId           String
-  therapist             User              @relation("IssuedPrescriptions", fields: [therapistId], references: [id])
+  therapistId     String
+  therapist       User               @relation("IssuedPrescriptions", fields: [therapistId], references: [id])
 
-  patientRecordId       String
-  patientRecord         PatientRecord     @relation("PatientPrescriptions", fields: [patientRecordId], references: [id])
+  patientRecordId String
+  patientRecord   PatientRecord      @relation("PatientPrescriptions", fields: [patientRecordId], references: [id])
   
-  substance             String
-  form                  String
-  dose                  String
-  route                 String
-  frequency             String
-  duration              String
-  notes                 String?           
+  substance       String
+  form            String
+  dose            String
+  route           String
+  frequency       String
+  duration        String
+  notes           String?
 }
 
 
@@ -139,27 +161,27 @@ model Prescription {
 
 // Sesiones/Citas
 model Session {
-  id                    String            @id @default(cuid())
-  createdAt             DateTime          @default(now())
-  updatedAt             DateTime          @updatedAt
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   // RELACIONES
-  professionalId        String
-  patientId             String
+  professionalId  String
+  patientId       String
   
   // DATOS DE LA CITA
-  datetime              DateTime
-  durationMinutes       Int               @default(60)
+  datetime        DateTime
+  durationMinutes Int      @default(60)
 
-  modality              Modality
-  status                Status
+  modality        Modality
+  status          Status
 
-  location              String? 
-  notes                 String?
+  location        String?
+  notes           String?
 
   // FKs
-  patient               PatientRecord     @relation(fields: [patientId], references: [id])
-  professional          User              @relation("ProfessionalSessions", fields: [professionalId], references: [id])
+  patient         PatientRecord @relation(fields: [patientId], references: [id])
+  professional    User          @relation("ProfessionalSessions", fields: [professionalId], references: [id])
   
   // Índices para optimizar búsquedas por profesional/paciente y fecha
   @@index([professionalId, datetime])
@@ -169,31 +191,31 @@ model Session {
 
 // --- 4. MODELO DE NOTAS DE EVOLUCIÓN (SOAP) ---
 model Note {
-  id                    String            @id @default(cuid())
-  createdAt             DateTime          @default(now())
-  updatedAt             DateTime          @updatedAt
+  id             String     @id @default(cuid())
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
   
   // RELACIONES
-  patientId             String
-  professionalId        String // Autor de la nota
+  patientId      String
+  professionalId String     // Autor de la nota
   
   // CONTENIDO SOAP
-  subjective            String            
-  objective             String            
-  analysis              String            
-  plan                  String            
-  diagnosesJson         String            // Array de diagnósticos (CIE-10) en JSON
+  subjective     String
+  objective      String
+  analysis       String
+  plan           String
+  diagnosesJson  String     // Array de diagnósticos (CIE-10) en JSON
   
   // ESTADO DE LA NOTA
-  status                NoteStatus        @default(open) 
-  closedAt              DateTime?
+  status         NoteStatus @default(open)
+  closedAt       DateTime?
   
   // ADENDA
-  addendaJson           String            @default("[]") 
+  addendaJson    String     @default("[]")
   
   // FKs
-  patient               PatientRecord     @relation("PatientNotes", fields: [patientId], references: [id])
-  professional          User              @relation("ProfessionalNotes", fields: [professionalId], references: [id])
+  patient        PatientRecord @relation("PatientNotes", fields: [patientId], references: [id])
+  professional   User          @relation("ProfessionalNotes", fields: [professionalId], references: [id])
   
   @@index([patientId, createdAt])
 }
@@ -201,23 +223,23 @@ model Note {
 
 // --- 5. MODELO DE ÓRDENES CLÍNICAS ---
 model Order {
-    id                  String            @id @default(cuid())
-    createdAt           DateTime          @default(now())
-    updatedAt           DateTime          @updatedAt
+    id              String    @id @default(cuid())
+    createdAt       DateTime  @default(now())
+    updatedAt       DateTime  @updatedAt
 
     // RELACIONES
-    patientId           String
-    professionalId      String            // Terapeuta que emitió la orden
+    patientId       String
+    professionalId  String    
     
     // DATOS DE LA ORDEN
-    folio               String            @default(cuid())
-    tipo                String            // Laboratorio, Imagenología, etc.
-    descripcion         String
-    indicaciones        String?
-    status              String            @default("vigente") // 'vigente', 'cancelada'
+    folio           String    @default(cuid())
+    tipo            String    // Laboratorio, Imagenología, etc.
+    descripcion     String
+    indicaciones    String?
+    status          String    @default("vigente") 
     
-    patient             PatientRecord     @relation("PatientOrders", fields: [patientId], references: [id])
-    professional        User              @relation("IssuedOrders", fields: [professionalId], references: [id])
+    patient         PatientRecord @relation("PatientOrders", fields: [patientId], references: [id])
+    professional    User          @relation("IssuedOrders", fields: [professionalId], references: [id])
     
     @@index([patientId, createdAt])
 }
@@ -225,21 +247,17 @@ model Order {
 
 // --- 6. MODELO DE REGISTRO DE AUDITORÍA ---
 model AuditLog {
-  id            String    @id @default(cuid())
-  createdAt     DateTime  @default(now())
+  id           String    @id @default(cuid())
+  createdAt    DateTime  @default(now())
   
-  // Datos de la acción
-  action        String    
+  action       String
   
-  // Relación con el terapeuta (usuario que realizó la acción)
-  therapistId   String
-  therapist     User      @relation("AuditActions", fields: [therapistId], references: [id])
+  therapistId  String
+  therapist    User      @relation("AuditActions", fields: [therapistId], references: [id])
   
-  // Objetivo de la acción (ID de la prescripción, paciente, sesión, etc.)
-  targetId      String?
+  targetId     String?
   
-  // Información adicional de la acción (Folio, datos de cambio, etc.)
-  metadata      Json      @default("{}")
+  metadata     Json      @default("{}")
   
   @@index([therapistId])
   @@index([action])
@@ -275,25 +293,25 @@ enum NoteStatus {
 
 
 model Report {
-    id             String            @id @default(cuid())
-    createdAt      DateTime          @default(now())
-    updatedAt      DateTime          @updatedAt
+    id              String        @id @default(cuid())
+    createdAt       DateTime      @default(now())
+    updatedAt       DateTime      @updatedAt
     
     // RELACIONES
-    patientId      String
-    professionalId String            // Terapeuta que emitió/editó el informe
+    patientId       String
+    professionalId  String        
     
     // DATOS DEL INFORME
-    folio          String            @default(cuid())
-    titulo         String
-    contenido      String
+    folio           String        @default(cuid())
+    titulo          String
+    contenido       String
     
     // ESTADO DE SEGURIDAD
-    status         ReportStatus      @default(borrador) // 'borrador', 'cerrado'
-    lockedAt       DateTime?         // Fecha de cierre (inmutabilidad)
+    status          ReportStatus  @default(borrador) 
+    lockedAt        DateTime?     // Fecha de cierre (inmutabilidad)
     
-    patient        PatientRecord     @relation("PatientReports", fields: [patientId], references: [id])
-    professional   User              @relation("IssuedReports", fields: [professionalId], references: [id])
+    patient         PatientRecord @relation("PatientReports", fields: [patientId], references: [id])
+    professional    User          @relation("IssuedReports", fields: [professionalId], references: [id])
     
     @@index([patientId, createdAt])
 }

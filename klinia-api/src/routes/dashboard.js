@@ -9,61 +9,61 @@ const router = Router();
 
 
 function buildPatientName(patientId) {
-  const patient = patients.get(patientId);
-  if (!patient) {
-    return "Paciente sin expediente";
-  }
-  const parts = [patient.firstName, patient.lastName].filter(Boolean);
-  const full = parts.join(" ").trim();
-  return full || patient.curp || patient.email || "Paciente sin nombre";
+    const patient = patients.get(patientId);
+    if (!patient) {
+        return "Paciente sin expediente";
+    }
+    const parts = [patient.firstName, patient.lastName].filter(Boolean);
+    const full = parts.join(" ").trim();
+    return full || patient.curp || patient.email || "Paciente sin nombre";
 }
 
 function pickLatestTimestamp(items, field) {
-  return items.reduce((latest, item) => {
-    const candidate = item[field];
-    if (!candidate) {
-      return latest;
-    }
-    const candidateDate = Date.parse(candidate);
-    if (Number.isNaN(candidateDate)) {
-      return latest;
-    }
-    if (!latest) {
-      return candidate;
-    }
-    const latestDate = Date.parse(latest);
-    if (Number.isNaN(latestDate) || candidateDate > latestDate) {
-      return candidate;
-    }
-    return latest;
-  }, null);
+    return items.reduce((latest, item) => {
+        const candidate = item[field];
+        if (!candidate) {
+            return latest;
+        }
+        const candidateDate = Date.parse(candidate);
+        if (Number.isNaN(candidateDate)) {
+            return latest;
+        }
+        if (!latest) {
+            return candidate;
+        }
+        const latestDate = Date.parse(latest);
+        if (Number.isNaN(latestDate) || candidateDate > latestDate) {
+            return candidate;
+        }
+        return latest;
+    }, null);
 }
 
 async function collectTodaySessions() {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
 
-  try {
-    const sessions = await prisma.session.findMany({
-      where: {
-        datetime: {
-          gte: today,
-          lt: tomorrow,
-        },
-      },
-      include: {
-        patient: { select: { id: true, firstName: true, lastName: true, email: true, curp: true } },
-        professional: { select: { id: true, name: true } }
-      },
-      orderBy: { datetime: 'asc' },
-    });
-    return sessions;
-  } catch (error) {
-    console.error("[Dashboard] Error fetching today sessions from Prisma:", error);
-    return [];
-  }
+    try {
+        const sessions = await prisma.session.findMany({
+            where: {
+                datetime: {
+                    gte: today,
+                    lt: tomorrow,
+                },
+            },
+            include: {
+                patient: { select: { id: true, firstName: true, lastName: true, email: true, curp: true } },
+                professional: { select: { id: true, name: true } }
+            },
+            orderBy: { datetime: 'asc' },
+        });
+        return sessions;
+    } catch (error) {
+        console.error("[Dashboard] Error fetching today sessions from Prisma:", error);
+        return [];
+    }
 }
 
 router.get("/stats", async (req, res) => {

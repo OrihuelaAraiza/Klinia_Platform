@@ -40,6 +40,7 @@ const ReportDetail = lazy(() => import("../pages/ReportDetail"));
 const NotFound = lazy(() => import("../pages/NotFound"));
 const PatientReportsList = lazy(() => import("../components/PatientReportList"));
 const PatientDocuments = lazy(() => import("../pages/PatientDocument"));
+const ProfileProfessional = lazy(() => import("../pages/Professional/ProfessionalProfile"));
 
 function RouteAuditor() {
   const location = useLocation();
@@ -175,6 +176,10 @@ export default function AppRoutes() {
                 path="/patients/:id/documents"
                 element={<PatientDocuments />} 
             />
+              <Route 
+                  path="/ProfileProfessional" 
+                  element={<ProfileProfessional/>} 
+              />
             <Route
               path={ROUTES.reportNew}
               element={<ReportForm />}

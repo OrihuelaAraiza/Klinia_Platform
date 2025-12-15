@@ -50,7 +50,7 @@ export const sessionUpdateSchema = baseSessionSchema.partial().extend({});
 
 export const sessionStatusSchema = z.object({
    status: z.string().min(1, { message: "El estado es requerido." }), // ⬅️ Aceptamos cualquier cadena
-    reason: z.string().optional(),
+        reason: z.string().optional(),
 });
 
 export const sessionLinkNoteSchema = z.object({

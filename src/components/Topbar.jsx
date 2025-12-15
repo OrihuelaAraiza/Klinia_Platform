@@ -3,6 +3,7 @@ import Button from "./UI/Button";
 import Modal from "./UI/Modal";
 import { ROLES_LABEL } from "../utils/constants";
 import ThemeToggle from "./ThemeToggle";
+import { Link, useNavigate } from "react-router-dom";
 
 function getInitials(name) {
   if (!name) return "U";
@@ -85,6 +86,13 @@ export default function Topbar({
     : sidebarCollapsed
     ? MenuIcon
     : CollapseIcon;
+
+    const navigate = useNavigate();
+
+    const goToProfile = () => {
+        navigate("/ProfileProfessional"); 
+    };
+
   return (
     <header className="topbar">
       <div className="topbar__left">
@@ -117,7 +125,7 @@ export default function Topbar({
               <span className="topbar__summary-name">{name}</span>
             </summary>
             <div className="topbar__menu-content">
-              <button type="button">Perfil (próximamente)</button>
+              <button type="button" onClick={goToProfile}> Perfil </button>
               <button type="button" className="danger" onClick={openConfirmLogout}>
                 Cerrar sesión
               </button>

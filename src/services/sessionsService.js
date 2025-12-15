@@ -83,9 +83,9 @@ export function getTodayCounts(options = {}) {
 
 export async function exportIcs(id, options = {}) {
   const response = await api.get(`/sessions/${id}?export=ics`, { 
-    headers: { Accept: "text/calendar", ...(options.headers || {}) },
-    ...options,
-  });
+        headers: { Accept: "text/calendar", ...(options.headers || {}) },
+        ...options,
+    });
   if (typeof window === "undefined") {
     return response;
   }
@@ -102,7 +102,7 @@ export async function exportIcs(id, options = {}) {
 }
 
 export function changeStatus(id, payload, options = {}) {
-  return api.put(`/sessions/${id}/status`, payload, options);
+    return api.put(`/sessions/${id}/status`, payload, options);
 }
 
 
