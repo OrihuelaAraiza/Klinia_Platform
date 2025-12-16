@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
-import { Users, Calendar, Pill, BarChart, BarChart2, Menu, Settings } from "lucide-react";
+import { Users, Calendar, BarChart, BarChart2, Menu, Settings } from "lucide-react";
 import { ROUTES, ROLES, SESSION_STATUS_LABEL } from "../utils/constants";
 import auditService from "../services/auditService";
 import authService from "../services/authService";
@@ -8,7 +8,6 @@ import {
   getStats as fetchDashboardStats,
   getTodaySessions,
   getRecentNotes,
-  getRecentPrescriptions,
 } from "../services/dashboardService";
 import DashboardStats from "../components/DashboardStats";
 import Button from "../components/UI/Button";
@@ -17,7 +16,6 @@ import DashboardQuickLinks from "../components/DashboardQuickLinks";
 import DashboardHeader from "../components/DashboardHeader";
 import WidgetTodaySessions from "../components/WidgetTodaySessions";
 import WidgetRecentNotes from "../components/WidgetRecentNotes";
-import WidgetRecentPrescriptions from "../components/WidgetRecentPrescriptions";
 import NextSteps from "../components/NextSteps";
 
 const ADMINISTRATION_ROUTE = ROUTES.administration || ROUTES.admin || null;
@@ -51,16 +49,6 @@ const DASHBOARD_ACTIONS = [
     icon: BarChart,
     roles: [ROLES.ADMIN, ROLES.PROFESSIONAL],
     ctaLabel: "Generar",
-  },
-  {
-    id: "prescriptions",
-    title: "Prescripciones",
-    description: "Genera y registra prescripciones controladas.",
-    to: ROUTES.prescriptions,
-    icon: Pill,
-    roles: [ROLES.ADMIN, ROLES.PROFESSIONAL],
-    ctaLabel: "Emitir",
-    assistantCtaLabel: "Ver",
   },
 ];
 
@@ -98,7 +86,6 @@ export default function Dashboard() {
   const [widgetsState, setWidgetsState] = useState({
     sessions: { items: [], loading: true, error: null },
     notes: { items: [], loading: true, error: null },
-    prescriptions: { items: [], loading: true, error: null },
   });
   const [reloadKey, setReloadKey] = useState(0);
   const hasLoggedDashboardOpen = useRef(false);
@@ -106,7 +93,6 @@ export default function Dashboard() {
     () => ({
       sessions: () => getTodaySessions(),
       notes: () => getRecentNotes(),
-      prescriptions: () => getRecentPrescriptions(),
     }),
     []
   );
@@ -220,14 +206,12 @@ export default function Dashboard() {
     setWidgetsState((prev) => ({
       sessions: { ...prev.sessions, loading: true, error: null },
       notes: { ...prev.notes, loading: true, error: null },
-      prescriptions: { ...prev.prescriptions, loading: true, error: null },
     }));
 
     (async () => {
-      const [sessionsResult, notesResult, prescriptionsResult] = await Promise.allSettled([
+      const [sessionsResult, notesResult] = await Promise.allSettled([
         dashboardLoaders.sessions(),
         dashboardLoaders.notes(),
-        dashboardLoaders.prescriptions(),
       ]);
 
       if (!active) return;
@@ -245,13 +229,6 @@ export default function Dashboard() {
           items: notesResult.status === "fulfilled" ? limitItems(notesResult.value) : [],
           loading: false,
           error: notesResult.status === "rejected" ? notesResult.reason : null,
-        },
-        prescriptions: {
-          items:
-            prescriptionsResult.status === "fulfilled" ? limitItems(prescriptionsResult.value) : [],
-          loading: false,
-          error:
-            prescriptionsResult.status === "rejected" ? prescriptionsResult.reason : null,
         },
       });
     })();
@@ -294,15 +271,6 @@ export default function Dashboard() {
     const sessionCount = formatNumber(data.sessionsToday ?? 0);
     const cancelledCount = formatNumber(data.sessionsCancelledToday ?? 0);
 
-    const lastPrescription = (() => {
-      if (!data.lastPrescriptionTime) return null;
-      const parsed = new Date(data.lastPrescriptionTime);
-      if (Number.isNaN(parsed.getTime())) {
-        return data.lastPrescriptionTime;
-      }
-      return timeFormatter.format(parsed);
-    })();
-
     const rawProgress = toNumeric(data.reportsProgress ?? 0);
     const normalizedProgress =
       Number.isFinite(rawProgress) && rawProgress <= 1
@@ -326,16 +294,6 @@ export default function Dashboard() {
         value: sessionCount,
         subtext: `${cancelledCount} canceladas`,
         roles: [ROLES.ADMIN, ROLES.PROFESSIONAL, ROLES.ASSISTANT],
-      },
-      {
-        id: "prescriptionsActive",
-        icon: Pill,
-        label: "Prescripciones vigentes",
-        value: formatNumber(data.prescriptionsActive ?? 0),
-        subtext: lastPrescription
-          ? `Última emisión ${lastPrescription}`
-          : "Sin emisiones recientes",
-        roles: [ROLES.ADMIN, ROLES.PROFESSIONAL],
       },
       {
         id: "reportsGenerated",
@@ -410,7 +368,6 @@ export default function Dashboard() {
     () => ({
       sessions: ROUTES.sessions,
       notes: ROUTES.patients,
-      prescriptions: ROUTES.prescriptions,
     }),
     []
   );
@@ -439,8 +396,6 @@ export default function Dashboard() {
       if (item?.patientId) {
         destination = `/patients/${item.patientId}${item?.id ? `/notes/${item.id}` : "/notes"}`;
       }
-    } else if (widgetKey === "prescriptions" && item?.patientId) {
-      destination = `/patients/${item.patientId}`;
     }
 
     auditService.logAudit("dashboard_widget_row_click", {
@@ -667,21 +622,6 @@ export default function Dashboard() {
           canCreate={!isAssistant}
         />
 
-        <WidgetRecentPrescriptions
-          loading={widgetsState.prescriptions.loading}
-          error={widgetsState.prescriptions.error}
-          items={widgetsState.prescriptions.items}
-          onRetry={() =>
-            handleReload("prescriptions", {
-              reason: widgetsState.prescriptions.error?.message || "manual_retry",
-            })
-          }
-          onViewAll={() => handleWidgetViewAll("prescriptions")}
-          onCreate={() => handleWidgetCreate("prescriptions")}
-          onItemClick={(item) => handleWidgetRowClick("prescriptions", item)}
-          formatDateTime={formatDateTimeValue}
-          canCreate={!isAssistant}
-        />
       </div>
 
       <DashboardQuickLinks

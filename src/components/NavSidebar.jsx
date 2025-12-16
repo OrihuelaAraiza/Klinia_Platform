@@ -6,7 +6,6 @@ const NAV_ITEMS = [
   { to: ROUTES.dashboard, label: "Inicio", icon: DashboardIcon, roles: [ROLES.ADMIN, ROLES.PROFESSIONAL, ROLES.ASSISTANT] },
   { to: ROUTES.patients, label: "Pacientes", icon: UsersIcon, roles: [ROLES.ADMIN, ROLES.PROFESSIONAL, ROLES.ASSISTANT] },
   { to: ROUTES.sessions, label: "Sesiones", icon: CalendarIcon, roles: [ROLES.ADMIN, ROLES.PROFESSIONAL, ROLES.ASSISTANT] },
-  { to: ROUTES.prescriptions, label: "Prescripciones", icon: ClipboardIcon, roles: [ROLES.ADMIN, ROLES.PROFESSIONAL, ROLES.ASSISTANT] },
   { to: ROUTES.reports, label: "Reportes", icon: ChartIcon, roles: [ROLES.ADMIN, ROLES.PROFESSIONAL] },
 ];
 
@@ -42,16 +41,6 @@ function ShieldIcon(props) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" {...props}>
       <path d="M12 3 4 6v6c0 5 3.8 9.4 8 10 4.2-.6 8-5 8-10V6l-8-3Z" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function ClipboardIcon(props) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" {...props}>
-      <path d="M8 3h8a1 1 0 0 1 1 1v2H7V4a1 1 0 0 1 1-1Z" />
-      <path d="M9 3a2 2 0 0 0-2 2v15a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2" strokeLinecap="round" />
-      <path d="M9 12h6M9 16h6" strokeLinecap="round" />
     </svg>
   );
 }
