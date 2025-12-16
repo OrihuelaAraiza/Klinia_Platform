@@ -70,7 +70,7 @@ VITE_APP_COMMIT_MESSAGE="mensaje del commit"
 VITE_VERCEL_ENV=preview|production         # Vercel lo inyecta automáticamente
 ```
 
-- **MSAL** se habilita únicamente cuando `VITE_MSAL_CLIENT_ID` y el `tenant/authority` están presentes. En *preview* sin esas variables, el botón de Microsoft no se muestra y no aparece ningún banner.
+- **MSAL** se habilita únicamente cuando `VITE_MSAL_CLIENT_ID` y el `tenant/authority` están presentes. En _preview_ sin esas variables, el botón de Microsoft no se muestra y no aparece ningún banner.
 - `VITE_APP_VERSION` y `VITE_APP_COMMIT_MESSAGE` alimentan el pie de página del layout y la página `/health` para inspeccionar builds desplegados.
 - El script de postbuild usa `VERCEL_ENV` para copiar el `robots.txt` correcto (`Allow` en producción, `Disallow` en previews) y se ejecuta automáticamente dentro de `npm run build`.
 
@@ -90,6 +90,7 @@ La aplicación estará disponible en `http://localhost:5173/`.
 ```bash
 npm run build
 ```
+
 Genera los artefactos optimizados en `dist/`, ejecuta el ajuste de `robots.txt` según `VERCEL_ENV` y deja los assets listos para Vercel. Puedes hacer una vista previa con:
 
 ```bash
@@ -116,26 +117,26 @@ npm run dev
 
 Por defecto escucha en `http://localhost:4000`. Ajusta `VITE_API_BASE_URL` para apuntar a este servidor o a tu backend real.
 
-### Variables de entorno del API y Neon
+### Variables de entorno del API
 
-1. Copia el archivo de ejemplo: `cp klinia-api/.env.example klinia-api/.env`.
+1. Copia el archivo de ejemplo: `cp klinia-api/env.example klinia-api/.env`.
 2. Completa los valores reales (Azure, Twilio, JWT, etc.) únicamente en tu `.env` local o en los secretos de la plataforma de despliegue.
-3. Para la base de datos usa la cadena que genera Neon en tu proyecto. El formato recomendado ya viene en el ejemplo:
+3. Para la base de datos PostgreSQL (Azure, Neon, o cualquier proveedor):
 
    ```
-   postgresql://<usuario>:<password>@<host>/<database>?sslmode=require&channel_binding=require
+   postgresql://<usuario>:<password>@<host>/<database>?sslmode=require
    ```
 
-   En tu instancia actual bastará con pegar la cadena de conexión que Neon muestra para la base `klinia_db`. No la confirmes en el repositorio: el `.env` se ignora por Git para protegerla.
+   **No confirmes el `.env` en el repositorio**: está en `.gitignore` para proteger los secretos.
 
-4. Ejecuta las migraciones apuntando a Neon:
+4. Ejecuta las migraciones:
 
    ```bash
    cd klinia-api
    npx prisma migrate deploy   # o `npx prisma db push` si es un entorno nuevo
    ```
 
-5. En Vercel (o cualquier hosting), crea los mismos nombres de variables (`DATABASE_URL`, `AZURE_*`, `TWILIO_*`, `JWT_SECRET`, etc.) en la sección de Environment Variables. Así la API usará la base de Neon sin exponer la cadena.
+5. En Azure App Service (o cualquier hosting), crea los mismos nombres de variables (`DATABASE_URL`, `AZURE_*`, `TWILIO_*`, `JWT_SECRET`, etc.) en la sección de Environment Variables/Application Settings.
 
 ## Convenciones y buenas prácticas
 
@@ -146,7 +147,42 @@ Por defecto escucha en `http://localhost:4000`. Ajusta `VITE_API_BASE_URL` para 
 - Las rutas públicas son Login (`/`) y Register (`/register`). Todo lo demás requiere sesión válida y rol autorizado.
 - `/health` está disponible sin autenticación y devuelve metadatos de la build para validar cabeceras en Vercel.
 
-## Despliegue en Vercel
+## Despliegue
+
+### Opción 1: Azure (Backend) + cPanel (Frontend) - Recomendado para Producción
+
+Esta es la configuración recomendada para un deployment profesional:
+
+- **Backend**: Azure App Service (Node.js + Express)
+- **Frontend**: cPanel (React SPA estático)
+- **Base de Datos**: Azure Database for PostgreSQL
+
+**Documentación completa:**
+
+- 🚀 **[Quick Start Guide](./QUICK_START.md)** - Inicio rápido
+- 📚 **[Guía Completa de Deployment](./DEPLOYMENT_GUIDE.md)** - Guía maestra
+- 🔧 **[Azure Deployment](./klinia-api/AZURE_DEPLOYMENT.md)** - Backend en Azure
+- 🌐 **[cPanel Deployment](./CPANEL_DEPLOYMENT.md)** - Frontend en cPanel
+
+**Pasos rápidos:**
+
+1. **Backend (Azure)**:
+
+   ```bash
+   # Crear App Service en Azure Portal
+   # Configurar variables de entorno
+   # Deploy desde GitHub o Azure CLI
+   git push azure main
+   ```
+
+2. **Frontend (cPanel)**:
+   ```bash
+   # Crear .env.production con VITE_API_BASE_URL
+   npm run build
+   # Subir contenido de dist/ a public_html en cPanel
+   ```
+
+### Opción 2: Vercel (Frontend y Backend)
 
 - El archivo `vercel.json` aplica **rewrites SPA**, fuerza `cleanUrls`, agrega cabeceras de seguridad (`X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options`, `Permissions-Policy`) y define la política de caché (HTML `no-store`, assets versionados cacheados un año).
 - El mismo archivo también realiza la canonización de dominio: cualquier visita a `https://klinia.ai` se redirige (308) hacia `https://www.klinia.ai`, asegurando que las cookies y redirects sean consistentes.
@@ -168,4 +204,3 @@ Por defecto escucha en `http://localhost:4000`. Ajusta `VITE_API_BASE_URL` para 
 ---
 
 ¿Necesitas extender funcionalidades? Revisa los servicios existentes y mantén la auditoría y validaciones coherentes con los módulos actuales. ¡Feliz desarrollo! 💚
-

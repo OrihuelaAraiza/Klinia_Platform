@@ -25,9 +25,21 @@ async function copyRobots() {
   await copyFile(sourceFile, targetFile);
 }
 
+async function copyHtaccess() {
+  try {
+    const sourceFile = path.join(publicDir, ".htaccess");
+    const targetFile = path.join(distDir, ".htaccess");
+    await copyFile(sourceFile, targetFile);
+  } catch (error) {
+    // .htaccess es opcional, solo advertir si no existe
+    console.warn("[postbuild] No se encontró .htaccess en public/, se puede agregar manualmente en cPanel");
+  }
+}
+
 (async () => {
   await ensureDist();
   await copyRobots();
+  await copyHtaccess();
 })().catch((error) => {
-  console.warn("[postbuild] No se pudo ajustar robots.txt:", error.message);
+  console.warn("[postbuild] Error:", error.message);
 });
