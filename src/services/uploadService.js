@@ -23,7 +23,7 @@ export async function uploadDocument(file, metadata = {}, options = {}) {
   return api.request(UPLOAD_ENDPOINT, {
     method: "POST",
     body: formData,
-    auth: false,
+    auth: true, // El endpoint requiere autenticación para asociar el archivo al usuario
     ...options,
   });
 }

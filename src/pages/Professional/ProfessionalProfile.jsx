@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'; 
+import React, { useState, useEffect, useRef } from 'react'; 
 import { useOutletContext, useNavigate } from 'react-router-dom';
 import Card, { CardBody, CardHeader } from '../../components/UI/Card';
 import Button from '../../components/UI/Button';
@@ -11,8 +11,9 @@ import Modal from '../../components/UI/Modal';
 import { useToast } from '../../components/UI/Toast';
 import { PhoneVerificationModal } from '../../components/register/PhoneVerificationModal'; 
 import DocumentUploadModal from '../../components/DocumentUploadModal'; 
-import { FileText, Link, Upload, X } from 'lucide-react'; 
+import { FileText, Link, Upload, X, Camera, User } from 'lucide-react'; 
 import professionalService from '../../services/professionalService'; 
+import uploadService from '../../services/uploadService'; 
 
 const MAX_DELEGATES = 5;
 
@@ -39,7 +40,6 @@ export default function ProfessionalProfile() {
     // Extracción segura de datos del nuevo modelo ProfessionalProfile
     const profileData = user?.professionalProfile || {};
 
-
     // --- ESTADOS ---
     const [activeSection, setActiveSection] = useState('general');
     const [confirmLogoutOpen, setConfirmLogoutOpen] = useState(false);
@@ -63,7 +63,12 @@ export default function ProfessionalProfile() {
         newPassword: '',
         newPasswordConfirm: '',
         phoneIsVerified: profileData.phoneIsVerified || false, 
+        profilePictureUrl: profileData.profilePictureUrl || null,
     });
+    
+    const [profilePicturePreview, setProfilePicturePreview] = useState(null);
+    const [isUploadingPicture, setIsUploadingPicture] = useState(false);
+    const profilePictureInputRef = useRef(null);
     
     const [delegateForm, setDelegateForm] = useState({
         delegateUsername: '',
@@ -91,6 +96,21 @@ export default function ProfessionalProfile() {
                 });
         }
     }, [activeSection, error]);
+
+    // --- EFECTO PARA ACTUALIZAR FORMULARIO CUANDO CAMBIAN LOS DATOS DEL USUARIO ---
+    useEffect(() => {
+        const currentProfileData = user?.professionalProfile || {};
+        setGeneralForm(prev => ({
+            ...prev,
+            description: currentProfileData.description || '',
+            phone: currentProfileData.phone || '',
+            emergencyContactName: currentProfileData.emergencyContactName || '',
+            emergencyContactPhone: currentProfileData.emergencyContactPhone || '',
+            newEmail: user?.email || '',
+            phoneIsVerified: currentProfileData.phoneIsVerified || false,
+            profilePictureUrl: currentProfileData.profilePictureUrl || null,
+        }));
+    }, [user]);
 
 
     // --- HANDLERS GENERALES ---
@@ -124,6 +144,64 @@ export default function ProfessionalProfile() {
         setGeneralForm(prev => ({ ...prev, phoneIsVerified: true })); 
         setIsPhoneModalOpen(false);
         success("¡Teléfono verificado con éxito!");
+    };
+
+    const handleProfilePictureChange = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Validar tipo de archivo
+        const validTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+        if (!validTypes.includes(file.type)) {
+            error("Solo se permiten imágenes JPG o PNG.");
+            return;
+        }
+
+        // Validar tamaño (máximo 5MB)
+        const maxSize = 5 * 1024 * 1024;
+        if (file.size > maxSize) {
+            error("La imagen no debe exceder 5MB.");
+            return;
+        }
+
+        setIsUploadingPicture(true);
+        
+        try {
+            // Crear preview local
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setProfilePicturePreview(reader.result);
+            };
+            reader.readAsDataURL(file);
+
+            // Subir a Azure Blob Storage
+            const uploadResponse = await uploadService.uploadDocument(file, {}, { auth: true });
+            
+            if (uploadResponse?.blobUrl) {
+                setGeneralForm(prev => ({ ...prev, profilePictureUrl: uploadResponse.blobUrl }));
+                success("Foto de perfil cargada correctamente. Guarda los cambios para aplicarla.");
+            } else {
+                throw new Error("No se recibió la URL de la imagen.");
+            }
+        } catch (err) {
+            console.error("Error al subir foto de perfil:", err);
+            error(err?.message || "Error al subir la foto de perfil.");
+            setProfilePicturePreview(null);
+        } finally {
+            setIsUploadingPicture(false);
+            // Limpiar el input
+            if (profilePictureInputRef.current) {
+                profilePictureInputRef.current.value = '';
+            }
+        }
+    };
+
+    const handleRemoveProfilePicture = () => {
+        setGeneralForm(prev => ({ ...prev, profilePictureUrl: null }));
+        setProfilePicturePreview(null);
+        if (profilePictureInputRef.current) {
+            profilePictureInputRef.current.value = '';
+        }
     };
 
 
@@ -174,6 +252,7 @@ export default function ProfessionalProfile() {
             emergencyContactName: cleanValue(generalForm.emergencyContactName),
             emergencyContactPhone: cleanValue(generalForm.emergencyContactPhone),
             email: cleanValue(generalForm.newEmail),
+            profilePictureUrl: cleanValue(generalForm.profilePictureUrl),
             
             // Seguridad
             newPassword: cleanValue(generalForm.newPassword),
@@ -193,11 +272,14 @@ export default function ProfessionalProfile() {
                setGeneralForm(prev => ({ 
                    ...prev, 
                    newEmail: result.user.email,
+                   profilePictureUrl: result.user.professionalProfile?.profilePictureUrl || prev.profilePictureUrl,
                    // Limpiar solo los campos de seguridad
                    currentPassword: '', 
                    newPassword: '', 
                    newPasswordConfirm: '' 
                }));
+               // Limpiar preview si se guardó exitosamente
+               setProfilePicturePreview(null);
            }
            
         } catch (err) {
@@ -301,33 +383,159 @@ export default function ProfessionalProfile() {
             case 'general':
                 return (
                     <Card>
-                        <CardHeader><h3>Información del Terapeuta</h3></CardHeader>
+                        <CardHeader>
+                            <h3 style={{ margin: 0 }}>Información del Terapeuta</h3>
+                        </CardHeader>
                         <CardBody className="stack-4">
                             <form onSubmit={handleUpdateGeneral} className="stack-3">
                                 
                                 <div className="detail-grid">
-                                    <p><strong>Nombre:</strong> {name}</p>
-                                    <p><strong>Rol:</strong> <Badge variant="neutral">{roleLabel}</Badge></p>
-                                    <p><strong>Cédula:</strong> {license}</p>
+                                    <div>
+                                        <strong>Nombre</strong>
+                                        <span>{name}</span>
+                                    </div>
+                                    <div>
+                                        <strong>Rol</strong>
+                                        <span><Badge variant="neutral">{roleLabel}</Badge></span>
+                                    </div>
+                                    <div>
+                                        <strong>Cédula</strong>
+                                        <span>{license}</span>
+                                    </div>
                                 </div>
                                 
                                 <hr />
 
+                                {/* Foto de Perfil */}
+                                <button
+                                    type="button"
+                                    className={`profile-picture-section ${profilePicturePreview || generalForm.profilePictureUrl ? 'has-picture' : ''} ${isUploadingPicture ? 'is-uploading' : ''}`}
+                                    onClick={() => {
+                                        if (!isUploadingPicture && !(profilePicturePreview || generalForm.profilePictureUrl)) {
+                                            profilePictureInputRef.current?.click();
+                                        }
+                                    }}
+                                    disabled={isUploadingPicture || !!(profilePicturePreview || generalForm.profilePictureUrl)}
+                                >
+                                    <div className="profile-picture-header">
+                                        <h3 className="title-sm" style={{ marginTop: 0, marginBottom: '0.5rem' }}>Foto de Perfil Profesional</h3>
+                                        <p className="helper-text">
+                                            Tu foto de perfil será visible para tus pacientes. Utiliza una imagen profesional y de buena calidad. 
+                                            Formatos: JPG o PNG (máximo 5MB).
+                                        </p>
+                                    </div>
+                                    
+                                    <div className="profile-picture-container">
+                                        <div className="profile-picture-wrapper">
+                                            {profilePicturePreview || generalForm.profilePictureUrl ? (
+                                                <>
+                                                    <img 
+                                                        src={profilePicturePreview || generalForm.profilePictureUrl} 
+                                                        alt="Foto de perfil" 
+                                                        className="profile-picture-image"
+                                                    />
+                                                    {isUploadingPicture && (
+                                                        <div className="profile-picture-loading-overlay">
+                                                            <div className="profile-picture-spinner"></div>
+                                                            <span>Subiendo...</span>
+                                                        </div>
+                                                    )}
+                                                    {!isUploadingPicture && (
+                                                        <>
+                                                            <button
+                                                                type="button"
+                                                                className="profile-picture-overlay"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    profilePictureInputRef.current?.click();
+                                                                }}
+                                                            >
+                                                                <Camera size={24} />
+                                                                <span>Cambiar foto</span>
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                className="profile-picture-remove"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleRemoveProfilePicture();
+                                                                }}
+                                                                title="Eliminar foto"
+                                                            >
+                                                                <X size={18} />
+                                                            </button>
+                                                        </>
+                                                    )}
+                                                </>
+                                            ) : (
+                                                <div className="profile-picture-placeholder">
+                                                    {isUploadingPicture ? (
+                                                        <div className="profile-picture-loading-content">
+                                                            <div className="profile-picture-spinner"></div>
+                                                            <span className="profile-picture-loading-text">Subiendo...</span>
+                                                        </div>
+                                                    ) : (
+                                                        <User size={72} strokeWidth={1.5} />
+                                                    )}
+                                                </div>
+                                            )}
+                                            
+                                            <input
+                                                ref={profilePictureInputRef}
+                                                type="file"
+                                                accept="image/jpeg,image/jpg,image/png"
+                                                onChange={handleProfilePictureChange}
+                                                style={{ display: 'none' }}
+                                                disabled={isUploadingPicture}
+                                            />
+                                        </div>
+                                        
+                                        {!isUploadingPicture && !(profilePicturePreview || generalForm.profilePictureUrl) && (
+                                            <div className="profile-picture-action">
+                                                <Upload size={20} />
+                                                <span>Haz clic para subir tu foto</span>
+                                            </div>
+                                        )}
+                                        
+                                        <div className="profile-picture-info">
+                                            {generalForm.profilePictureUrl && !profilePicturePreview && !isUploadingPicture && (
+                                                <div className="profile-picture-status success">
+                                                    <span className="status-icon">✓</span>
+                                                    <span>Foto guardada. Los pacientes podrán verla.</span>
+                                                </div>
+                                            )}
+                                            {profilePicturePreview && !isUploadingPicture && (
+                                                <div className="profile-picture-status warning">
+                                                    <span className="status-icon">ℹ</span>
+                                                    <span>Recuerda guardar los cambios para aplicar la nueva foto.</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </button>
+                                
+                                <hr />
+
                                 {/* 1. Descripción y Bio */}
-                                <label className="ui-field__label">Descripción / Bio</label>
+                                <Field label="Descripción / Bio">
+                                    {({ fieldId, describedBy }) => (
                                 <textarea
-                                    className="input-field__input"
+                                            id={fieldId}
+                                            className="textarea"
                                     value={generalForm.description}
                                     onChange={(e) => handleGeneralFormChange('description', e.target.value)}
                                     rows={4}
                                     placeholder="Agrega una descripción para tus pacientes o tu perfil profesional."
+                                            aria-describedby={describedBy}
                                 />
+                                    )}
+                                </Field>
 
                                 <hr />
                                 
                                 {/* 2. Contacto y Seguridad */}
-                                <h4 className="title-sm">Contacto y Seguridad</h4>
-                                <div className="detail-grid cols-2">
+                                <h3 className="title-sm" style={{ marginTop: 0 }}>Contacto y Seguridad</h3>
+                                <div className="form-grid">
                                     {/* 2.1. Correo Electrónico */}
                                     <InputField
                                         label="Correo Electrónico"
@@ -418,7 +626,7 @@ export default function ProfessionalProfile() {
                                 <hr />
                                 
                                 {/* 2.7. Contraseña Actual (Doble Validación) */}
-                                <h4 className="title-sm">Validación de Seguridad</h4>
+                                <h3 className="title-sm" style={{ marginTop: 0 }}>Validación de Seguridad</h3>
                                 <p className="helper-text">
                                     Se requiere su contraseña actual para confirmar la mayoría de los cambios.
                                 </p>
@@ -433,23 +641,26 @@ export default function ProfessionalProfile() {
                                     error={securityErrors.currentPassword}
                                 />
 
-
-                                <ButtonPrimary type="submit" loading={isSavingGeneral} disabled={isSavingGeneral}>
+                                <div className="form-actions">
+                                    <Button type="submit" variant="primary" loading={isSavingGeneral} disabled={isSavingGeneral}>
                                     Guardar Cambios
-                                </ButtonPrimary>
+                                    </Button>
+                                </div>
                             </form>
                             
                             <hr />
                             
                             {/* 3. Eliminar Cuenta */}
-                            <div className="stack-2">
-                                <h4 className="title-sm danger">Zona de Peligro</h4>
+                            <div className="stack-3">
+                                <h3 className="title-sm danger" style={{ marginTop: 0 }}>Zona de Peligro</h3>
                                 <p className="helper-text">
                                     Eliminará permanentemente su cuenta y toda la información asociada a ella.
                                 </p>
+                                <div>
                                 <Button variant="danger" onClick={() => setDeleteAccountOpen(true)}>
                                     Eliminar cuenta
                                 </Button>
+                                </div>
                             </div>
                         </CardBody>
                     </Card>
@@ -458,35 +669,56 @@ export default function ProfessionalProfile() {
             case 'documents':
                 return (
                     <Card>
-                        <CardHeader className="cluster justify-between">
-                            <h3>Documentos de Acreditación y Soporte ({uploadedDocuments.length})</h3>
-                            <ButtonPrimary onClick={handleOpenUploadModal}>
+                        <CardHeader>
+                            <div className="cluster justify-between align-center" style={{ flexWrap: 'wrap', gap: 'var(--s-3)' }}>
+                                <h3 style={{ margin: 0 }}>Documentos de Acreditación y Soporte ({uploadedDocuments.length})</h3>
+                                <Button variant="primary" onClick={handleOpenUploadModal}>
                                 Subir Nuevo Documento
-                            </ButtonPrimary>
+                                </Button>
+                            </div>
                         </CardHeader>
-                        <CardBody className="stack-3">
+                        <CardBody className="stack-4">
                             <p className="helper-text">Sube y gestiona documentos profesionales como cédula, certificados y estudios. Los documentos con URL son enlaces externos.</p>
 
-                            <div className="stack-2">
+                            <div className="stack-3">
                                 {uploadedDocuments.length === 0 ? (
                                     <p className="helper-text">No hay documentos registrados.</p>
                                 ) : (
-                                    <ul className="stack-1">
+                                    <div className="stack-2">
                                         {uploadedDocuments.map(doc => (
-                                            <li key={doc.id} className="cluster justify-between align-center document-item p-2 border-b">
-                                                <div className="cluster gap-2 align-center">
-                                                    <FileText size={18} />
-                                                    <span className="font-semibold">{doc.name}</span>
-                                                    {doc.url && <a href={doc.url} target="_blank" rel="noopener noreferrer"><Link size={14} className="text-primary" /></a>}
+                                            <div key={doc.id} className="document-item">
+                                                <div className="cluster gap-2 align-center" style={{ flex: 1, minWidth: 0 }}>
+                                                    <FileText size={18} style={{ flexShrink: 0 }} />
+                                                    <div style={{ minWidth: 0, flex: 1 }}>
+                                                        <div className="cluster gap-2 align-center" style={{ flexWrap: 'wrap' }}>
+                                                            <span style={{ fontWeight: 600, wordBreak: 'break-word' }}>{doc.name}</span>
+                                                            {doc.url && (
+                                                                <a 
+                                                                    href={doc.url} 
+                                                                    target="_blank" 
+                                                                    rel="noopener noreferrer"
+                                                                    className="link"
+                                                                    style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}
+                                                                >
+                                                                    <Link size={14} />
+                                                                    Enlace
+                                                                </a>
+                                                            )}
+                                                        </div>
+                                                        {doc.description && (
+                                                            <p className="helper-text" style={{ margin: '0.25rem 0 0', fontSize: '0.85rem' }}>
+                                                                {doc.description.length > 50 ? `${doc.description.substring(0, 50)}...` : doc.description}
+                                                            </p>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                                <div className="cluster gap-2">
-                                                    <p className="helper-text">{doc.description.substring(0, 30)}...</p>
+                                                <div className="cluster gap-2" style={{ flexWrap: 'wrap' }}>
                                                     <Button 
                                                         variant="ghost" 
                                                         size="sm" 
                                                         onClick={() => handleEditDocument(doc)}
                                                     >
-                                                        Ver/Editar
+                                                        Editar
                                                     </Button>
                                                     <Button 
                                                         variant="danger" 
@@ -496,9 +728,9 @@ export default function ProfessionalProfile() {
                                                         Eliminar
                                                     </Button>
                                                 </div>
-                                            </li>
+                                            </div>
                                         ))}
-                                    </ul>
+                                    </div>
                                 )}
                             </div>
                         </CardBody>
@@ -510,28 +742,40 @@ export default function ProfessionalProfile() {
                 return (
                     <Card>
                         <CardHeader>
-                            <h3>Registro de Actividad (Log de Acciones)</h3>
+                            <h3 style={{ margin: 0 }}>Registro de Actividad (Log de Acciones)</h3>
                         </CardHeader>
-                        <CardBody className="stack-3">
+                        <CardBody className="stack-4">
                             <p className="helper-text">Absolutamente todas las acciones que ha realizado el terapeuta (incluyendo las realizadas por asistentes delegados).</p>
                             
-                            <div className="cluster gap-2">
+                            <div className="cluster gap-2" style={{ flexWrap: 'wrap' }}>
                                 <Button variant="secondary">Descargar JSON</Button>
                                 <Button variant="secondary">Descargar PDF</Button>
                             </div>
 
-                            <div className="table-wrapper">
-                                <table className="table">
+                            <div className="ui-table__wrapper">
+                                <table className="ui-table">
                                     <thead>
                                         <tr>
-                                            <th>Fecha/Hora</th><th>Acción</th><th>Usuario</th><th>Detalles</th>
+                                            <th>Fecha/Hora</th>
+                                            <th>Acción</th>
+                                            <th>Usuario</th>
+                                            <th>Detalles</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <tr><td>2025-12-15 10:30</td><td>patient_create</td><td>{name} (Terapeuta)</td><td>Registro de Paciente PAT-001</td></tr>
-                                        <tr><td>2025-12-15 11:05</td><td>order_create</td><td>Asistente_01 (Delegado)</td><td>Creación de Orden INF-456 para PAT-001</td></tr>
+                                        <tr>
+                                            <td>2025-12-15 10:30</td>
+                                            <td>patient_create</td>
+                                            <td>{name} (Terapeuta)</td>
+                                            <td>Registro de Paciente PAT-001</td>
+                                        </tr>
+                                        <tr>
+                                            <td>2025-12-15 11:05</td>
+                                            <td>order_create</td>
+                                            <td>Asistente_01 (Delegado)</td>
+                                            <td>Creación de Orden INF-456 para PAT-001</td>
+                                        </tr>
                                     </tbody>
-                                
                                 </table>
                             </div>
                         </CardBody>
@@ -545,7 +789,7 @@ export default function ProfessionalProfile() {
                 return (
                     <Card>
                         <CardHeader>
-                            <h3>Crear Perfiles de Asistentes</h3>
+                            <h3 style={{ margin: 0 }}>Crear Perfiles de Asistentes</h3>
                         </CardHeader>
                         <CardBody className="stack-4">
                             
@@ -554,10 +798,11 @@ export default function ProfessionalProfile() {
                                 las cuales se registrarán en su log de auditoría.
                             </p>
                             
-                            <form onSubmit={handleCreateDelegate} className="stack-2">
-                                <div className="cluster gap-2">
+                            <form onSubmit={handleCreateDelegate} className="stack-3">
+                                <div className="form-grid">
                                     <InputField
                                         label="Usuario / Email del Asistente"
+                                        name="delegateUsername"
                                         value={delegateForm.delegateUsername}
                                         onChange={(e) => handleDelegateFormChange('delegateUsername', e.target.value)}
                                         required
@@ -565,30 +810,33 @@ export default function ProfessionalProfile() {
                                     <InputField
                                         label="Contraseña"
                                         type="password"
+                                        name="delegatePassword"
                                         value={delegateForm.delegatePassword}
                                         onChange={(e) => handleDelegateFormChange('delegatePassword', e.target.value)}
                                         required
                                     />
                                 </div>
-                                <ButtonPrimary type="submit" disabled={delegates.length >= MAX_DELEGATES}>
+                                <div>
+                                    <Button type="submit" variant="primary" disabled={delegates.length >= MAX_DELEGATES}>
                                     Crear Asistente (Restantes: {MAX_DELEGATES - delegates.length})
-                                </ButtonPrimary>
+                                    </Button>
+                                </div>
                             </form>
 
-                            <div className="stack-2">
-                                <h4>Asistentes Activos</h4>
+                            <div className="stack-3">
+                                <h3 className="title-sm" style={{ marginTop: 0 }}>Asistentes Activos</h3>
                                 {delegatesLoading ? (
                                     <p>Cargando lista de asistentes...</p>
                                 ) : delegates.length === 0 ? (
                                     <p className="helper-text">No hay asistentes delegados activos.</p>
                                 ) : (
-                                    <div className="table-wrapper">
-                                        <table className="table">
+                            <div className="ui-table__wrapper">
+                                <table className="ui-table">
                                             <thead>
                                                 <tr>
                                                     <th>Usuario</th>
                                                     <th>Estado</th>
-                                                    <th className="table__actions">Acciones</th>
+                                            <th style={{ textAlign: 'right' }}>Acciones</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -596,7 +844,7 @@ export default function ProfessionalProfile() {
                                                     <tr key={d.id}>
                                                         <td>{d.email || d.username}</td>
                                                         <td><Badge variant="success">Activo</Badge></td>
-                                                        <td>
+                                                <td style={{ textAlign: 'right' }}>
                                                             <Button 
                                                                 variant="danger" 
                                                                 size="sm"
@@ -628,30 +876,28 @@ export default function ProfessionalProfile() {
                 <p className="helper-text">Gestión de cuenta y datos {roleLabel}.</p>
             </header>
 
-            <div className="profile-layout cluster align-start gap-4"> 
-                <aside className="profile-menu stack-2">
+            <div className="profile-layout"> 
+                <aside className="profile-menu">
                     {menuItems.map(item => (
-                        <Button
+                        <button
                             key={item.id}
-                            variant={item.id === activeSection ? 'primary' : 'ghost'}
-                            className="profile-menu-item"
+                            type="button"
+                            className={`profile-menu-item${item.id === activeSection ? ' is-active' : ''}`}
                             onClick={() => setActiveSection(item.id)}
-                            fullWidth
                         >
                             {item.label}
-                        </Button>
+                        </button>
                     ))}
-                    <Button 
-                        variant="danger" 
+                    <button 
+                        type="button"
+                        className="profile-menu-item ui-btn btn--danger"
                         onClick={openConfirmLogout} 
-                        fullWidth
-                        className="mt-4"
                     >
                         Cerrar Sesión
-                    </Button>
+                    </button>
                 </aside>
 
-                <main className="profile-content flex-grow">
+                <main className="profile-content">
                     {renderContent()}
                 </main>
             </div>

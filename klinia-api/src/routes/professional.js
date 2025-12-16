@@ -18,6 +18,7 @@ const profileUpdateSchema = z.object({
     currentPassword: z.string().min(1, "Contraseña actual requerida."),
     newPassword: z.string().min(8, "Mínimo 8 caracteres.").optional(),
     phoneIsVerified: z.boolean().optional(),
+    profilePictureUrl: z.string().url("URL de foto de perfil inválida.").nullable().optional(),
 }).strict(); 
 
 router.put("/profile", async (req, res) => {
@@ -73,6 +74,10 @@ router.put("/profile", async (req, res) => {
         
         if (data.description !== undefined) {
              profileUpdates.description = data.description;
+        }
+
+        if (data.profilePictureUrl !== undefined) {
+             profileUpdates.profilePictureUrl = data.profilePictureUrl;
         }
 
         if (data.emergencyContactName !== undefined) kycUpdates.emergencyName = data.emergencyContactName;

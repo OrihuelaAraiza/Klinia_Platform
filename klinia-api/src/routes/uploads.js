@@ -6,7 +6,7 @@ import * as blobService from '../services/azureBlobService.js'; // ¡Importante!
 
 const router = Router();
 
-const ACCEPTED_MIME = new Set(["application/pdf", "image/jpeg", "image/pjpeg"]);
+const ACCEPTED_MIME = new Set(["application/pdf", "image/jpeg", "image/pjpeg", "image/png", "image/jpg"]);
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
 const upload = multer({
@@ -33,8 +33,11 @@ router.post("/", (req, res) => {
       }
 
       const fileId = uid("UPL_");
-      const userId = 'temp-user-id';
-      const blobName = `auditoria/${userId}/doc-${fileId}-${file.originalname}`;
+      // Obtener userId del usuario autenticado, o usar null si no está autenticado
+      const userId = req.user?.id || null;
+      const blobName = userId 
+        ? `profiles/${userId}/profile-picture-${fileId}-${file.originalname}`
+        : `auditoria/temp/doc-${fileId}-${file.originalname}`;
 
       const blobUrl = await blobService.uploadImageBuffer(
         file.buffer,
@@ -50,6 +53,7 @@ router.post("/", (req, res) => {
           size: file.size,
           blobName: blobName,
           blobUrl: blobUrl,
+          userId: userId, // Asociar el upload al usuario si está autenticado
         }
       });
 
@@ -60,6 +64,7 @@ router.post("/", (req, res) => {
         name: newUpload.name,
         mime: newUpload.mime,
         size: newUpload.size,
+        blobUrl: newUpload.blobUrl,
       });
     } catch (error) {
       console.error("Upload error:", error);

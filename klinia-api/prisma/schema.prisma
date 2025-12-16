@@ -54,6 +54,8 @@ model ProfessionalProfile {
 
   // Campos específicos del perfil (tomados de la vista frontend)
   description          String?  
+  // Foto de perfil del profesional (URL del blob almacenado)
+  profilePictureUrl    String?
   // Enlaces a documentos internos subidos por el profesional (opcional)
   documentsJson        Json     @default("[]") 
 }

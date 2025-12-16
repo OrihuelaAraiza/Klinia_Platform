@@ -45,7 +45,7 @@ apiRouter.use(auditRouter);
 
 app.use("/api/auth", authRouter);
 app.use("/api/auth", registerRouter);
-app.use("/api/uploads", uploadsRouter);
+app.use("/api/uploads", authenticateToken, uploadsRouter); // Agregar autenticación opcional
 app.use("/api/verify", verifyRouter);
 
 
