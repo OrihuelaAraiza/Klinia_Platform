@@ -4,14 +4,24 @@ import { ROUTES } from "../utils/constants";
 const RAW_BASE = import.meta.env.VITE_API_BASE_URL || "/api";
 
 function normalizeBaseUrl(url) {
-  if (!url || url.startsWith("/")) {
-    return url;
+  if (!url) {
+    return "/api";
   }
   
+  // Remove trailing slashes
+  url = url.replace(/\/+$/, "");
+  
+  // If it's a relative path, return as is
+  if (url.startsWith("/")) {
+    return url || "/api";
+  }
+  
+  // If it's already a full URL, return it (may or may not include /api)
   if (/^https?:\/\//i.test(url)) {
     return url;
   }
   
+  // If it's a domain without protocol, add https
   if (url.includes(".") && !url.includes("://")) {
     return `https://${url}`;
   }
@@ -20,7 +30,7 @@ function normalizeBaseUrl(url) {
 }
 
 const NORMALIZED_BASE = normalizeBaseUrl(RAW_BASE);
-const BASE_URL = NORMALIZED_BASE.endsWith("/") ? NORMALIZED_BASE.slice(0, -1) : NORMALIZED_BASE;
+const BASE_URL = NORMALIZED_BASE;
 
 if (import.meta.env.DEV) {
   console.log("[API Client] RAW_BASE:", RAW_BASE);
@@ -29,24 +39,46 @@ if (import.meta.env.DEV) {
 }
 
 function buildUrl(path = "") {
+  // If path is already a full URL, return it
   if (/^https?:\/\//i.test(path)) {
     return path;
   }
 
+  // Normalize path: ensure it starts with /
+  let normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  
   let finalUrl;
-  if (!path.startsWith("/")) {
-    finalUrl = `${BASE_URL}/${path}`;
+  
+  if (BASE_URL.startsWith("/")) {
+    // Relative path (local development with Vite proxy)
+    // BASE_URL should be /api, path should be /api/... or just /...
+    if (normalizedPath.startsWith("/api")) {
+      finalUrl = normalizedPath;
+    } else {
+      finalUrl = `${BASE_URL}${normalizedPath}`;
+    }
   } else {
-    finalUrl = `${BASE_URL}${path}`;
-  }
-
-  if (!finalUrl.startsWith("/") && !/^https?:\/\//i.test(finalUrl) && finalUrl.includes(".")) {
-    finalUrl = `https://${finalUrl}`;
+    // Absolute URL (production/Azure)
+    // BASE_URL might be https://.../api or https://...
+    let base = BASE_URL;
+    const baseEndsWithApi = base.endsWith("/api") || base.endsWith("/api/");
+    
+    // If BASE_URL already ends with /api, don't add it again
+    // If path already starts with /api, remove the /api prefix to avoid duplication
+    if (normalizedPath.startsWith("/api")) {
+      normalizedPath = normalizedPath.substring(4); // Remove "/api"
+    }
+    
+    if (!baseEndsWithApi) {
+      base = base.endsWith("/") ? `${base}api` : `${base}/api`;
+    }
+    
+    finalUrl = `${base}${normalizedPath}`;
   }
 
   // Debug: Log en desarrollo
   if (import.meta.env.DEV) {
-    console.log("[API Client] buildUrl:", { path, finalUrl });
+    console.log("[API Client] buildUrl:", { path, normalizedPath, BASE_URL, finalUrl });
   }
 
   return finalUrl;

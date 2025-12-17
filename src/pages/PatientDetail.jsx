@@ -355,67 +355,39 @@ useEffect(() => {
         </div>
       </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3, ease: "easeOut" }}
-      >
-        <Card hoverable={false} className="clinical-links">
-          <CardHeader>
-            <h2>Gestión clínica</h2>
-          </CardHeader>
-          <CardBody>
-            <div className="cluster clinical-links__actions">
-              <Button onClick={() => navigate(`/patients/${id}/history`)} disabled={isAssistant}>
-                Historia clínica
-              </Button>
-              <Button variant="secondary" onClick={() => navigate(`/patients/${id}/notes`)}>
-                Notas de evolución
-              </Button>
-              <Button variant="ghost" onClick={() => navigate(`/patients/${id}/sessions`)}>
-                Sesiones
-              </Button>
-              <Button variant="ghost" onClick={() => navigate(`/patients/${id}/consents`)}>
-                Consentimientos
-              </Button>
-              <Button variant="ghost" onClick={() => navigate(`/prescriptions`)} disabled={isAssistant}>
-                Prescripciones
-              </Button>
-              <Button variant="ghost" onClick={() => navigate(`/reports`)}>
-                Reportes
-              </Button>
-              <Button variant="ghost" onClick={() => navigate(`/sessions`)}>
-                Agenda
-              </Button>
-            </div>
-          </CardBody>
-        </Card>
-      </motion.div>
-
-      <div className="detail-grid">
+      {/* Información básica del paciente */}
+      <div className="patient-info-grid">
         <Card hoverable={false}>
           <CardHeader>
-            <h2>Datos de contacto</h2>
+            <h2>Información personal</h2>
           </CardHeader>
-          <CardBody className="stack-2">
-            <p>
-              <strong>Nacimiento:</strong> {formatDateISOToHuman(patient.birthDate)}
-            </p>
-            <p>
-              <strong>Sexo:</strong> {patient.sex}
-            </p>
-            <p>
-              <strong>Teléfono:</strong> {formatPhone(patient.phone)}
-            </p>
-            <p>
-              <strong>Correo:</strong> {patient.email}
-            </p>
-            <p>
-              <strong>Creado:</strong> {formatDateISOToHuman(patient.createdAt)}
-            </p>
-            <p>
-              <strong>Actualizado:</strong> {formatDateISOToHuman(patient.updatedAt)}
-            </p>
+          <CardBody>
+            <div className="detail-grid cols-2">
+              <div>
+                <strong>Fecha de nacimiento</strong>
+                <span>{formatDateISOToHuman(patient.birthDate)}</span>
+              </div>
+              <div>
+                <strong>Sexo</strong>
+                <span>{patient.sex === "M" ? "Masculino" : patient.sex === "F" ? "Femenino" : patient.sex || "N/A"}</span>
+              </div>
+              <div>
+                <strong>Teléfono</strong>
+                <span>{formatPhone(patient.phone)}</span>
+              </div>
+              <div style={{ gridColumn: '1 / -1' }}>
+                <strong>Correo electrónico</strong>
+                <span>{patient.email}</span>
+              </div>
+              <div>
+                <strong>Registro creado</strong>
+                <span>{formatDateISOToHuman(patient.createdAt)}</span>
+              </div>
+              <div>
+                <strong>Última actualización</strong>
+                <span>{formatDateISOToHuman(patient.updatedAt)}</span>
+              </div>
+            </div>
           </CardBody>
         </Card>
 
@@ -482,7 +454,43 @@ useEffect(() => {
             ) : null}
           </CardBody>
         </Card>
+      </div>
 
+      {/* Accesos rápidos a gestión clínica */}
+      <Card hoverable={false} className="clinical-links">
+        <CardHeader>
+          <h2>Gestión clínica</h2>
+          <p className="helper-text" style={{ margin: 0 }}>Accesos rápidos a las secciones del expediente</p>
+        </CardHeader>
+        <CardBody>
+          <div className="clinical-links__grid">
+            <Button onClick={() => navigate(`/patients/${id}/history`)} disabled={isAssistant} className="clinical-link-btn">
+              Historia clínica
+            </Button>
+            <Button variant="secondary" onClick={() => navigate(`/patients/${id}/notes`)} className="clinical-link-btn">
+              Notas de evolución
+            </Button>
+            <Button variant="ghost" onClick={() => navigate(`/patients/${id}/sessions`)} className="clinical-link-btn">
+              Sesiones
+            </Button>
+            <Button variant="ghost" onClick={() => navigate(`/patients/${id}/consents`)} className="clinical-link-btn">
+              Consentimientos
+            </Button>
+            <Button variant="ghost" onClick={() => navigate(`/prescriptions`)} disabled={isAssistant} className="clinical-link-btn">
+              Prescripciones
+            </Button>
+            <Button variant="ghost" onClick={() => navigate(`/reports`)} className="clinical-link-btn">
+              Reportes
+            </Button>
+            <Button variant="ghost" onClick={() => navigate(`/sessions`)} className="clinical-link-btn">
+              Agenda
+            </Button>
+          </div>
+        </CardBody>
+      </Card>
+
+      {/* Secciones principales */}
+      <div className="patient-sections">
         <Card hoverable={false} id="prescripciones">
           <CardHeader className="cluster justify-between align-center wrap">
             <div>
@@ -677,58 +685,59 @@ useEffect(() => {
             </div>
           </CardBody>
         </Card>
-
-        <Card hoverable={false}>
-          <CardHeader>
-            <h2>Consentimientos</h2>
-          </CardHeader>
-          <CardBody className="stack-3">
-            {CONSENT_TYPES.map(({ type, label }) => {
-              const consent = consentByType.get(type);
-              const status = consent?.status ?? "pending";
-              return (
-                <div key={type} className="consent-row">
-                  <div className="stack-1">
-                    <ConsentBadge type={type} status={status} />
-                    <p className="helper-text">
-                      {label}
-                      {consent?.timestamp
-                        ? ` — ${new Date(consent.timestamp).toLocaleString("es-MX")}`
-                        : ""}
-                      {consent?.professional ? ` • ${consent.professional}` : ""}
-                    </p>
-                  </div>
-                  <div className="consent-row__actions">
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="sm"
-                      disabled={isAssistant || status === "signed"}
-                      onClick={() => openConfirm(type, "sign")}
-                    >
-                      Firmar
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      disabled={isAssistant || status !== "signed"}
-                      onClick={() => openConfirm(type, "revoke")}
-                    >
-                      Revocar
-                    </Button>
-                  </div>
-                </div>
-              );
-            })}
-            {consentError ? (
-              <p className="ui-field__error" role="alert">
-                {consentError}
-              </p>
-            ) : null}
-          </CardBody>
-        </Card>
       </div>
+
+      {/* Consentimientos */}
+      <Card hoverable={false}>
+        <CardHeader>
+          <h2>Consentimientos</h2>
+        </CardHeader>
+        <CardBody className="stack-3">
+          {CONSENT_TYPES.map(({ type, label }) => {
+            const consent = consentByType.get(type);
+            const status = consent?.status ?? "pending";
+            return (
+              <div key={type} className="consent-row">
+                <div className="stack-1">
+                  <ConsentBadge type={type} status={status} />
+                  <p className="helper-text">
+                    {label}
+                    {consent?.timestamp
+                      ? ` — ${new Date(consent.timestamp).toLocaleString("es-MX")}`
+                      : ""}
+                    {consent?.professional ? ` • ${consent.professional}` : ""}
+                  </p>
+                </div>
+                <div className="consent-row__actions">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    disabled={isAssistant || status === "signed"}
+                    onClick={() => openConfirm(type, "sign")}
+                  >
+                    Firmar
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={isAssistant || status !== "signed"}
+                    onClick={() => openConfirm(type, "revoke")}
+                  >
+                    Revocar
+                  </Button>
+                </div>
+              </div>
+            );
+          })}
+          {consentError ? (
+            <p className="ui-field__error" role="alert">
+              {consentError}
+            </p>
+          ) : null}
+        </CardBody>
+      </Card>
 
       <Modal
         open={confirmModal.open}

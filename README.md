@@ -52,8 +52,15 @@ El proyecto ofrece autenticación, dashboards administrativos y flujos de operac
 Crea un archivo `.env.local` o configura tus variables en Vercel con los siguientes valores:
 
 ```bash
-# API base (requerido en producción/preview)
-VITE_API_BASE_URL=https://api.klinia.mx
+# API base
+# Para desarrollo local (usa el proxy de Vite configurado en vite.config.js):
+VITE_API_BASE_URL=/api
+
+# Para producción/preview con Azure (reemplaza con tu URL):
+# VITE_API_BASE_URL=https://klinia-api-gmdbb0ezfbhybjcw.canadacentral-01.azurewebsites.net/api
+
+# O para otro backend:
+# VITE_API_BASE_URL=https://api.klinia.mx
 
 # MSAL (solo si se desea habilitar Microsoft Login)
 VITE_MSAL_CLIENT_ID=<GUID>
