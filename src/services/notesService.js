@@ -56,6 +56,22 @@ export async function closeNote(patientId, noteId) {
 }
 
 
+export async function updateNote(patientId, noteId, payload) {
+    const normalizedPatientId = ensurePatientId(patientId);
+    const normalizedNoteId = ensureNoteId(noteId);
+    const response = await api.put(`/notes/${normalizedPatientId}/${normalizedNoteId}`, payload, { auth: true });
+    await auditService.logAudit("note_update", buildAuditMeta(patientId, noteId));
+    return response;
+}
+
+export async function signNote(patientId, noteId) {
+    const normalizedPatientId = ensurePatientId(patientId);
+    const normalizedNoteId = ensureNoteId(noteId);
+    const response = await api.post(`/notes/${normalizedPatientId}/${normalizedNoteId}/sign`, {}, { auth: true });
+    await auditService.logAudit("note_sign", buildAuditMeta(patientId, noteId));
+    return response;
+}
+
 export async function addAddendum(patientId, noteId, text) {
     const normalizedPatientId = ensurePatientId(patientId);
     const normalizedNoteId = ensureNoteId(noteId);
@@ -68,6 +84,8 @@ export default {
     listNotes,
     createNote,
     getNote,
+    updateNote,
     closeNote,
+    signNote,
     addAddendum,
 };

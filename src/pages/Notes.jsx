@@ -4,8 +4,8 @@ import Card, { CardBody, CardHeader } from "../components/UI/Card";
 import Button from "../components/UI/Button";
 import Drawer from "../components/UI/Drawer";
 import Breadcrumbs from "../components/UI/Breadcrumbs";
-import NoteForm from "../components/NoteForm";
-import auditService from "../services/auditService";
+import DynamicClinicalForm from "../components/clinical/DynamicClinicalForm";
+import NOTE_SCHEMA from "../config/clinicalSchemas/note.schema";
 import { listNotes, createNote } from "../services/notesService";
 import { getPatient } from "../services/patientsService";
 import { useToast } from "../components/UI/Toast";
@@ -52,7 +52,6 @@ export default function Notes() {
           size: Number(notesResp?.size ?? 10),
           total: Number(notesResp?.total ?? items.length),
         });
-        auditService.logAudit("notes_list", { patientId: id });
       } catch (err) {
         if (!alive) return;
         if (err.status === 404) {
@@ -84,15 +83,24 @@ export default function Notes() {
     [id, patientName]
   );
 
+  const context = useMemo(() => ({
+    patient,
+    patientId: id,
+    professional: {
+      id: user?.id,
+      name: user?.name,
+      license: user?.license || user?.kycRecord?.certificateFolio,
+    },
+    datetime: new Date().toISOString(),
+  }), [patient, id, user]);
+
   const handleCreateNote = async (payload) => {
     try {
       const created = await createNote(id, {
         ...payload,
-        professional: {
-          id: user?.id ?? "user",
-          name: user?.name ?? "Profesional Klinia",
-        },
-        datetime: new Date().toISOString(),
+        professional: context.professional,
+        datetime: context.datetime,
+        status: "open",
       });
       setError("");
       setData((prev) => {
@@ -103,7 +111,6 @@ export default function Notes() {
           total: prev.total + 1,
         };
       });
-      auditService.logAudit("note_create", { patientId: id, noteId: created.id, status: created.status });
       toast.success("Nota creada");
       setDrawerOpen(false);
     } catch (err) {
@@ -111,6 +118,22 @@ export default function Notes() {
       setError(message);
       toast.error(message);
       throw err;
+    }
+  };
+
+  const handleSaveDraft = async (payload) => {
+    try {
+      const created = await createNote(id, {
+        ...payload,
+        professional: context.professional,
+        datetime: context.datetime,
+        status: "open",
+        isDraft: true,
+      });
+      toast.success("Borrador guardado");
+      setDrawerOpen(false);
+    } catch (err) {
+      toast.error(err.message || "No pudimos guardar el borrador.");
     }
   };
 
@@ -128,7 +151,7 @@ export default function Notes() {
             </p>
           </div>
           {!isAssistant ? (
-            <Button onClick={() => setDrawerOpen(true)}>Nueva nota</Button>
+            <Button onClick={() => navigate(`/patients/${id}/notes/new`)}>Nueva nota</Button>
           ) : null}
         </div>
       </div>
@@ -163,8 +186,9 @@ export default function Notes() {
                   <CardBody className="stack-2">
                     <p>
                       <strong>Diagnóstico(s):</strong>{" "}
-                      {(Array.isArray(note.diagnoses) ? note.diagnoses : []).map((dx) => dx.code).join(", ") ||
-                        "Sin diagnóstico"}
+                      {(Array.isArray(note.diagnosticos) ? note.diagnosticos : []).length > 0
+                        ? note.diagnosticos.map((dx) => `${dx.codigo} - ${dx.descripcion}`).join(", ")
+                        : "Sin diagnóstico"}
                     </p>
                     <Button variant="ghost" size="sm" onClick={() => navigate(`/patients/${id}/notes/${note.id}`)}>
                       Ver detalle
@@ -176,14 +200,6 @@ export default function Notes() {
           )}
         </CardBody>
       </Card>
-
-      <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)} title="Nueva nota">
-        <NoteForm
-          onSubmit={handleCreateNote}
-          readOnly={isAssistant}
-          professional={{ id: user?.id, name: user?.name }}
-        />
-      </Drawer>
     </section>
   );
 }

@@ -3,9 +3,9 @@ import { Navigate, useNavigate, useOutletContext, useParams } from "react-router
 import Card, { CardBody, CardHeader } from "../components/UI/Card";
 import Button from "../components/UI/Button";
 import Breadcrumbs from "../components/UI/Breadcrumbs";
-import HistoryForm from "../components/HistoryForm";
-import auditService from "../services/auditService";
-import { getHistory, createHistory } from "../services/historyService";
+import DynamicClinicalForm from "../components/clinical/DynamicClinicalForm";
+import HC_SCHEMA from "../config/clinicalSchemas/hc.schema";
+import { getClinicalHistory, saveClinicalHistory } from "../services/clinicalHistoryService";
 import { getPatient } from "../services/patientsService";
 import { useToast } from "../components/UI/Toast";
 import { ROLES } from "../utils/constants";
@@ -30,7 +30,7 @@ export default function History() {
       try {
         const [patientResponse, historyResponse] = await Promise.allSettled([
           getPatient(id),
-          getHistory(id),
+          getClinicalHistory(id),
         ]);
 
         if (!active) return;
@@ -66,31 +66,54 @@ export default function History() {
     [id, patientName]
   );
 
-  const handleCreateHistory = async (payload) => {
+  const handleSave = async (payload) => {
     try {
-      const response = await createHistory(id, {
-        ...payload,
-        createdAt: new Date().toISOString(),
-      });
+      const response = await saveClinicalHistory(id, payload, false);
       setHistory(response);
-      toast.success("Historia clínica registrada");
-      auditService.logAudit("history_create", { patientId: id });
+      toast.success("Historia clínica guardada correctamente");
     } catch (err) {
       const message = err.message || "No pudimos guardar la historia clínica.";
       setError(message);
       toast.error(message);
+      throw err;
     }
   };
+
+  const handleSaveDraft = async (payload) => {
+    try {
+      const response = await saveClinicalHistory(id, payload, true);
+      setHistory(response);
+      toast.success("Borrador guardado");
+    } catch (err) {
+      toast.error(err.message || "No pudimos guardar el borrador.");
+    }
+  };
+
+  const context = useMemo(() => ({
+    patient,
+    patientId: id,
+    professional: {
+      id: user?.id,
+      name: user?.name,
+      license: user?.license || user?.kycRecord?.certificateFolio,
+    },
+    datetime: new Date().toISOString(),
+  }), [patient, id, user]);
 
   if (isAssistant) {
     return <Navigate to={`/patients/${id}`} replace />;
   }
 
   if (loading) {
-    return <p>Cargando historia clínica…</p>;
+    return (
+      <section className="page stack-4">
+        <Breadcrumbs items={breadcrumbs} />
+        <p>Cargando historia clínica…</p>
+      </section>
+    );
   }
 
-  if (error) {
+  if (error && !history) {
     return (
       <section className="page stack-4">
         <Breadcrumbs items={breadcrumbs} />
@@ -108,73 +131,50 @@ export default function History() {
     );
   }
 
-  const professional = {
-    id: user?.id ?? "user",
-    name: user?.name ?? "Profesional Klinia",
-    license: user?.license ?? "LIC-000",
-  };
-
   return (
     <section className="page stack-5">
       <div className="page-header">
         <Breadcrumbs items={breadcrumbs} />
-        <div className="stack-1">
-          <h1>Historia clínica</h1>
-          {patient ? (
-            <p className="helper-text">
-              {patient.firstName} {patient.lastName} — CURP {patient.curp}
-            </p>
-          ) : null}
-        </div>
-      </div>
-
-      {history ? (
-        <Card hoverable={false}>
-          <CardHeader>
-            <h2>Resumen</h2>
+        <div className="cluster" style={{ justifyContent: "space-between" }}>
+          <div className="stack-1">
+            <h1>Historia clínica</h1>
+            {patient ? (
+              <p className="helper-text">
+                {patient.firstName} {patient.lastName} — CURP {patient.curp || "N/A"}
+              </p>
+            ) : null}
+          </div>
+          {history && (
             <Button variant="ghost" onClick={() => toast.success("Exportación NOM-004 (stub)")}>
               Exportar (stub)
             </Button>
+          )}
+        </div>
+      </div>
+
+      {history && !history.isDraft ? (
+        <Card hoverable={false}>
+          <CardHeader>
+            <h2>Historia clínica registrada</h2>
+            <div className="cluster" style={{ gap: "var(--s-2)" }}>
+              <Button variant="secondary" onClick={() => setHistory({ ...history, isDraft: true })}>
+                Editar
+              </Button>
+            </div>
           </CardHeader>
-          <CardBody className="stack-3">
-            <div className="stack-1">
-              <strong>Motivo de consulta</strong>
-              <p>{history.motive}</p>
-            </div>
-            <div className="stack-1">
-              <strong>Antecedentes psicosociales</strong>
-              <p>{history.psychosocialBackground}</p>
-            </div>
-            <div className="stack-1">
-              <strong>Examen mental</strong>
-              <p>{history.mentalStatusExam}</p>
-            </div>
-            <div className="stack-1">
-              <strong>Diagnóstico(s)</strong>
-              <ul>
-                {(history.diagnoses ?? []).map((dx) => (
-                  <li key={dx.code}>{dx.code} — {dx.label}</li>
-                ))}
-              </ul>
-            </div>
-            <div className="stack-1">
-              <strong>Objetivos terapéuticos</strong>
-              <p>{history.goals}</p>
-            </div>
-            <div className="stack-1">
-              <strong>Plan terapéutico</strong>
-              <p>{history.therapeuticPlan}</p>
-            </div>
-            <div className="history-meta">
-              <span><strong>Profesional:</strong> {history.professional?.name}</span>
-              <span><strong>Registro:</strong> {new Date(history.createdAt).toLocaleString("es-MX")}</span>
+          <CardBody>
+            <p className="helper-text">
+              La historia clínica está registrada. Para editarla, haz clic en "Editar".
+            </p>
+            <div className="history-meta" style={{ marginTop: "var(--s-4)" }}>
+              <span><strong>Última actualización:</strong> {new Date(history.updatedAt || history.createdAt).toLocaleString("es-MX")}</span>
             </div>
           </CardBody>
         </Card>
       ) : (
         <Card hoverable={false}>
           <CardHeader>
-            <h2>Crear historia clínica</h2>
+            <h2>{history?.isDraft ? "Editar historia clínica (borrador)" : "Crear historia clínica"}</h2>
           </CardHeader>
           <CardBody>
             {isAssistant ? (
@@ -182,7 +182,17 @@ export default function History() {
                 Perfil asistente: solicita a un profesional que capture la historia clínica.
               </p>
             ) : (
-              <HistoryForm onSubmit={handleCreateHistory} professional={professional} createdAt={new Date().toISOString()} />
+              <DynamicClinicalForm
+                schema={HC_SCHEMA}
+                initialData={history || {}}
+                onSubmit={handleSave}
+                onSaveDraft={handleSaveDraft}
+                readOnly={isAssistant}
+                context={context}
+                showDraftButton={true}
+                submitLabel="Guardar historia clínica"
+                draftLabel="Guardar borrador"
+              />
             )}
           </CardBody>
         </Card>

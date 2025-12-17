@@ -3,11 +3,11 @@ import { useNavigate, useOutletContext, useParams } from "react-router-dom";
 import Card, { CardBody, CardHeader } from "../components/UI/Card";
 import Button from "../components/UI/Button";
 import Breadcrumbs from "../components/UI/Breadcrumbs";
-import NoteForm from "../components/NoteForm";
+import DynamicClinicalForm from "../components/clinical/DynamicClinicalForm";
+import NOTE_SCHEMA from "../config/clinicalSchemas/note.schema";
 import AddendumModal from "../components/AddendumModal";
 import Modal from "../components/UI/Modal";
-import auditService from "../services/auditService";
-import { getNote, closeNote, addAddendum } from "../services/notesService";
+import { getNote, closeNote, addAddendum, updateNote } from "../services/notesService";
 import { useToast } from "../components/UI/Toast";
 import { formatDateISOToHuman } from "../utils/formatters";
 import { ROLES } from "../utils/constants";
@@ -35,6 +35,7 @@ export default function NoteDetail() {
   const [addendumOpen, setAddendumOpen] = useState(false);
   const [addendumLoading, setAddendumLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [editing, setEditing] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -51,7 +52,6 @@ export default function NoteDetail() {
         if (patientResponse) {
           setPatient(patientResponse);
         }
-        auditService.logAudit("note_view", { patientId: id, noteId });
       } catch (err) {
         if (!active) return;
         const message = err.message || "No pudimos cargar la nota.";
@@ -69,7 +69,11 @@ export default function NoteDetail() {
   }, [id, noteId]);
 
   const professional = useMemo(
-    () => ({ id: user?.id ?? "user", name: user?.name ?? "Profesional Klinia" }),
+    () => ({
+      id: user?.id ?? "user",
+      name: user?.name ?? "Profesional Klinia",
+      license: user?.license || user?.kycRecord?.certificateFolio,
+    }),
     [user]
   );
 
@@ -88,6 +92,13 @@ export default function NoteDetail() {
     [id, note?.datetime, patientName]
   );
 
+  const context = useMemo(() => ({
+    patient,
+    patientId: id,
+    professional: note?.professional || professional,
+    datetime: note?.datetime || new Date().toISOString(),
+  }), [patient, id, note, professional]);
+
   const handleCloseNote = async () => {
     if (!note || isAssistant || note.status === "closed") {
       return;
@@ -96,13 +107,24 @@ export default function NoteDetail() {
       const updated = await closeNote(id, noteId);
       setNote(updated ?? { ...note, status: "closed", closedAt: new Date().toISOString() });
       toast.success("Nota cerrada correctamente");
-      auditService.logAudit("note_close", { patientId: id, noteId, status: "closed" });
+      setConfirmClose(false);
     } catch (err) {
       const message = err.message || "No pudimos cerrar la nota.";
       setError(message);
       toast.error(message);
-    } finally {
-      setConfirmClose(false);
+    }
+  };
+
+  const handleUpdate = async (payload) => {
+    try {
+      const updated = await updateNote(id, noteId, payload);
+      setNote(updated);
+      setEditing(false);
+      toast.success("Nota actualizada correctamente");
+    } catch (err) {
+      const message = err.message || "No pudimos actualizar la nota.";
+      toast.error(message);
+      throw err;
     }
   };
 
@@ -127,7 +149,6 @@ export default function NoteDetail() {
         });
       }
       toast.success("Addendum agregado");
-      auditService.logAudit("note_addendum", { patientId: id, noteId });
       setAddendumOpen(false);
     } catch (err) {
       toast.error(err.message || "No pudimos agregar el addendum.");
@@ -163,6 +184,8 @@ export default function NoteDetail() {
   }
 
   const addenda = note.addenda ?? note.addendums ?? [];
+  const isClosed = note.status === "closed";
+  const canEdit = !isAssistant && !isClosed && !editing;
 
   const handleExportPdf = async () => {
     if (isAssistant || !note) {
@@ -193,19 +216,26 @@ export default function NoteDetail() {
               {note.status === "closed" ? "Cerrada" : "Abierta"}
             </Badge>
             {!isAssistant ? (
-              <Button variant="ghost" onClick={handleExportPdf} loading={exporting}>
-                Exportar PDF
-              </Button>
-            ) : null}
-            {!isAssistant && note.status !== "closed" ? (
-              <Button variant="secondary" onClick={() => setConfirmClose(true)}>
-                Cerrar nota
-              </Button>
-            ) : null}
-            {!isAssistant && note.status === "closed" ? (
-              <Button variant="ghost" onClick={() => setAddendumOpen(true)}>
-                Agregar addendum
-              </Button>
+              <>
+                <Button variant="ghost" onClick={handleExportPdf} loading={exporting}>
+                  Exportar PDF
+                </Button>
+                {canEdit && (
+                  <Button variant="secondary" onClick={() => setEditing(true)}>
+                    Editar
+                  </Button>
+                )}
+                {!isClosed && (
+                  <Button variant="secondary" onClick={() => setConfirmClose(true)}>
+                    Cerrar nota
+                  </Button>
+                )}
+                {isClosed && (
+                  <Button variant="ghost" onClick={() => setAddendumOpen(true)}>
+                    Agregar addendum
+                  </Button>
+                )}
+              </>
             ) : null}
           </div>
         </div>
@@ -213,26 +243,36 @@ export default function NoteDetail() {
 
       <Card hoverable={false}>
         <CardHeader>
-          <h2>Detalle S.O.A.P.</h2>
+          <h2>Detalle de la nota</h2>
         </CardHeader>
         <CardBody>
-          <NoteForm
-            initialValue={note}
-            readOnly
-            isClosed={note.status === "closed"}
-            professional={note.professional || professional}
+          <DynamicClinicalForm
+            schema={NOTE_SCHEMA}
+            initialData={note}
+            onSubmit={handleUpdate}
+            readOnly={!editing}
+            context={context}
+            showDraftButton={false}
+            submitLabel="Guardar cambios"
           />
+          {editing && (
+            <div className="cluster" style={{ marginTop: "var(--s-4)", justifyContent: "flex-end" }}>
+              <Button variant="ghost" onClick={() => setEditing(false)}>
+                Cancelar
+              </Button>
+            </div>
+          )}
         </CardBody>
       </Card>
 
-      {addenda.length ? (
+      {addenda.length > 0 && (
         <Card hoverable={false}>
           <CardHeader>
             <h2>Addendums</h2>
           </CardHeader>
           <CardBody className="stack-3">
-            {addenda.map((addendum) => (
-              <Card key={addendum.datetime} hoverable={false}>
+            {addenda.map((addendum, idx) => (
+              <Card key={addendum.datetime || idx} hoverable={false}>
                 <CardHeader>
                   <strong>{new Date(addendum.datetime).toLocaleString("es-MX")}</strong>
                 </CardHeader>
@@ -244,7 +284,7 @@ export default function NoteDetail() {
             ))}
           </CardBody>
         </Card>
-      ) : null}
+      )}
 
       <Modal
         open={confirmClose}

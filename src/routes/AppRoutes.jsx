@@ -26,6 +26,7 @@ const History = lazy(() => import("../pages/History"));
 const AuthDebug = lazy(() => import("../pages/AuthDebug"));
 const Notes = lazy(() => import("../pages/Notes"));
 const NoteDetail = lazy(() => import("../pages/NoteDetail"));
+const NoteEditor = lazy(() => import("../pages/NoteEditor"));
 const Sessions = lazy(() => import("../pages/Sessions"));
 const PatientSessions = lazy(() => import("../pages/PatientSessions"));
 const SessionsCalendar = lazy(() => import("../pages/SessionsCalendar"));
@@ -136,6 +137,14 @@ export default function AppRoutes() {
               element={
                 <ErrorBoundary>
                   <Notes />
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path="/patients/:id/notes/new"
+              element={
+                <ErrorBoundary>
+                  <NoteEditor />
                 </ErrorBoundary>
               }
             />
