@@ -18,7 +18,7 @@ export default function NoteEditor() {
   const toast = useToast();
   const { role, user } = useOutletContext() ?? {};
   const isAssistant = role === ROLES.ASSISTANT;
-  const isNew = noteId === "new";
+  const isNew = !noteId || noteId === "new";
 
   const [note, setNote] = useState(null);
   const [patient, setPatient] = useState(null);
@@ -28,8 +28,10 @@ export default function NoteEditor() {
   const [closing, setClosing] = useState(false);
 
   useEffect(() => {
-    if (isNew) {
+    // Si es una nueva nota o no hay noteId, no intentar cargar
+    if (isNew || !noteId) {
       setLoading(false);
+      setError("");
       return;
     }
 
@@ -153,7 +155,7 @@ export default function NoteEditor() {
   };
 
   const handleCloseNote = async () => {
-    if (!note || isAssistant || note.status === "closed") {
+    if (!note || isAssistant || note.status === "closed" || isNew) {
       return;
     }
     try {
@@ -213,7 +215,7 @@ export default function NoteEditor() {
               </p>
             ) : null}
           </div>
-          {!isNew && !isClosed && !isAssistant && (
+          {!isNew && note && !isClosed && !isAssistant && (
             <Button variant="secondary" onClick={() => setConfirmClose(true)}>
               Cerrar nota
             </Button>

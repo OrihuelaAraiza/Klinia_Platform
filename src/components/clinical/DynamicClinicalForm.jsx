@@ -160,6 +160,9 @@ export default function DynamicClinicalForm({
     mode: "onBlur",
   });
 
+  // Watch all form values to get current state
+  const formData = watch();
+
   // Update form when initialData changes
   useEffect(() => {
     if (initialData) {

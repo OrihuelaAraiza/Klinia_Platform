@@ -38,6 +38,13 @@ export default function NoteDetail() {
   const [editing, setEditing] = useState(false);
 
   useEffect(() => {
+    // Si noteId es "new" o no existe, redirigir o mostrar error
+    if (!noteId || noteId === "new") {
+      setLoading(false);
+      setError("ID de nota inválido.");
+      return;
+    }
+
     let active = true;
     async function load() {
       setLoading(true);

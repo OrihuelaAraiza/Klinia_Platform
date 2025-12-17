@@ -345,6 +345,13 @@ useEffect(() => {
             <p className="helper-text">CURP: {patient.curp}</p>
           </div>
           <div className="cluster">
+            <Button 
+              variant="primary" 
+              onClick={() => navigate(`/patients/${id}/notes`)}
+              style={{ minWidth: '140px' }}
+            >
+              Ver notas
+            </Button>
             {!isAssistant ? (
               <Button variant="secondary" onClick={handleEditPatient}>
                 Editar

@@ -319,18 +319,29 @@ export default function Patients() {
                     <td>{patient.email || "-"}</td>
                     <td>{formatDateISOToHuman(patient.updatedAt)}</td>
                     <td>
-                      {!isAssistant ? (
+                      <div className="cluster" style={{ gap: "0.5rem" }}>
                         <Button
                           type="button"
-                          variant="secondary"
+                          variant="primary"
                           size="sm"
-                          onClick={() => handleOpenEdit(patient)}
+                          onClick={() => navigate(`/patients/${patient.id}/notes`)}
+                          style={{ minWidth: "auto", padding: "0.35rem 0.75rem" }}
                         >
-                          Editar
+                          Notas
                         </Button>
-                      ) : (
-                        <span className="helper-text">Solo lectura</span>
-                      )}
+                        {!isAssistant ? (
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => handleOpenEdit(patient)}
+                          >
+                            Editar
+                          </Button>
+                        ) : (
+                          <span className="helper-text">Solo lectura</span>
+                        )}
+                      </div>
                     </td>
                   </motion.tr>
                 ))}
