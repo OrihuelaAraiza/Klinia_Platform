@@ -49,18 +49,29 @@ El proyecto ofrece autenticación, dashboards administrativos y flujos de operac
 
 ## Configuración de entorno
 
-Crea un archivo `.env.local` o configura tus variables en Vercel con los siguientes valores:
+### Desarrollo Local
+
+Crea un archivo `.env.local` en la raíz del proyecto:
 
 ```bash
 # API base
 # Para desarrollo local (usa el proxy de Vite configurado en vite.config.js):
 VITE_API_BASE_URL=/api
+```
 
-# Para producción/preview con Azure (reemplaza con tu URL):
-# VITE_API_BASE_URL=https://klinia-api-gmdbb0ezfbhybjcw.canadacentral-01.azurewebsites.net/api
+### Producción en Vercel
 
-# O para otro backend:
-# VITE_API_BASE_URL=https://api.klinia.mx
+Para desplegar en Vercel, configura las variables de entorno en el dashboard de Vercel:
+
+1. Ve a tu proyecto en Vercel → **Settings** → **Environment Variables**
+2. Agrega la variable:
+   - **Variable**: `VITE_API_BASE_URL`
+   - **Value**: `https://klinia-api-gmdbb0ezfbhybjcw.canadacentral-01.azurewebsites.net/api`
+   - **Environments**: Production, Preview, Development
+
+**Nota**: El backend ya está desplegado en Azure. El frontend en Vercel se conectará a este backend usando la variable de entorno.
+
+Para más detalles, consulta [VERCEL_SETUP.md](./VERCEL_SETUP.md).
 
 # MSAL (solo si se desea habilitar Microsoft Login)
 VITE_MSAL_CLIENT_ID=<GUID>
@@ -189,17 +200,42 @@ Esta es la configuración recomendada para un deployment profesional:
    # Subir contenido de dist/ a public_html en cPanel
    ```
 
-### Opción 2: Vercel (Frontend y Backend)
+### Opción 2: Vercel (Frontend) + Azure (Backend) - Recomendado
 
+Esta es la configuración actual del proyecto:
+
+- **Frontend**: Vercel (React SPA)
+- **Backend**: Azure App Service (ya desplegado)
+- **URL del Backend**: `https://klinia-api-gmdbb0ezfbhybjcw.canadacentral-01.azurewebsites.net/api`
+
+**Pasos para desplegar:**
+
+1. **Conectar repositorio a Vercel**:
+   - Ve a [vercel.com](https://vercel.com) e inicia sesión
+   - Haz clic en "Add New Project" e importa tu repositorio
+   - Vercel detectará automáticamente que es un proyecto Vite
+
+2. **Configurar variables de entorno en Vercel**:
+   - Ve a **Settings** → **Environment Variables**
+   - Agrega: `VITE_API_BASE_URL` = `https://klinia-api-gmdbb0ezfbhybjcw.canadacentral-01.azurewebsites.net/api`
+   - Selecciona todos los entornos (Production, Preview, Development)
+
+3. **Configurar CORS en Azure**:
+   - Ve a tu App Service en Azure Portal
+   - Agrega tu dominio de Vercel a la lista de orígenes permitidos en CORS
+   - Ejemplo: `https://tu-proyecto.vercel.app`
+
+4. **Desplegar**:
+   - Haz push a tu rama principal
+   - Vercel desplegará automáticamente
+
+**Documentación detallada**: Consulta [VERCEL_SETUP.md](./VERCEL_SETUP.md) para instrucciones completas y solución de problemas.
+
+**Configuración técnica**:
 - El archivo `vercel.json` aplica **rewrites SPA**, fuerza `cleanUrls`, agrega cabeceras de seguridad (`X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options`, `Permissions-Policy`) y define la política de caché (HTML `no-store`, assets versionados cacheados un año).
 - El mismo archivo también realiza la canonización de dominio: cualquier visita a `https://klinia.ai` se redirige (308) hacia `https://www.klinia.ai`, asegurando que las cookies y redirects sean consistentes.
-- Define las variables de entorno anteriores en **Production** y **Preview**. MSAL debería habilitarse solo cuando apuntes al dominio definitivo; en previews donde falten las envs el botón se oculta automáticamente.
-- Recuerda registrar las URLs de redirección (SPA) en Azure Portal para cada dominio público que exponga MSAL (`https://app.tu-dominio.com` y, si aplica, los dominios de staging).
 - `robots.prod.txt` / `robots.preview.txt` se copian al paquete final mediante `scripts/postbuild.mjs`, garantizando `Disallow: /` en previews.
 - El footer muestra `Build: <VITE_APP_VERSION>` y el último mensaje de commit cuando están disponibles, ayudando a auditar qué versión está desplegada.
-- DNS recomendado para Vercel:
-  - `A @` → `216.198.79.1` (apex redirigido).
-  - `CNAME www` → `5466a987a9d4a9d3.vercel-dns-017.com.` (host principal servido por Vercel).
 
 ## Recursos útiles
 
