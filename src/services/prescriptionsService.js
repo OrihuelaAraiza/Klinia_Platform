@@ -17,6 +17,8 @@ function ensureId(id) {
   return normalized;
 }
 
+
+
 function buildAuditMeta(record = {}) {
   return {
     patientId: record.patientId,
@@ -44,8 +46,8 @@ export async function listByPatient(patientId) {
 }
 
 export function getOne(id) {
-  const normalizedId = ensureId(id);
-  return api.get(`/prescriptions/${normalizedId}`, { auth: true });
+  // Ajustamos la URL para que coincida con lo que espera el servidor
+  return api.get(`/prescriptions/detail/${id}`);
 }
 
 export async function suspend(id) {
@@ -54,6 +56,8 @@ export async function suspend(id) {
   await auditService.logAudit("prescription_suspend", buildAuditMeta(response));
   return response;
 }
+
+
 
 export default {
   create,

@@ -3,10 +3,7 @@ import { api } from "./apiClient";
 const AUDIT_ENDPOINT = "/audit";
 
 export async function logAudit(event, meta = {}, options = {}) {
-  if (!event) {
-    return;
-  }
-
+  if (!event) return;
   const { auth = true } = options;
 
   try {
@@ -26,6 +23,16 @@ export async function logAudit(event, meta = {}, options = {}) {
   }
 }
 
+export async function getProfessionalLogs() {
+  try {
+    return await api.get(`${AUDIT_ENDPOINT}/professional`);
+  } catch (error) {
+    console.error("[audit-fetch-failed]", error.message);
+    throw error;
+  }
+}
+
 export default {
   logAudit,
+  getProfessionalLogs, 
 };

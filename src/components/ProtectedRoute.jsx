@@ -109,6 +109,7 @@ export default function ProtectedRoute({ allow, children }) {
       role,
       user,
       toggleSidebar,
+      onLogout: handleLogout,
       isMobile,
       sidebarCollapsed,
     }),

@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Modal from './UI/Modal';
 import Button, { ButtonPrimary } from './UI/Button'; 
 import InputField from './InputField';
 import { useToast } from './UI/Toast';
-import { FileText, Upload, Link, X } from 'lucide-react'; 
+import { FileText, Upload, X } from 'lucide-react'; 
 
 function formatFileSize(bytes) {
     if (bytes === 0) return '0 Bytes';
@@ -15,86 +15,89 @@ function formatFileSize(bytes) {
 
 export default function DocumentUploadModal({ currentFile, onClose, onSave }) {
     const { error } = useToast() || {};
-    const [document, setDocument] = useState(currentFile);
-    const [desc, setDesc] = useState(currentFile?.description || '');
-    const [url, setUrl] = useState(currentFile?.url || '');
+    const [fileData, setFileData] = useState(null); 
+    const [desc, setDesc] = useState('');
+    const [name, setName] = useState('');
     const [isSaving, setIsSaving] = useState(false);
     const [dragActive, setDragActive] = useState(false);
-    const inputRef = React.useRef(null);
+    const inputRef = useRef(null);
 
     useEffect(() => {
-        setDocument(currentFile);
-        setDesc(currentFile?.description || '');
-        setUrl(currentFile?.url || '');
+        if (currentFile) {
+            setFileData(currentFile.file || null);
+            setDesc(currentFile.description || '');
+            setName(currentFile.name || '');
+        } else {
+            setFileData(null);
+            setDesc('');
+            setName('');
+        }
     }, [currentFile]);
 
-
     const handleFileChange = (file) => {
-        if (file) {
-            setDocument({
-                ...document,
-                name: file.name,
-                size: file.size,
-                file: file,
-                description: document?.file ? '' : desc, 
-                url: document?.file ? '' : url,
-            });
-            setDesc(document?.file ? '' : desc);
-            setUrl(document?.file ? '' : url);
-        } else {
-            error("Tipo de archivo no válido.");
+        if (!file) {
+            setFileData(null);
+            setName('');
+            return;
         }
+        if (file.size > 5 * 1024 * 1024) {
+            error("El archivo excede los 5MB permitidos.");
+            return;
+        }
+
+        setFileData(file);
+        setName(file.name);
     };
 
     const handleDrop = (e) => {
         e.preventDefault();
         setDragActive(false);
         const files = e.dataTransfer.files;
-        if (files.length > 0) {
-            handleFileChange(files[0]);
-        }
+        if (files.length > 0) handleFileChange(files[0]);
     };
 
-    const handleSelect = (e) => {
-        handleFileChange(e.target.files[0]);
-        e.target.value = null; 
-    };
-    
-    const handleSave = () => {
-        if (!document || !document.file) {
-            error("Debes adjuntar un archivo.");
+    const handleSave = async () => {
+        if (!fileData) {
+            error("Debes seleccionar un archivo primero.");
             return;
         }
 
         setIsSaving(true);
-        onSave({ 
-            ...document, 
-            description: desc.trim(), 
-            url: url.trim(), 
-            isReady: true 
-        });
+        
+        try {
+            await onSave({
+                id: currentFile?.id || Date.now(),
+                name: name.trim() || fileData.name,
+                description: desc.trim(),
+                file: fileData, 
+            });
+        } catch (err) {
+            console.error("Error al adjuntar:", err);
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     const footer = (
-        <div className="cluster">
-            <Button variant="ghost" onClick={onClose}>Cancelar</Button>
-            <ButtonPrimary onClick={handleSave} loading={isSaving} disabled={!document?.file}>
-                Guardar Metadatos y Adjuntar
+        <div className="cluster justify-end">
+            <Button variant="ghost" onClick={onClose} disabled={isSaving}>
+                Cancelar
+            </Button>
+            <ButtonPrimary onClick={handleSave} loading={isSaving} disabled={!fileData}>
+                Subir y Adjuntar
             </ButtonPrimary>
         </div>
     );
-
-    const isFileLoaded = document && document.file;
 
     return (
         <Modal
             open={true} 
             onClose={onClose}
-            title={isFileLoaded ? `Detalle: ${document.name}` : "Subir Nuevo Documento"}
+            title={fileData ? `Archivo seleccionado` : "Subir Documento Profesional"}
             footer={footer}
         >
             <div className="stack-3">
-                {!isFileLoaded && (
+                {!fileData ? (
                     <div
                         className={`document-upload-area ${dragActive ? 'drag-active' : ''}`}
                         onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
@@ -102,45 +105,46 @@ export default function DocumentUploadModal({ currentFile, onClose, onSave }) {
                         onDrop={handleDrop}
                         onClick={() => inputRef.current.click()}
                         style={{ 
-                            border: `2px dashed ${dragActive ? 'var(--color-primary)' : 'var(--color-border)'}`, 
-                            padding: '2rem', 
+                            border: '2px dashed var(--ui-border)', 
+                            padding: '3rem 2rem', 
                             textAlign: 'center',
-                            borderRadius: 'var(--radius)',
+                            borderRadius: '8px',
                             cursor: 'pointer',
+                            backgroundColor: dragActive ? 'var(--ui-bg-muted)' : 'transparent',
+                            transition: 'all 0.2s'
                         }}
                     >
-                        <input type="file" ref={inputRef} onChange={handleSelect} style={{ display: 'none' }} />
-                        <Upload size={24} style={{ margin: '0 auto' }} aria-hidden="true" />
-                        <p>Arrastra y suelta aquí, o haz clic para subir.</p>
+                        <input type="file" ref={inputRef} onChange={(e) => handleFileChange(e.target.files[0])} style={{ display: 'none' }} accept=".pdf,.jpg,.jpeg,.png" />
+                        <Upload size={32} style={{ margin: '0 auto 1rem', color: 'var(--ui-primary)' }} />
+                        <p style={{ fontWeight: 500 }}>Haz clic o arrastra tu archivo aquí</p>
+                        <p className="helper-text">PDF, PNG o JPG (Máx. 5MB)</p>
                     </div>
-                )}
-                
-                {isFileLoaded && (
-                    <div className="stack-3">
-                        <div className="cluster gap-4 detail-preview-grid">
-                            <FileText size={40} className="text-primary" />
-                            <div className="stack-1">
-                                <h4>{document.name}</h4>
-                                <p className="helper-text">Tamaño: {formatFileSize(document.size)}</p>
-                                <p className="helper-text">Tipo: {document.file.type}</p>
+                ) : (
+                    <div className="stack-4">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', background: 'var(--ui-bg-muted)', borderRadius: '8px' }}>
+                            <FileText size={40} color="var(--ui-primary)" />
+                            <div style={{ flex: 1 }}>
+                                <InputField 
+                                    label="Nombre del documento"
+                                    value={name}
+                                    onChange={(e) => setName(e.target.value)}
+                                    placeholder="Ej: Cédula Profesional"
+                                />
+                                <p className="helper-text" style={{ marginTop: '0.5rem' }}>
+                                    {formatFileSize(fileData.size)} • {fileData.type}
+                                </p>
                             </div>
                             <Button variant="ghost" size="sm" onClick={() => handleFileChange(null)}>
-                                Cambiar Archivo
+                                <X size={18} />
                             </Button>
                         </div>
 
                         <InputField 
-                            label="Descripción (Opcional)"
+                            label="Descripción corta"
                             value={desc}
                             onChange={(e) => setDesc(e.target.value)}
-                            placeholder="Certificado de especialidad, Foto de perfil, etc."
-                            rows={3}
-                        />
-                        <InputField 
-                            label="URL de Referencia (Opcional)"
-                            value={url}
-                            onChange={(e) => setUrl(e.target.value)}
-                            placeholder="https://ejemplo.com/doc-externo"
+                            placeholder="¿De qué trata este documento?"
+                            rows={2}
                         />
                     </div>
                 )}

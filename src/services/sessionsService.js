@@ -28,7 +28,7 @@ export async function listSessions({
     from, 
     to, 
     status, 
-    professionalId, 
+    professionalId,
     page = 1, 
     size = 10 
 } = {}, options = {}) {
@@ -49,12 +49,11 @@ export async function listSessions({
 export async function listSessionsByPatient(patientId, { page = 1, size = 10 } = {}, options = {}) {
   const query = buildQuery({ page, size });
   const response = await safeGet(`/patients/${patientId}/sessions${query}`, options);
-  if (Array.isArray(response)) {
-    return { items: response, total: response.length, page, size };
-  }
+  
+  const items = Array.isArray(response) ? response : (response?.items || []);
   return {
-    items: Array.isArray(response?.items) ? response.items : [],
-    total: Number(response?.total ?? 0),
+    items,
+    total: Number(response?.total ?? items.length ?? 0),
     page: Number(response?.page ?? page),
     size: Number(response?.size ?? size),
   };

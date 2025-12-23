@@ -78,7 +78,6 @@ export default function AppRoutes() {
     <BrowserRouter>
       <RouteAuditor />
       <Suspense fallback={<PageSkeleton />}>
-
         <Routes>
           {/* PÚBLICAS */}
           <Route path={ROUTES.home} element={<Home />} />
@@ -87,11 +86,13 @@ export default function AppRoutes() {
           <Route path="/register/patient" element={<PatientRegister />} />
           <Route path="/health" element={<Health />} />
 
+          {/* SÓLO ADMIN */}
           <Route element={<ProtectedRoute allow={[ROLES.ADMIN]} />}>
             <Route path={ROUTES.dashboard} element={<Dashboard />} />
             <Route path="/auth/debug" element={<AuthDebug />} />
           </Route>
 
+          {/* PANEL COMPARTIDO (MÉDICO, ASISTENTE Y PACIENTE) */}
           <Route
             element={
               <ProtectedRoute
@@ -107,24 +108,15 @@ export default function AppRoutes() {
             <Route path="/patient/dashboard" element={<PatientDashboard />} />
             <Route path={ROUTES.patients} element={<Patients />} />
             <Route path={`${ROUTES.patients}/:id`} element={<PatientDetail />} />
-            <Route
-              path={`${ROUTES.patients}/:id/history`}
-              element={<History />}
-            />
+            <Route path={`${ROUTES.patients}/:id/history`} element={<History />} />
             <Route path={ROUTES.sessions} element={<Sessions />} />
-            <Route
-              path={ROUTES.sessionsCalendar}
-              element={<SessionsCalendar />}
-            />
-            <Route
-              path="/patients/:id/sessions"
-              element={<PatientSessions />}
-            />
-            <Route path={ROUTES.consents} element={<Consents />} />
+            <Route path={ROUTES.sessionsCalendar} element={<SessionsCalendar />} />
+            <Route path="/patients/:id/sessions" element={<PatientSessions />} />
+            {/* El asistente usualmente puede ver los reportes pero no crearlos (depende de tu regla) */}
             <Route path={ROUTES.reports} element={<Reports />} />
-            <Route path="/profile/medical" element={<Dashboard />} />
           </Route>
 
+          {/* HERRAMIENTAS CLÍNICAS (SÓLO STAFF MÉDICO: PROFESIONAL Y ASISTENTE) */}
           <Route
             element={
               <ProtectedRoute
@@ -132,71 +124,37 @@ export default function AppRoutes() {
               />
             }
           >
-            <Route
-              path="/patients/:id/notes"
-              element={
-                <ErrorBoundary>
-                  <Notes />
-                </ErrorBoundary>
-              }
-            />
-            <Route
-              path="/patients/:id/notes/new"
-              element={
-                <ErrorBoundary>
-                  <NoteEditor />
-                </ErrorBoundary>
-              }
-            />
-            <Route
-              path="/patients/:id/notes/:noteId"
-              element={
-                <ErrorBoundary>
-                  <NoteDetail />
-                </ErrorBoundary>
-              }
-            />
-            <Route
-              path={ROUTES.prescriptions}
-              element={<Prescriptions />}
-            />
-            <Route
-              path={ROUTES.prescriptionsNew}
-              element={<Prescriptions />}
-            />
-            <Route
-              path={ROUTES.prescriptionDetail}
-              element={<PrescriptionDetail />}
-            />
-            <Route
-              path={ROUTES.orderNew}
-              element={<OrderForm />}
-            />
-            <Route
-              path={ROUTES.orderDetail}
-              element={<OrderDetail />}
-            />
-            <Route
-                    path="/patients/:patientId/reports"
-                    element={<PatientReportsList />} 
-                />
-                <Route path="/patients/:patientId/reports/:reportId" element={<ReportForm />} />
-                <Route
-                path="/patients/:id/documents"
-                element={<PatientDocuments />} 
-            />
-              <Route 
-                  path="/ProfileProfessional" 
-                  element={<ProfileProfessional/>} 
-              />
-            <Route
-              path={ROUTES.reportNew}
-              element={<ReportForm />}
-            />
-            <Route
-              path={ROUTES.reportDetail}
-              element={<ReportDetail />}
-            />
+            {/* Gestión de Notas */}
+            <Route path="/patients/:id/notes" element={<ErrorBoundary><Notes /></ErrorBoundary>} />
+            <Route path="/patients/:id/notes/new" element={<ErrorBoundary><NoteEditor /></ErrorBoundary>} />
+            <Route path="/patients/:id/notes/:noteId" element={<ErrorBoundary><NoteDetail /></ErrorBoundary>} />
+            
+            {/* Recetas y Órdenes */}
+            <Route path={ROUTES.prescriptions} element={<Prescriptions />} />
+            <Route path={ROUTES.prescriptionsNew} element={<Prescriptions />} />
+            <Route path={ROUTES.prescriptionDetail} element={<PrescriptionDetail />} />
+            <Route path={ROUTES.orderNew} element={<OrderForm />} />
+            <Route path={ROUTES.orderDetail} element={<OrderDetail />} />
+            
+            {/* Gestión de Reportes y Documentos */}
+            <Route path="/patients/:patientId/reports" element={<PatientReportsList />} />
+            <Route path="/patients/:patientId/reports/:reportId" element={<ReportForm />} />
+            <Route path="/patients/:id/documents" element={<PatientDocuments />} />
+            <Route path={ROUTES.reportNew} element={<ReportForm />} />
+            <Route path={ROUTES.reportDetail} element={<ReportDetail />} />
+
+            {/* Dashboard médico base */}
+            <Route path={ROUTES.dashboard} element={<Dashboard />} />
+          </Route>
+
+          {/* EXCLUSIVO DEL PROFESIONAL (CONFIGURACIÓN Y STAFF) */}
+          <Route
+            element={
+              <ProtectedRoute allow={[ROLES.ADMIN, ROLES.PROFESSIONAL]} />
+            }
+          >
+             <Route path="/ProfileProfessional" element={<ProfileProfessional/>} />
+             {/* Si tuvieras una página de gestión de suscripción o finanzas, iría aquí */}
           </Route>
 
           <Route path="*" element={<NotFound />} />

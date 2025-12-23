@@ -78,7 +78,7 @@ export default function Sessions() {
     const navigate = useNavigate();
     const { role, user } = useOutletContext() ?? {};
     const isAssistant = role === "ASSISTANT";
-    const professionalId = user?.id || ""; 
+    const professionalId = user?.therapistId || user?.id || "";
     
     const [selectedSessionId, setSelectedSessionId] = useState(null);
 
@@ -143,7 +143,7 @@ export default function Sessions() {
                     queryWithRange.to = getDateRangeISO(query.to, false);
                 }
 
-                const response = await listSessions({ ...queryWithRange, professionalId }); 
+                const response = await listSessions({ ...queryWithRange, professionalId: professionalId }); 
                 
                 if (!active) return;
                 setListState({
@@ -196,19 +196,25 @@ export default function Sessions() {
     };
 
     const handleCreateSession = async (payload) => {
-        const finalPayload = {
-            ...payload,
-            professionalId: professionalId, 
-        };
+    const finalPayload = {
+        ...payload,
+        professionalId: professionalId, 
+    };
+    
+    try {
+        const session = await createSession(finalPayload);
+        toast.success("Sesión creada");
         
-        try {
-            const session = await createSession(finalPayload);
-            toast.success("Sesión creada");
-            auditService.logAudit("session_create", { patientId: session.patientId, sessionId: session.id });
-            setDrawerOpen(false);
-            setQuery((prev) => ({ ...prev }));
-            refreshTodaySessions();
-        } catch (err) {
+        auditService.logAudit("session_create", { 
+            patientId: session.patientId, 
+            sessionId: session.id,
+            executorId: user.id 
+        });
+
+        setDrawerOpen(false);
+        setQuery((prev) => ({ ...prev }));
+        refreshTodaySessions();
+    } catch (err) {
             toast.error(err?.message || "No pudimos crear la sesión.");
             throw err;
         }
@@ -326,11 +332,10 @@ export default function Sessions() {
                     <Button variant="secondary" size="sm" onClick={() => navigate(ROUTES.sessionsCalendar)}>
                         Vista calendario
                     </Button>
-                    {!isAssistant ? (
                         <Button size="sm" onClick={() => setDrawerOpen(true)}>
                             Nueva sesión
                         </Button>
-                    ) : null}
+                    
                 </div>
             </div>
 
@@ -352,16 +357,14 @@ export default function Sessions() {
                     </div>
                 ) : todaySessions.length === 0 ? (
                     <TableEmpty
-                        title="Sin sesiones para hoy"
-                        description={todayError || "Programa tu primera sesión para empezar a registrar el seguimiento."}
-                        action={
-                            !isAssistant ? (
-                                <Button size="sm" onClick={() => setDrawerOpen(true)}>
-                                    Crear primera sesión
-                                </Button>
-                            ) : null
-                        }
-                    />
+                    title="Sin sesiones para hoy"
+                    description={todayError || "Programa una sesión."}
+                    action={
+                        <Button size="sm" onClick={() => setDrawerOpen(true)}>
+                            Crear sesión
+                        </Button>
+                    }
+                />
                 ) : (
                     <div className="sessions-today__grid">
                         {todaySessions.map((session) => {

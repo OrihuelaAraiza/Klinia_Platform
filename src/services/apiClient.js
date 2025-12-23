@@ -155,12 +155,18 @@ async function request(path, options = {}) {
     throw error;
   }
 
-  if (response.status === 401 || response.status === 403) {
+if (response.status === 401) {
     clearAll();
     if (typeof window !== "undefined" && window.location.pathname !== ROUTES.login) {
       window.location.replace(ROUTES.login);
     }
-    throw new Error("Sesión expirada o sin permisos.");
+    throw new Error("Sesión expirada.");
+  }
+
+  if (response.status === 403) {
+    const error = new Error("No tienes permisos para realizar esta acción.");
+    error.status = 403;
+    throw error;
   }
 
   const text = await response.text();
