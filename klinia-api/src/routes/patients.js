@@ -6,6 +6,7 @@ import bcrypt from "bcryptjs";
 import {
         patientUpdateSchema,
 } from "../validators/patientSchemas.js"; 
+import { getEffectiveProfessionalId } from "../utils/auth.js";
 
 const router = Router();
 
@@ -128,13 +129,8 @@ function normalizePatientOutput(record) {
         };
 }
 
-
-function getProfessionalId(req) {
-        return req.user?.id; 
-}
-
 router.get("/", async (req, res) => {
-        const professionalId = getProfessionalId(req);
+        const professionalId = await getEffectiveProfessionalId(req);
         
         if (!professionalId) {
                 return res.status(401).json({ message: "Acceso no autorizado." });
@@ -190,7 +186,7 @@ router.get("/", async (req, res) => {
 
 
 router.post("/", async (req, res) => {
-        const professionalId = getProfessionalId(req);
+        const professionalId = await getEffectiveProfessionalId(req);
         
         if (!professionalId) {
                 return res.status(401).json({ message: "Acceso no autorizado. Debe ser un profesional." });
@@ -267,7 +263,7 @@ router.post("/", async (req, res) => {
 });
 
 router.get("/:id", async (req, res) => {
-        const professionalId = getProfessionalId(req);
+        const professionalId = await getEffectiveProfessionalId(req);
         
         if (!professionalId) {
                 return res.status(401).json({ message: "Acceso no autorizado." });
@@ -294,7 +290,7 @@ router.get("/:id", async (req, res) => {
 });
 
 router.get("/:id/prescriptions", async (req, res) => {
-        const professionalId = getProfessionalId(req);
+        const professionalId = await getEffectiveProfessionalId(req);
         const patientRecordId = req.params.id;
 
         if (!professionalId) {
@@ -326,7 +322,7 @@ router.get("/:id/prescriptions", async (req, res) => {
 });
 
 router.get("/:id/bundle", async (req, res) => {
-        const professionalId = getProfessionalId(req);
+        const professionalId = await getEffectiveProfessionalId(req);
         const patientRecordId = req.params.id;
 
         if (!professionalId) {
@@ -380,7 +376,7 @@ router.get("/:id/bundle", async (req, res) => {
 
 
 router.post("/import-reassign", async (req, res) => {
-        const professionalId = getProfessionalId(req);
+        const professionalId = await getEffectiveProfessionalId(req);
 
         if (!professionalId) {
                 return res.status(401).json({ message: "Acceso no autorizado para importación." });
@@ -481,7 +477,7 @@ router.post("/import-reassign", async (req, res) => {
 
 
 router.put("/:id", async (req, res) => {
-        const professionalId = getProfessionalId(req);
+        const professionalId = await getEffectiveProfessionalId(req);
         const patientRecordId = req.params.id;
         
         if (!professionalId) {
@@ -579,7 +575,7 @@ router.put("/:id", async (req, res) => {
 
 router.get("/:patientId/reports", async (req, res) => {
         const { patientId } = req.params;
-        const professionalId = getProfessionalId(req);
+        const professionalId = await getEffectiveProfessionalId(req);
 
         if (!professionalId) {
                 return res.status(401).json({ message: "Autenticación requerida." });
@@ -608,7 +604,7 @@ router.get("/:patientId/reports", async (req, res) => {
 
 router.get("/:patientId/orders", async (req, res) => {
     const { patientId } = req.params;
-    const professionalId = getProfessionalId(req);
+    const professionalId = await getEffectiveProfessionalId(req);
 
     if (!professionalId) {
         return res.status(401).json({ message: "Autenticación requerida." });
