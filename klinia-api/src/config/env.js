@@ -11,9 +11,22 @@ const DEFAULT_AUTH_MAX_ATTEMPTS = 5;
 const DEFAULT_AUTH_WINDOW_MS = 600_000;
 const DEFAULT_AUTH_COOLDOWN_MS = 120_000;
 
+// Parse ALLOW_ORIGIN to support multiple origins separated by commas
+function parseAllowOrigin(originString) {
+  if (!originString) {
+    return DEFAULT_ALLOW_ORIGIN;
+  }
+  // If contains comma, split and return array
+  if (originString.includes(',')) {
+    return originString.split(',').map(origin => origin.trim()).filter(Boolean);
+  }
+  // Otherwise return single origin
+  return originString.trim();
+}
+
 export const env = {
   port: Number(process.env.PORT) || DEFAULT_PORT,
-  allowOrigin: process.env.ALLOW_ORIGIN || DEFAULT_ALLOW_ORIGIN,
+  allowOrigin: parseAllowOrigin(process.env.ALLOW_ORIGIN),
   minDelayMs: Number(process.env.MIN_DELAY_MS) || DEFAULT_MIN_DELAY,
   maxDelayMs: Number(process.env.MAX_DELAY_MS) || DEFAULT_MAX_DELAY,
   AUTH_MAX_ATTEMPTS:
