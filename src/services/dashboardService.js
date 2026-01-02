@@ -155,12 +155,13 @@ async function getIncompleteHistoriesFallback(options = {}) {
       } catch (err) {
         // If no history exists, it's incomplete
         if (err.status === 404 || err.message?.includes("404")) {
+          const validation = validateClinicalHistory({});
           incomplete.push({
             id: patient.id,
             patientId: patient.id,
             patientName: `${patient.firstName || ""} ${patient.lastName || ""}`.trim() || "Paciente",
-            completionPercentage: 0,
-            missingFieldsCount: 999,
+            completionPercentage: validation.completionPercentage || 0,
+            missingFieldsCount: validation.missingFields?.length || 0,
             lastUpdated: patient.updatedAt || null,
           });
         }

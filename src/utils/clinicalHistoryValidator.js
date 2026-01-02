@@ -1,169 +1,171 @@
 /**
  * Clinical History Validator
- * Determines if a clinical history is incomplete based on required fields
+ * Validates clinical history completeness based on HC_SCHEMA
  */
 
-import { HC_SCHEMA } from "../config/clinicalSchemas/hc.schema.js";
+import HC_SCHEMA from "../config/clinicalSchemas/hc.schema";
 
 /**
- * Get all required field IDs from the schema
+ * Check if a field value is empty
  */
-function getRequiredFields() {
-  const requiredFields = new Set();
-  
-  HC_SCHEMA.sections.forEach((section) => {
-    section.fields.forEach((field) => {
-      // Direct required fields
-      if (field.required) {
-        requiredFields.add(field.id);
-      }
-      
-      // Required fields in lists
-      if (field.type === "list" && field.repeatable && Array.isArray(field.subfields)) {
-        field.subfields.forEach((subfield) => {
-          if (subfield.required) {
-            requiredFields.add(`${field.id}.${subfield.id}`);
+function isEmpty(value) {
+  if (value === null || value === undefined) return true;
+  if (typeof value === "string") return value.trim() === "";
+  if (typeof value === "number") return false; // 0 is valid
+  if (Array.isArray(value)) return value.length === 0;
+  if (typeof value === "object") return Object.keys(value).length === 0;
+  return false;
+}
+
+/**
+ * Check if a conditional field should be shown/validated
+ */
+function shouldValidateConditional(field, formData) {
+  if (!field.conditional) return true;
+  const { field: conditionalField, value: conditionalValue } = field.conditional;
+  const fieldValue = formData[conditionalField];
+  return fieldValue === conditionalValue;
+}
+
+/**
+ * Validate a single field
+ */
+function validateField(field, formData, sectionId) {
+  // Skip readonly/computed fields - they are auto-generated
+  if (field.type === "readonly") return null;
+
+  // Skip conditional fields that don't meet their condition
+  if (!shouldValidateConditional(field, formData)) return null;
+
+  const value = formData[field.id];
+
+  // Handle list fields
+  if (field.type === "list") {
+    if (field.required && isEmpty(value)) {
+      return {
+        fieldId: field.id,
+        sectionId,
+        label: field.label,
+        type: field.type,
+      };
+    }
+    // If list exists, validate subfields if they are required
+    if (Array.isArray(value) && value.length > 0 && field.subfields) {
+      for (const entry of value) {
+        for (const subfield of field.subfields) {
+          if (subfield.required && isEmpty(entry[subfield.id])) {
+            return {
+              fieldId: `${field.id}.${subfield.id}`,
+              sectionId,
+              label: `${field.label} - ${subfield.label}`,
+              type: subfield.type,
+            };
           }
-        });
+        }
       }
-    });
-  });
-  
-  return requiredFields;
-}
-
-/**
- * Check if a list field has at least one valid entry
- */
-function hasValidListEntry(formData, fieldId, subfields) {
-  const listValue = formData[fieldId];
-  if (!Array.isArray(listValue) || listValue.length === 0) {
-    return false;
-  }
-  
-  // Check if at least one entry has all required subfields
-  return listValue.some((entry) => {
-    if (typeof entry !== "object" || entry === null) {
-      return false;
     }
-    
-    return subfields.every((subfield) => {
-      if (!subfield.required) {
-        return true;
-      }
-      const value = entry[subfield.id];
-      return value !== undefined && value !== null && value !== "";
-    });
-  });
-}
-
-/**
- * Check if conditional required fields are satisfied
- */
-function checkConditionalFields(formData, field) {
-  // Check conditional fields
-  if (field.conditional) {
-    const conditionalValue = formData[field.conditional.field];
-    if (conditionalValue !== field.conditional.value) {
-      return true; // Field is not required if condition is not met
-    }
+    return null;
   }
-  
-  // If field is required and condition is met (or no condition), check it
-  if (field.required) {
-    if (field.type === "list" && field.repeatable) {
-      // For lists, check if at least one entry exists with required subfields
-      return hasValidListEntry(formData, field.id, field.subfields || []);
-    } else {
-      const value = formData[field.id];
-      return value !== undefined && value !== null && value !== "";
-    }
-  }
-  
-  return true;
-}
 
-/**
- * Validate if a clinical history is complete
- * @param {Object} historyData - The clinical history data to validate
- * @returns {Object} - { isComplete: boolean, missingFields: string[] }
- */
-export function validateClinicalHistory(historyData) {
-  if (!historyData || typeof historyData !== "object") {
+  // Handle regular fields
+  if (field.required && isEmpty(value)) {
     return {
-      isComplete: false,
-      missingFields: ["Historia clínica no existe"],
-      completionPercentage: 0,
+      fieldId: field.id,
+      sectionId,
+      label: field.label,
+      type: field.type,
     };
   }
-  
+
+  return null;
+}
+
+/**
+ * Get all required fields from the schema (for calculating total)
+ */
+function getAllFields(schema) {
+  const fields = [];
+  for (const section of schema.sections) {
+    for (const field of section.fields) {
+      if (field.type === "readonly") continue;
+      fields.push({ ...field, sectionId: section.sectionId });
+    }
+  }
+  return fields;
+}
+
+/**
+ * Count total validatable fields (excluding readonly and conditional fields that don't apply)
+ * This counts fields that could potentially be filled based on current form state
+ */
+function countValidatableFields(schema, formData) {
+  let count = 0;
+  for (const section of schema.sections) {
+    for (const field of section.fields) {
+      if (field.type === "readonly") continue;
+      if (!shouldValidateConditional(field, formData)) continue;
+      
+      // For list fields, count the list itself plus subfields if list has entries
+      if (field.type === "list" && field.subfields) {
+        const listValue = formData[field.id];
+        count++; // Count the list field itself
+        if (Array.isArray(listValue) && listValue.length > 0) {
+          // Count subfields for each entry
+          const validSubfields = field.subfields.filter((sf) => sf.type !== "readonly");
+          count += listValue.length * validSubfields.length;
+        }
+      } else {
+        count++; // Regular field
+      }
+    }
+  }
+  return count;
+}
+
+/**
+ * Validate clinical history and return missing fields
+ */
+export function validateClinicalHistory(historyData = {}) {
+  const formData = historyData.data || historyData; // Support both formats
   const missingFields = [];
-  let totalRequired = 0;
-  let completedRequired = 0;
-  
-  HC_SCHEMA.sections.forEach((section) => {
-    section.fields.forEach((field) => {
-      // Skip readonly/computed fields
-      if (field.type === "readonly" || field.computed) {
-        return;
+
+  for (const section of HC_SCHEMA.sections) {
+    for (const field of section.fields) {
+      const error = validateField(field, formData, section.sectionId);
+      if (error) {
+        missingFields.push(error);
       }
-      
-      // Check if field should be validated
-      const shouldValidate = field.required || (field.conditional && field.required);
-      
-      if (shouldValidate) {
-        totalRequired++;
-        
-        const isValid = checkConditionalFields(historyData, field);
-        
-        if (isValid) {
-          completedRequired++;
-        } else {
-          missingFields.push(field.label || field.id);
-        }
-      }
-      
-      // Special handling for conditional required fields
-      if (field.conditional && field.required) {
-        const conditionalValue = historyData[field.conditional.field];
-        if (conditionalValue === field.conditional.value) {
-          totalRequired++;
-          const isValid = checkConditionalFields(historyData, field);
-          if (isValid) {
-            completedRequired++;
-          } else {
-            missingFields.push(field.label || field.id);
-          }
-        }
-      }
-    });
-  });
+    }
+  }
+
+  // Count total validatable fields
+  const totalFields = countValidatableFields(HC_SCHEMA, formData);
   
-  const completionPercentage = totalRequired > 0 
-    ? Math.round((completedRequired / totalRequired) * 100) 
-    : 0;
-  
+  // Count filled fields (simplified: total - missing)
+  // Note: This is an approximation. A more accurate count would require
+  // checking each field individually, but for UI purposes this is sufficient
+  const filledFields = Math.max(0, totalFields - missingFields.length);
+  const completionPercentage =
+    totalFields > 0 ? Math.round((filledFields / totalFields) * 100) : 0;
+
   return {
-    isComplete: missingFields.length === 0 && totalRequired > 0,
+    isValid: missingFields.length === 0,
     missingFields,
     completionPercentage,
-    totalRequired,
-    completedRequired,
+    totalFields,
+    filledFields,
   };
 }
 
 /**
- * Check if a clinical history is incomplete (simplified check)
- * @param {Object} historyData - The clinical history data
- * @returns {boolean} - true if incomplete, false if complete
+ * Check if clinical history is incomplete
  */
-export function isClinicalHistoryIncomplete(historyData) {
+export function isClinicalHistoryIncomplete(historyData = {}) {
   const validation = validateClinicalHistory(historyData);
-  return !validation.isComplete;
+  return !validation.isValid;
 }
 
 export default {
   validateClinicalHistory,
   isClinicalHistoryIncomplete,
 };
-
