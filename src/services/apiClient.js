@@ -91,6 +91,7 @@ async function request(path, options = {}) {
     body,
     auth = true,
     signal,
+    skipAuthError = false, // If true, don't clear session on 401
   } = options;
 
   const hasFormData = typeof FormData !== "undefined";
@@ -156,11 +157,21 @@ async function request(path, options = {}) {
   }
 
 if (response.status === 401) {
-    clearAll();
-    if (typeof window !== "undefined" && window.location.pathname !== ROUTES.login) {
-      window.location.replace(ROUTES.login);
+    // Only clear session and redirect if this is a critical auth error
+    // Non-critical requests (like audit logs) can fail without clearing session
+    if (!skipAuthError) {
+      const token = getToken();
+      // Only clear if we actually have a token (otherwise it's a login attempt failing)
+      if (token) {
+        clearAll();
+        if (typeof window !== "undefined" && window.location.pathname !== ROUTES.login) {
+          window.location.replace(ROUTES.login);
+        }
+      }
     }
-    throw new Error("Sesión expirada.");
+    const error = new Error("Sesión expirada.");
+    error.status = 401;
+    throw error;
   }
 
   if (response.status === 403) {

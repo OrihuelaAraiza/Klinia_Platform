@@ -14,7 +14,7 @@ export async function logAudit(event, meta = {}, options = {}) {
         meta,
         at: new Date().toISOString(),
       },
-      { auth }
+      { auth, skipAuthError: true } // Don't clear session on 401 for audit logs
     );
   } catch (error) {
     // Silently fail for audit errors - they're not critical and shouldn't break the app
