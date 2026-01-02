@@ -9,6 +9,7 @@ import {
   getTodaySessions,
   getRecentNotes,
   getRecentPrescriptions,
+  getIncompleteHistories,
 } from "../services/dashboardService";
 import DashboardStats from "../components/DashboardStats";
 import Button from "../components/UI/Button";
@@ -18,6 +19,7 @@ import DashboardHeader from "../components/DashboardHeader";
 import WidgetTodaySessions from "../components/WidgetTodaySessions";
 import WidgetRecentNotes from "../components/WidgetRecentNotes";
 import WidgetRecentPrescriptions from "../components/WidgetRecentPrescriptions";
+import WidgetIncompleteHistory from "../components/WidgetIncompleteHistory";
 import NextSteps from "../components/NextSteps";
 
 const ADMINISTRATION_ROUTE = ROUTES.administration || ROUTES.admin || null;
@@ -99,6 +101,7 @@ export default function Dashboard() {
     sessions: { items: [], loading: true, error: null },
     notes: { items: [], loading: true, error: null },
     prescriptions: { items: [], loading: true, error: null },
+    histories: { items: [], loading: true, error: null },
   });
   const [reloadKey, setReloadKey] = useState(0);
   const hasLoggedDashboardOpen = useRef(false);
@@ -107,6 +110,7 @@ export default function Dashboard() {
       sessions: () => getTodaySessions(),
       notes: () => getRecentNotes(),
       prescriptions: () => getRecentPrescriptions(),
+      histories: () => getIncompleteHistories(),
     }),
     []
   );
@@ -221,13 +225,15 @@ export default function Dashboard() {
       sessions: { ...prev.sessions, loading: true, error: null },
       notes: { ...prev.notes, loading: true, error: null },
       prescriptions: { ...prev.prescriptions, loading: true, error: null },
+      histories: { ...prev.histories, loading: true, error: null },
     }));
 
     (async () => {
-      const [sessionsResult, notesResult, prescriptionsResult] = await Promise.allSettled([
+      const [sessionsResult, notesResult, prescriptionsResult, historiesResult] = await Promise.allSettled([
         dashboardLoaders.sessions(),
         dashboardLoaders.notes(),
         dashboardLoaders.prescriptions(),
+        dashboardLoaders.histories(),
       ]);
 
       if (!active) return;
@@ -252,6 +258,13 @@ export default function Dashboard() {
           loading: false,
           error:
             prescriptionsResult.status === "rejected" ? prescriptionsResult.reason : null,
+        },
+        histories: {
+          items:
+            historiesResult.status === "fulfilled" ? limitItems(historiesResult.value) : [],
+          loading: false,
+          error:
+            historiesResult.status === "rejected" ? historiesResult.reason : null,
         },
       });
     })();
@@ -411,6 +424,7 @@ export default function Dashboard() {
       sessions: ROUTES.sessions,
       notes: ROUTES.patients,
       prescriptions: ROUTES.prescriptions,
+      histories: ROUTES.patients,
     }),
     []
   );
@@ -441,6 +455,8 @@ export default function Dashboard() {
       }
     } else if (widgetKey === "prescriptions" && item?.patientId) {
       destination = `/patients/${item.patientId}`;
+    } else if (widgetKey === "histories" && item?.patientId) {
+      destination = `/patients/${item.patientId}/history`;
     }
 
     auditService.logAudit("dashboard_widget_row_click", {
@@ -682,6 +698,23 @@ export default function Dashboard() {
           formatDateTime={formatDateTimeValue}
           canCreate={!isAssistant}
         />
+
+        {!isAssistant && (
+          <WidgetIncompleteHistory
+            loading={widgetsState.histories.loading}
+            error={widgetsState.histories.error}
+            items={widgetsState.histories.items}
+            onRetry={() =>
+              handleReload("histories", {
+                reason: widgetsState.histories.error?.message || "manual_retry",
+              })
+            }
+            onViewAll={() => handleWidgetViewAll("histories")}
+            onItemClick={(item) => handleWidgetRowClick("histories", item)}
+            formatDateTime={formatDateTimeValue}
+            canCreate={!isAssistant}
+          />
+        )}
       </div>
 
       <DashboardQuickLinks
