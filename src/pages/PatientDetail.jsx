@@ -17,6 +17,7 @@ import { formatDateISOToHuman, formatPhone } from "../utils/formatters";
 import { ROLES, ROUTES } from "../utils/constants";
 import { useToast } from "../components/UI/Toast";
 import ExportMenu from "../components/ExportMenu";
+import patientsService from "../services/patientsService"; 
 
 const CONSENT_TYPES = [
   { type: "attention", label: "Consentimiento de atención" },
@@ -46,6 +47,24 @@ export default function PatientDetail() {
   const { role, user } = useOutletContext() ?? {};
   const toast = useToast();
   const isAssistant = role === ROLES.ASSISTANT;
+
+
+const handleDownload = async (blobName) => {
+  try {
+    // 🚨 Importante: desestructurar la respuesta { data } según tu apiClient
+    const response = await patientsService.getAttachmentUrl(id, blobName);
+    const downloadUrl = response.url || response.data?.url;
+
+    if (downloadUrl) {
+      window.open(downloadUrl, '_blank');
+    } else {
+      toast.error("URL de descarga no recibida");
+    }
+  } catch (err) {
+    console.error(err);
+    toast.error("No se pudo descargar el archivo de la nube");
+  }
+};
 
   const [patient, setPatient] = useState(null);
   const [consents, setConsents] = useState([]);
@@ -242,38 +261,53 @@ useEffect(() => {
   };
 
   const handleAttachmentFiles = async (files) => {
-    if (isAssistant || !files.length) {
-      return;
-    }
-    setAttachmentError("");
-    const attachments = files.map(mapFileToAttachment);
-    const updatedAttachments = [...(patient.attachments ?? []), ...attachments];
+  if (isAssistant || !files.length) return;
+  
+  setAttachmentError("");
+  const file = files[0]; 
+  const formData = new FormData();
+  formData.append("file", file);
 
-    try {
-      const payload = {
-        firstName: patient.firstName,
-        lastName: patient.lastName,
-        curp: patient.curp,
-        birthDate: patient.birthDate,
-        sex: patient.sex,
-        phone: patient.phone,
-        email: patient.email,
-        attachments: updatedAttachments,
-      };
-      const updated = await updatePatient(id, payload);
-      setPatient((prev) => ({
+  try {
+    const newAttachment = await patientsService.uploadAttachment(id, formData);
+    setPatient((prev) => ({
+      ...prev,
+      attachments: [...(prev.attachments ?? []), newAttachment],
+    }));
+    toast.success("Archivo subido a la nube correctamente");
+    
+    auditService.logAudit("attachments_add", { 
+      patientId: id, 
+      fileName: file.name 
+    });
+
+  } catch (err) {
+    const message = err.response?.data?.message || err.message || "Error al subir el archivo.";
+    setAttachmentError(message);
+    toast.error(message);
+  }
+};
+
+const handleDeleteAttachment = async (attachmentId) => {
+  if (!window.confirm("¿Estás seguro de que deseas eliminar este archivo?")) return;
+
+  try {
+    await patientsService.deleteAttachment(id, attachmentId);
+    
+    setPatient(prev => {
+      const currentFiles = JSON.parse(prev.attachmentsJson || "[]");
+      const filtered = currentFiles.filter(f => f.id !== attachmentId);
+      return {
         ...prev,
-        ...(updated || {}),
-        attachments: updated?.attachments ?? updatedAttachments,
-      }));
-      toast.success("Adjunto agregado");
-      auditService.logAudit("attachments_add", { patientId: id, count: attachments.length });
-    } catch (err) {
-      const message = err.message || "No pudimos agregar el archivo.";
-      setAttachmentError(message);
-      toast.error(message);
-    }
-  };
+        attachmentsJson: JSON.stringify(filtered) 
+      };
+    });
+    
+    toast.success("Archivo eliminado correctamente");
+  } catch (err) {
+    toast.error("Error al eliminar el archivo");
+  }
+};
 
   const handleAttachmentInput = (event) => {
     const files = Array.from(event.target.files || []);
@@ -376,7 +410,11 @@ useEffect(() => {
               </div>
               <div>
                 <strong>Sexo</strong>
-                <span>{patient.sex === "M" ? "Masculino" : patient.sex === "F" ? "Femenino" : patient.sex || "N/A"}</span>
+                <span>
+                  {patient.gender === "M" ? "Masculino" : 
+                  patient.gender === "F" ? "Femenino" : 
+                  patient.gender || "No especificado"}
+                </span>
               </div>
               <div>
                 <strong>Teléfono</strong>
@@ -384,7 +422,7 @@ useEffect(() => {
               </div>
               <div style={{ gridColumn: '1 / -1' }}>
                 <strong>Correo electrónico</strong>
-                <span>{patient.email}</span>
+               <span>{patient.user?.email || "Sin correo registrado"}</span>
               </div>
               <div>
                 <strong>Registro creado</strong>
@@ -425,23 +463,53 @@ useEffect(() => {
                 </button>
               </p>
             </div>
-            {(patient.attachments ?? []).length === 0 ? (
-              <p className="helper-text">Sin archivos adjuntos.</p>
-            ) : (
+          {(() => {
+            const attachments = JSON.parse(patient.attachmentsJson || "[]");
+            
+            if (attachments.length === 0) {
+              return <p className="helper-text">Sin archivos adjuntos.</p>;
+            }
+
+            return (
               <ul className="attachments-list">
-                {patient.attachments.map((file) => (
-                  <li key={file.id} className="attachments-item">
-                    <span className={`attachments-item__icon attachments-item__icon--${file.type.toLowerCase()}`}>
-                      {file.type}
-                    </span>
-                    <div className="attachments-item__meta">
-                      <strong>{file.name}</strong>
-                      <p className="helper-text">{file.type} • {(file.size / 1024).toFixed(1)} KB</p>
+                {attachments.map((file) => (
+                  <li key={file.id} className="attachments-item cluster justify-between">
+                    <div className="cluster">
+                      <span className={`attachments-item__icon attachments-item__icon--${file.type?.toLowerCase() || 'pdf'}`}>
+                        {file.type}
+                      </span>
+                      <div className="attachments-item__meta">
+                        <strong>{file.name}</strong>
+                        <p className="helper-text">
+                          {file.type} • {(file.size / 1024).toFixed(1)} KB
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="cluster gap-2">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => handleDownload(file.blobName)}
+                      >
+                        Descargar
+                      </Button>
+                      {!isAssistant && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => handleDeleteAttachment(file.id)} 
+                          className="text-danger"
+                        >
+                          Eliminar
+                        </Button>
+                      )}
                     </div>
                   </li>
                 ))}
               </ul>
-            )}
+            );
+          })()}
             {!isAssistant ? (
               <>
                 <input

@@ -1,0 +1,14 @@
+usuario ftps
+klinia-api\$klinia-api
+ErLEhYflqs1ug5YLdHt0yWwEY9FSJFDXc9Nku8mozCWRoxeeojPgfA2KdGlH
+
+ámbito de usuario
+klinia_api
+S@mchispas12
+
+conexión ftps
+ftps://waws-prod-yt1-093.ftp.azurewebsites.windows.net/site/wwwroot
+
+git clone 
+
+https://klinia-api-gmdbb0ezfbhybjcw.scm.canadacentral-01.azurewebsites.net:443/klinia-api.git

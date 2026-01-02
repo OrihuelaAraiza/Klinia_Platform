@@ -26,9 +26,24 @@ export async function importAndReassign(payload) {
     return api.post("/patients/import-reassign", payload, { auth: true });
 }
 
+export const uploadAttachment = (id, formData) => {
+  return api.post(`/patients/${id}/attachments`, formData); 
+};
+export const getAttachmentUrl = (patientId, blobName) => {
+  // Encodificamos para que los "/" del blobName no rompan la URL de la API
+  const encodedBlob = encodeURIComponent(blobName);
+  return api.get(`/patients/${patientId}/attachments/${encodedBlob}/url`);
+}
+export const deleteAttachment = (patientId, attachmentId) => {
+  return api.delete(`/patients/${patientId}/attachments/${attachmentId}`);
+}
+
 export default {
   listPatients,
   getPatient,
   createPatient,
   updatePatient,
+  uploadAttachment,
+  getAttachmentUrl,
+  deleteAttachment
 };
