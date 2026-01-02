@@ -156,11 +156,14 @@ export default function Login() {
         setBlockState(BLOCK_INITIAL_STATE);
       }
 
-      await auditService.logAudit(
+      // Log audit asynchronously - don't block navigation
+      auditService.logAudit(
         "auth_login_success",
         { method: "password", role: session.user?.role },
-        { auth: true }
-      );
+        { auth: true, silent: true }
+      ).catch(() => {
+        // Silently fail - audit logging should never block login
+      });
 
       const destination = fromPath || resolveDestination(session.user?.role);
       navigate(destination, { replace: true });

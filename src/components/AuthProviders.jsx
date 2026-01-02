@@ -73,12 +73,10 @@ export default function AuthProviders({
             email: error?.email,
             reason: error?.code || error?.message,
           },
-          { auth: false }
+          { auth: false, silent: true }
         )
-        .catch((auditError) => {
-          if (import.meta.env.DEV) {
-            console.warn("[audit] microsoft login failure audit failed", auditError);
-          }
+        .catch(() => {
+          // Silently fail - audit logging should never block the UI
         });
 
       toast.error(friendly);

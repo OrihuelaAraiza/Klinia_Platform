@@ -121,7 +121,11 @@ export default function Dashboard() {
     }
     hasLoggedDashboardOpen.current = true;
     const resolvedRole = role || outletRole || authService.currentRole() || null;
-    auditService.logAudit("dashboard_open", { role: resolvedRole || "unknown" });
+    // Log audit asynchronously - don't block dashboard load
+    auditService.logAudit("dashboard_open", { role: resolvedRole || "unknown" }, { silent: true })
+      .catch(() => {
+        // Silently fail - audit logging should never block dashboard
+      });
   }, [role, outletRole]);
 
   useEffect(() => {
