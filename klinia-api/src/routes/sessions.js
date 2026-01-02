@@ -8,6 +8,7 @@ import {
     sessionStatusSchema,
     sessionLinkNoteSchema,
 } from "../validators/sessionSchemas.js";
+import { getEffectiveProfessionalId } from "../utils/auth.js";
 
 
 export const SESSION_STATUS = {
@@ -29,17 +30,6 @@ const querySchema = z.object({
 });
 
 const router = Router();
-
-const FALLBACK_PROFESSIONAL_ID = "U_ADMIN_TEST_FALLBACK"; 
-
-function getProfessionalId(req) {
-    const id = req.user?.id || FALLBACK_PROFESSIONAL_ID; 
-    
-    if (id === FALLBACK_PROFESSIONAL_ID) {
-        console.warn("[AUTH] Using fallback professional ID for sessions.");
-    }
-    return id;
-}
 
 function mapStatusToPrisma(status) {
     switch (status.toLowerCase()) {
@@ -82,7 +72,7 @@ function normalizeSessionOutput(session) {
 
 router.post("/", async (req, res) => {
     const rawPayload = req.body;
-    const professionalId = getProfessionalId(req);
+    const professionalId = await getEffectiveProfessionalId(req);
 
     if (rawPayload.durationMin !== undefined) {
         rawPayload.durationMinutes = rawPayload.durationMin;
@@ -139,7 +129,7 @@ router.post("/", async (req, res) => {
 });
 
 router.get("/", async (req, res) => {
-    const professionalId = getProfessionalId(req);
+    const professionalId = await getEffectiveProfessionalId(req);
     
     const parsed = querySchema.safeParse(req.query);
 
@@ -209,7 +199,7 @@ if (prismaStatus === 'CONFIRMED' && !['SCHEDULED', 'COMPLETED', 'CANCELLED', 'NO
 // 3. GET /:id (Obtener Detalle o ICS)
 router.get("/:id", async (req, res) => {
     const sessionId = req.params.id;
-    const professionalId = getProfessionalId(req); 
+    const professionalId = await getEffectiveProfessionalId(req); 
     
     if (req.query.export === 'ics') {
         try {
@@ -280,7 +270,7 @@ router.get("/:id", async (req, res) => {
 // 5. PUT /:id (Actualizar campos de Sesión)
 router.put("/:id", async (req, res) => {
     const sessionId = req.params.id;
-    const professionalId = getProfessionalId(req); 
+    const professionalId = await getEffectiveProfessionalId(req); 
 
     const parsed = sessionUpdateSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -331,7 +321,7 @@ router.put("/:id", async (req, res) => {
 
 router.put("/:id/status", async (req, res) => {
     const sessionId = req.params.id;
-    const professionalId = getProfessionalId(req);
+    const professionalId = await getEffectiveProfessionalId(req);
 
     const parsed = sessionStatusSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -390,7 +380,7 @@ router.put("/:id/status", async (req, res) => {
 // 7. PUT /:id/link-note (Vincular Nota)
 router.put("/:id/link-note", async (req, res) => {
     const sessionId = req.params.id;
-    const professionalId = getProfessionalId(req);
+    const professionalId = await getEffectiveProfessionalId(req);
     
     const parsed = sessionLinkNoteSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -429,7 +419,7 @@ router.put("/:id/link-note", async (req, res) => {
 
 // 9. GET /today-counts
 router.get("/today-counts", async (req, res) => {
-    const professionalId = getProfessionalId(req);
+    const professionalId = await getEffectiveProfessionalId(req);
     
     const today = new Date();
     today.setHours(0, 0, 0, 0);

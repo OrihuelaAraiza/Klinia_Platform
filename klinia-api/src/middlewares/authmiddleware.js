@@ -25,11 +25,21 @@ export async function authenticateToken(req, res, next) {
     try {
         const decoded = jwt.verify(token, env.JWT_SECRET);
 
-        req.user = {
-            id: decoded.sub,
-            email: decoded.email,
-            role: decoded.role,
-        };
+        const user = await prisma.user.findUnique({
+            where: { id: decoded.sub },
+            select: {
+                id: true,
+                email: true,
+                role: true,
+                delegatedById: true,
+            },
+        });
+
+        if (!user) {
+            return res.status(401).json({ message: "Usuario no encontrado." });
+        }
+
+        req.user = user;
         return next();
 
     } catch (error) {
