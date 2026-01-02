@@ -16,7 +16,7 @@ export async function getClinicalHistory(patientId) {
   } catch (error) {
     // Fallback to local storage if API fails (404 or network error)
     if (error.status === 404 || error.code === "NETWORK_ERROR") {
-      const stored = storage.get(`${STORAGE_KEY_PREFIX}${patientId}`);
+      const stored = storage.getObject(`${STORAGE_KEY_PREFIX}${patientId}`);
       if (stored) {
         await auditService.logAudit("hc_view", { patientId, source: "local_storage" });
         return stored;
@@ -47,14 +47,14 @@ export async function saveClinicalHistory(patientId, payload, isDraft = false) {
   } catch (error) {
     // Fallback to local storage if API fails
     if (error.status >= 500 || error.code === "NETWORK_ERROR") {
-      const existing = storage.get(`${STORAGE_KEY_PREFIX}${patientId}`) || {};
+      const existing = storage.getObject(`${STORAGE_KEY_PREFIX}${patientId}`) || {};
       const merged = {
         ...existing,
         ...historyData,
         id: existing.id || `hc_${Date.now()}`,
         createdAt: existing.createdAt || timestamp,
       };
-      storage.set(`${STORAGE_KEY_PREFIX}${patientId}`, merged);
+      storage.setObject(`${STORAGE_KEY_PREFIX}${patientId}`, merged);
       await auditService.logAudit("hc_save", { patientId, isDraft, source: "local_storage" });
       return merged;
     }
@@ -73,14 +73,14 @@ export async function updateClinicalHistory(patientId, historyId, payload) {
   } catch (error) {
     // Fallback to local storage
     if (error.status >= 500 || error.code === "NETWORK_ERROR") {
-      const existing = storage.get(`${STORAGE_KEY_PREFIX}${patientId}`);
+      const existing = storage.getObject(`${STORAGE_KEY_PREFIX}${patientId}`);
       if (existing && existing.id === historyId) {
         const updated = {
           ...existing,
           ...payload,
           updatedAt: new Date().toISOString(),
         };
-        storage.set(`${STORAGE_KEY_PREFIX}${patientId}`, updated);
+        storage.setObject(`${STORAGE_KEY_PREFIX}${patientId}`, updated);
         await auditService.logAudit("hc_update", { patientId, historyId, source: "local_storage" });
         return updated;
       }
