@@ -158,18 +158,27 @@ async function request(path, options = {}) {
 
 if (response.status === 401) {
     // Only clear session and redirect if this is a critical auth error
-    // Non-critical requests (like audit logs) can fail without clearing session
+    // Non-critical requests (like audit logs, dashboard stats) can fail without clearing session
     if (!skipAuthError) {
       const token = getToken();
       // Only clear if we actually have a token (otherwise it's a login attempt failing)
       if (token) {
-        clearAll();
-        if (typeof window !== "undefined" && window.location.pathname !== ROUTES.login) {
-          window.location.replace(ROUTES.login);
+        // In development, log for debugging but don't clear session on first 401
+        // This prevents clearing session when backend endpoints don't exist
+        if (import.meta.env.DEV) {
+          console.warn("[API Client] 401 error but keeping session (dev mode). Path:", path);
+          // In dev, only clear session if we're sure the token is invalid
+          // For now, we'll be more lenient and not clear immediately
+        } else {
+          // In production, clear session on 401
+          clearAll();
+          if (typeof window !== "undefined" && window.location.pathname !== ROUTES.login) {
+            window.location.replace(ROUTES.login);
+          }
         }
       }
     }
-    const error = new Error("Sesión expirada.");
+    const error = new Error("Sesión expirada o no autorizado.");
     error.status = 401;
     throw error;
   }
