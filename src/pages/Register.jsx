@@ -64,6 +64,7 @@ function createInitialForm() {
             curp: "",
             certificateFolio: "",
             birthDate: "",
+            specialty: "",
         },
         address: {
             street: "",
@@ -79,10 +80,10 @@ function createInitialForm() {
             phoneIsVerified: false,
         },
         documents: {
-            idOrPassport: null,
-            professionalLicense: null,
-            curpDocument: null,
-            proofOfAddress: null,
+            idOrPassportFileId: null,      // Antes idOrPassport
+            professionalLicenseFileId: null, // Antes professionalLicense
+            curpDocumentFileId: null,        // Antes curpDocument
+            proofOfAddressFileId: null,      // Antes proofOfAddress
         },
         face: {
             selfieFileId: "",
@@ -230,14 +231,15 @@ function validateContact(data) {
 
 function validateDocuments(documents) {
     const errors = {};
-    if (!documents.idOrPassport?.fileId) {
-        errors.idOrPassport = "Sube tu identificacion oficial.";
+    // Ahora 'documents.idOrPassportFileId' es directamente el String del ID
+    if (!documents.idOrPassportFileId) {
+        errors.idOrPassportFileId = "Sube tu identificacion oficial.";
     }
-    if (!documents.professionalLicense?.fileId) {
-        errors.professionalLicense = "Sube tu cedula profesional.";
+    if (!documents.professionalLicenseFileId) {
+        errors.professionalLicenseFileId = "Sube tu cedula profesional.";
     }
-    if (!documents.proofOfAddress?.fileId) {
-        errors.proofOfAddress = "Sube tu comprobante de domicilio.";
+    if (!documents.proofOfAddressFileId) {
+        errors.proofOfAddressFileId = "Sube tu comprobante de domicilio.";
     }
     return errors;
 }
@@ -282,6 +284,7 @@ function buildPayload(form) {
             curp: sanitizeUpper(form.identity.curp),
             certificateFolio: sanitize(form.identity.certificateFolio),
             birthDate: form.identity.birthDate,
+            specialty: form.identity.specialty,
         },
         address: {
             street: sanitize(form.address.street),
@@ -297,12 +300,10 @@ function buildPayload(form) {
       phoneIsVerified: form.contact.phoneIsVerified, // <-- ¡CORRECCIÓN CLAVE 2!
         },
         documents: {
-            idOrPassportFileId: form.documents.idOrPassport?.fileId,
-            professionalLicenseFileId:
-                form.documents.professionalLicense?.fileId,
-            curpDocumentFileId:
-                form.documents.curpDocument?.fileId, 
-            proofOfAddressFileId: form.documents.proofOfAddress?.fileId,
+            idOrPassportFileId: form.documents.idOrPassportFileId,
+            professionalLicenseFileId: form.documents.professionalLicenseFileId,
+            curpDocumentFileId: form.documents.curpDocumentFileId, 
+            proofOfAddressFileId: form.documents.proofOfAddressFileId,
         },
         face: {
             selfieFileId: form.face.selfieFileId,
@@ -628,12 +629,12 @@ export default function Register() {
     let stepProps = {};
     if (activeStep.id === "documents") {
         stepProps = {
-            documents: form.documents,
-            errors: errors.documents || {},
-            onDocumentChange: handleDocumentChange,
-            onBusyChange: handleBusyChange("documents"),
-            disabled: submitting,
-        };
+        documents: form.documents,
+        errors: errors.documents || {}, // Esto pasará los errores de Zod o validación local
+        onDocumentChange: handleDocumentChange,
+        onBusyChange: handleBusyChange("documents"),
+        disabled: submitting,
+    };
     } else if (activeStep.id === "face") {
         stepProps = {
             data: form.face,

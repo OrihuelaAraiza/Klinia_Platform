@@ -37,6 +37,9 @@ export const getAttachmentUrl = (patientId, blobName) => {
 export const deleteAttachment = (patientId, attachmentId) => {
   return api.delete(`/patients/${patientId}/attachments/${attachmentId}`);
 }
+export const getProfessionalsList = () => {
+    return api.get("/profiles/list-professionals"); // Ajusta la ruta según tu servidor
+};
 
 export default {
   listPatients,
@@ -45,5 +48,6 @@ export default {
   updatePatient,
   uploadAttachment,
   getAttachmentUrl,
-  deleteAttachment
+  deleteAttachment, 
+  getProfessionalsList
 };

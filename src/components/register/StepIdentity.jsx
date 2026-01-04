@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import InputField from "../InputField";
+import Field from "../UI/Field"; // Asegúrate de tener acceso al componente Field para el select
 
 export default function StepIdentity({
   data,
@@ -24,11 +25,32 @@ export default function StepIdentity({
       <div className="register-step__header">
         <h2 className="register-step__title">Identidad</h2>
         <p className="register-step__subtitle">
-          Necesitamos tus datos personales para validar tu identidad.
+          Necesitamos tus datos personales y especialidad para validar tu perfil profesional.
         </p>
       </div>
 
       <div className="register-step__body register-step__grid">
+        {/* NUEVO CAMPO: ESPECIALIDAD */}
+        <Field 
+          label="Especialidad Profesional" 
+          required 
+          error={errors.specialty}
+          style={{ gridColumn: "1 / -1" }} // Ocupa todo el ancho para destacar
+        >
+          <select
+            name="specialty"
+            value={data.specialty || ""}
+            onChange={handleChange}
+            disabled={disabled}
+            className="role-select" 
+          >
+            <option value="">Selecciona tu especialidad</option>
+            <option value="PSICOLOGO">Psicólogo</option>
+            <option value="PSICOTERAPEUTA">Psicoterapeuta</option>
+            <option value="PSIQUIATRA">Psiquiatra</option>
+          </select>
+        </Field>
+
         <InputField
           label="Nombres"
           name="firstName"
@@ -63,7 +85,7 @@ export default function StepIdentity({
           autoComplete="off"
         />
 
-       <InputField
+        <InputField
           label="Folio de Certificado"
           name="certificateFolio" 
           value={data.certificateFolio} 

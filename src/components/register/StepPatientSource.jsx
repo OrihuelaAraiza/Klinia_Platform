@@ -1,7 +1,26 @@
+import { useState, useEffect } from "react";
 import Field from "../UI/Field";
+import { getProfessionalsList } from "../../services/patientsService";
 
 export default function StepPatientSource({ data, onChange, errors, disabled }) {
-    
+  const [professionals, setProfessionals] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    async function fetchTerapists() {
+      setIsLoading(true);
+      try {
+        const list = await getProfessionalsList();
+        setProfessionals(list || []);
+      } catch (err) {
+        console.error("No se pudieron cargar los terapeutas");
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchTerapists();
+  }, []);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     onChange(name, value);
@@ -10,14 +29,37 @@ export default function StepPatientSource({ data, onChange, errors, disabled }) 
   return (
     <div className="register-step">
       <div className="register-step__header">
-        <h2 className="register-step__title">Motivo y Fuente</h2>
+        <h2 className="register-step__title">Asignación y Motivo</h2>
         <p className="register-step__subtitle">
-          Ayúdanos a entender por qué elegiste Klinia y cómo nos encontraste.
+          Selecciona al especialista que te atenderá y cuéntanos cómo nos encontraste.
         </p>
       </div>
 
       <div className="register-step__body register-step__grid">
         
+        {/* DROPDOWN DE TERAPEUTAS */}
+        <Field 
+            label="Selecciona tu terapeuta" 
+            required 
+            error={errors.professionalInChargeId}
+            hint={isLoading ? "Cargando especialistas..." : ""}
+        >
+          <select
+            name="professionalInChargeId"
+            value={data.professionalInChargeId || ""}
+            onChange={handleChange}
+            disabled={disabled || isLoading}
+            className="role-select" 
+          >
+            <option value="">-- Elige un profesional --</option>
+            {professionals.map((pro) => (
+              <option key={pro.id} value={pro.id}>
+                {pro.name}
+              </option>
+            ))}
+          </select>
+        </Field>
+
         <Field label="¿Cómo nos encontró?" required error={errors.referral}>
           <select
             name="referral"
@@ -28,22 +70,26 @@ export default function StepPatientSource({ data, onChange, errors, disabled }) 
           >
             <option value="">Selecciona una opción</option>
             <option value="REDES_SOCIALES">Redes Sociales</option>
-            <option value="BUSQUEDA_WEB">Búsqueda en Internet (Google/Bing)</option>
-            <option value="RECOMENDACION">Recomendación (Familiar/Amigo)</option>
-            <option value="ESPECIALISTA">Recomendación de un Especialista</option>
-            <option value="OTRO">Otro / No Aplica</option>
+            <option value="BUSQUEDA_WEB">Búsqueda en Internet</option>
+            <option value="RECOMENDACION">Recomendación</option>
+            <option value="ESPECIALISTA">Especialista Externo</option>
           </select>
         </Field>
 
-        <Field label="Motivo principal del registro" required hint="Ej: Agendar cita, buscar historial médico, etc." error={errors.purpose}>
+        <Field 
+            label="Motivo principal" 
+            required 
+            error={errors.purpose}
+            style={{ gridColumn: "1 / -1" }}
+        >
           <textarea
             name="purpose"
             value={data.purpose || ""}
             onChange={handleChange}
             disabled={disabled}
             className="textarea" 
-            placeholder="Quiero agendar una cita con el Doctor X..."
-            rows={4}
+            placeholder="Breve descripción del motivo de tu consulta..."
+            rows={3}
           />
         </Field>
       </div>
