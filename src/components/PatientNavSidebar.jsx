@@ -76,7 +76,7 @@ export default function PatientNavSidebar({
     >
       <div className="sidebar__brand">
         <img className="sidebar__logo" src={logo} alt="Klinia" />
-        <span className="sidebar__title">Mi Salud</span>
+        <span className="sidebar__title">Klinia</span>
       </div>
       <ul className="sidebar__list">
         {PATIENT_NAV_ITEMS.map((item) => (
