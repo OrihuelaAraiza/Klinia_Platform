@@ -45,6 +45,16 @@ export async function listByPatient(patientId) {
   return Array.isArray(response) ? response : [];
 }
 
+/**
+ * Obtiene las prescripciones del paciente autenticado
+ * Para uso cuando el usuario es un paciente (no requiere pasar patientId)
+ */
+export async function listMyPrescriptions() {
+  const response = await api.get(`/patient/prescriptions`, { auth: true });
+  await auditService.logAudit("prescription_list_my", {});
+  return Array.isArray(response) ? response : [];
+}
+
 export function getOne(id) {
   // Ajustamos la URL para que coincida con lo que espera el servidor
   return api.get(`/prescriptions/detail/${id}`);

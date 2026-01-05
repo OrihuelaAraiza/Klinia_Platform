@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useOutletContext } from "react-router-dom";
-import { getPatient } from "../../services/patientsService";
+import { getMyDocuments, getMyProfile } from "../../services/patientsService";
 import { formatDateISOToHuman } from "../../utils/formatters";
 import Card, { CardHeader, CardBody } from "../../components/UI/Card";
 import Button from "../../components/UI/Button";
@@ -20,23 +20,29 @@ export default function PatientDocuments() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!patientId) {
-      setLoading(false);
-      return;
-    }
-
     let alive = true;
     async function load() {
       setLoading(true);
       setError("");
       try {
-        const patient = await getPatient(patientId);
+        // Intentar primero con endpoint específico para pacientes
+        const attachments = await getMyDocuments();
         if (!alive) return;
-        // Asumiendo que los documentos vienen en patient.attachments
-        const attachments = Array.isArray(patient?.attachments) ? patient.attachments : [];
         setDocuments(attachments);
       } catch (err) {
         if (!alive) return;
+        // Si el endpoint no existe, intentar obtener desde el perfil como fallback
+        if (err.status === 404 && patientId) {
+          try {
+            const { getPatient } = await import("../../services/patientsService");
+            const patient = await getPatient(patientId);
+            const attachments = Array.isArray(patient?.attachments) ? patient.attachments : [];
+            setDocuments(attachments);
+            return;
+          } catch (fallbackErr) {
+            // Continuar con el error original
+          }
+        }
         const message = err.message || "No pudimos cargar tus documentos.";
         setError(message);
         toast.error(message);
@@ -50,23 +56,49 @@ export default function PatientDocuments() {
     return () => {
       alive = false;
     };
-  }, [patientId, toast]);
+  }, [toast, patientId]);
 
   const handleDownload = async (blobName) => {
     try {
-      // Usar el servicio de pacientes para obtener la URL de descarga
-      const { getAttachmentUrl } = await import("../../services/patientsService");
-      const response = await getAttachmentUrl(patientId, blobName);
+      // Intentar primero con endpoint específico para pacientes
+      const { api } = await import("../../services/apiClient");
+      const response = await api.get(`/patient/documents/${encodeURIComponent(blobName)}/url`, { auth: true });
       const downloadUrl = response.url || response.data?.url;
 
       if (downloadUrl) {
         window.open(downloadUrl, "_blank");
         toast.success("Descarga iniciada");
       } else {
+        // Fallback al método tradicional si está disponible
+        if (patientId) {
+          const { getAttachmentUrl } = await import("../../services/patientsService");
+          const fallbackResponse = await getAttachmentUrl(patientId, blobName);
+          const fallbackUrl = fallbackResponse.url || fallbackResponse.data?.url;
+          if (fallbackUrl) {
+            window.open(fallbackUrl, "_blank");
+            toast.success("Descarga iniciada");
+            return;
+          }
+        }
         toast.error("No se pudo obtener la URL de descarga");
       }
     } catch (err) {
       console.error(err);
+      // Intentar fallback si el endpoint específico falla
+      if (patientId) {
+        try {
+          const { getAttachmentUrl } = await import("../../services/patientsService");
+          const response = await getAttachmentUrl(patientId, blobName);
+          const downloadUrl = response.url || response.data?.url;
+          if (downloadUrl) {
+            window.open(downloadUrl, "_blank");
+            toast.success("Descarga iniciada");
+            return;
+          }
+        } catch (fallbackErr) {
+          // Continuar con el error original
+        }
+      }
       toast.error("No se pudo descargar el documento");
     }
   };

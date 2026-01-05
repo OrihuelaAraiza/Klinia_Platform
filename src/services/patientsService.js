@@ -41,6 +41,24 @@ export const getProfessionalsList = () => {
     return api.get("/profiles/list-professionals"); // Ajusta la ruta según tu servidor
 };
 
+/**
+ * Obtiene el perfil del paciente autenticado
+ * Para uso cuando el usuario es un paciente (no requiere pasar patientId)
+ */
+export async function getMyProfile() {
+  const response = await api.get("/patient/profile", { auth: true });
+  return response;
+}
+
+/**
+ * Obtiene los documentos/adjuntos del paciente autenticado
+ * Para uso cuando el usuario es un paciente (no requiere pasar patientId)
+ */
+export async function getMyDocuments() {
+  const response = await api.get("/patient/documents", { auth: true });
+  return Array.isArray(response) ? response : (response?.items || []);
+}
+
 export default {
   listPatients,
   getPatient,
@@ -49,5 +67,7 @@ export default {
   uploadAttachment,
   getAttachmentUrl,
   deleteAttachment, 
-  getProfessionalsList
+  getProfessionalsList,
+  getMyProfile,
+  getMyDocuments,
 };

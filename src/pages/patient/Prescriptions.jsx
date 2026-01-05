@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useOutletContext } from "react-router-dom";
-import { listByPatient as listPrescriptions } from "../../services/prescriptionsService";
+import { listMyPrescriptions } from "../../services/prescriptionsService";
 import { formatDateISOToHuman } from "../../utils/formatters";
 import Card, { CardHeader, CardBody } from "../../components/UI/Card";
 import Badge from "../../components/UI/Badge";
@@ -21,17 +21,13 @@ export default function PatientPrescriptions() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!patientId) {
-      setLoading(false);
-      return;
-    }
-
     let alive = true;
     async function load() {
       setLoading(true);
       setError("");
       try {
-        const response = await listPrescriptions(patientId);
+        // Usar endpoint específico para pacientes que identifica al paciente desde el token
+        const response = await listMyPrescriptions();
         if (!alive) return;
         const items = Array.isArray(response) ? response : [];
         // Ordenar: activas primero, luego por fecha
@@ -42,6 +38,22 @@ export default function PatientPrescriptions() {
         setPrescriptions(sorted);
       } catch (err) {
         if (!alive) return;
+        // Si el endpoint no existe, intentar con el método tradicional como fallback
+        if (err.status === 404 && patientId) {
+          try {
+            const { listByPatient } = await import("../../services/prescriptionsService");
+            const response = await listByPatient(patientId);
+            const items = Array.isArray(response) ? response : [];
+            const sorted = items.sort((a, b) => {
+              if (a.suspended !== b.suspended) return a.suspended ? 1 : -1;
+              return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+            });
+            setPrescriptions(sorted);
+            return;
+          } catch (fallbackErr) {
+            // Continuar con el error original
+          }
+        }
         const message = err.message || "No pudimos cargar tus prescripciones.";
         setError(message);
         toast.error(message);
@@ -55,7 +67,7 @@ export default function PatientPrescriptions() {
     return () => {
       alive = false;
     };
-  }, [patientId, toast]);
+  }, [toast, patientId]);
 
   const activePrescriptions = prescriptions.filter((p) => !p.suspended && !p.completed);
   const inactivePrescriptions = prescriptions.filter((p) => p.suspended || p.completed);
