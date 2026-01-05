@@ -1,7 +1,7 @@
 import { useState } from "react";
 import Button from "./UI/Button";
 import Modal from "./UI/Modal";
-import { ROLES_LABEL } from "../utils/constants";
+import { ROLES, ROLES_LABEL } from "../utils/constants";
 import ThemeToggle from "./ThemeToggle";
 import { Link, useNavigate } from "react-router-dom";
 
@@ -90,7 +90,11 @@ export default function Topbar({
     const navigate = useNavigate();
 
     const goToProfile = () => {
-        navigate("/ProfileProfessional"); 
+        if (role === ROLES.PATIENT) {
+            navigate("/patient/profile");
+        } else {
+            navigate("/ProfileProfessional"); 
+        }
     };
 
   return (

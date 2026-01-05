@@ -5,6 +5,7 @@ import auditService from "../services/auditService";
 import storage from "../services/storage";
 import { ROLES, ROUTES, resolveDestination } from "../utils/constants"; 
 import NavSidebar from "./NavSidebar";
+import PatientNavSidebar from "./PatientNavSidebar";
 import Topbar from "./Topbar";
 
 export default function ProtectedRoute({ allow, children }) {
@@ -124,20 +125,28 @@ export default function ProtectedRoute({ allow, children }) {
   return <Navigate to={correctHome} replace />;
  }
 
-  const sidebarId = "app-sidebar";
+  const sidebarId = role === ROLES.PATIENT ? "patient-sidebar" : "app-sidebar";
   const shouldShowOverlay = isMobile && !sidebarCollapsed;
+  const isPatient = role === ROLES.PATIENT;
 
   return (
     <div
       className={`app-shell${sidebarCollapsed ? " app-shell--collapsed" : ""}${
         shouldShowOverlay ? " app-shell--menu-open" : ""
-      }`}
+      }${isPatient ? " app-shell--patient" : ""}`}
     >
-      <NavSidebar
-        role={role}
-        collapsed={sidebarCollapsed}
-        id={sidebarId}
-      />
+      {isPatient ? (
+        <PatientNavSidebar
+          collapsed={sidebarCollapsed}
+          id={sidebarId}
+        />
+      ) : (
+        <NavSidebar
+          role={role}
+          collapsed={sidebarCollapsed}
+          id={sidebarId}
+        />
+      )}
       {shouldShowOverlay ? (
         <button
           type="button"

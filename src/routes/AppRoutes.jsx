@@ -14,6 +14,12 @@ import { ROLES, ROUTES } from "../utils/constants";
 import PageSkeleton from "../components/PageSkeleton";
 import PatientRegister from "../pages/PatientRegister";
 import PatientDashboard from "../pages/PatientDashboard";
+const PatientDashboardNew = lazy(() => import("../pages/patient/Dashboard"));
+const PatientClinicalHistory = lazy(() => import("../pages/patient/ClinicalHistory"));
+const PatientNotes = lazy(() => import("../pages/patient/Notes"));
+const PatientSessions = lazy(() => import("../pages/patient/Sessions"));
+const PatientPrescriptions = lazy(() => import("../pages/patient/Prescriptions"));
+const PatientDocuments = lazy(() => import("../pages/patient/Documents"));
 
 const Home = lazy(() => import("../pages/Home"));
 const Login = lazy(() => import("../pages/Login"));
@@ -64,7 +70,7 @@ function RouteAuditor() {
       location.pathname === ROUTES.register
     ) {
       navigate(
-        role === ROLES.PATIENT ? "/patient/dashboard" : ROUTES.dashboard,
+        role === ROLES.PATIENT ? ROUTES.patientDashboard : ROUTES.dashboard,
         { replace: true }
       );
     }
@@ -92,6 +98,18 @@ export default function AppRoutes() {
             <Route path="/auth/debug" element={<AuthDebug />} />
           </Route>
 
+          {/* PLATAFORMA DEL PACIENTE */}
+          <Route
+            element={<ProtectedRoute allow={[ROLES.PATIENT]} />}
+          >
+            <Route path={ROUTES.patientDashboard} element={<PatientDashboardNew />} />
+            <Route path={ROUTES.patientClinicalHistory} element={<PatientClinicalHistory />} />
+            <Route path={ROUTES.patientNotes} element={<PatientNotes />} />
+            <Route path={ROUTES.patientSessions} element={<PatientSessions />} />
+            <Route path={ROUTES.patientPrescriptions} element={<PatientPrescriptions />} />
+            <Route path={ROUTES.patientDocuments} element={<PatientDocuments />} />
+          </Route>
+
           {/* PANEL COMPARTIDO (MÉDICO, ASISTENTE Y PACIENTE) */}
           <Route
             element={
@@ -105,7 +123,6 @@ export default function AppRoutes() {
               />
             }
           >
-            <Route path="/patient/dashboard" element={<PatientDashboard />} />
             <Route path={ROUTES.patients} element={<Patients />} />
             <Route path={`${ROUTES.patients}/:id`} element={<PatientDetail />} />
             <Route path={`${ROUTES.patients}/:id/history`} element={<History />} />

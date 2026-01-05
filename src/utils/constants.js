@@ -29,6 +29,14 @@ export const ROUTES = {
   orderDetail: "/patients/:patientId/orders/:orderId",
   reportNew: "/patients/:patientId/reports/new",
   reportDetail: "/patients/:patientId/reports/:reportId",
+  // Patient routes
+  patientDashboard: "/patient/dashboard",
+  patientClinicalHistory: "/patient/clinical-history",
+  patientNotes: "/patient/notes",
+  patientSessions: "/patient/sessions",
+  patientPrescriptions: "/patient/prescriptions",
+  patientDocuments: "/patient/documents",
+  patientProfile: "/patient/profile",
 };
 
 export const SESSION_STATUS = {
@@ -138,7 +146,7 @@ export function resolveDestination(role) {
   case ROLES.ASSISTANT:
     return ROUTES.patients;
   case ROLES.PATIENT:
-    return "/patient/dashboard"; // Ruta del paciente
+    return ROUTES.patientDashboard;
   default:
     return ROUTES.dashboard;
 }
