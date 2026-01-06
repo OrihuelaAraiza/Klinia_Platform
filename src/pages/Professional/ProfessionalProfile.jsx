@@ -1,18 +1,18 @@
-import React, { useState, useEffect, useRef } from 'react'; 
+import React, { useState, useEffect, useRef } from 'react';
 import { useOutletContext, useNavigate } from 'react-router-dom';
 import Card, { CardBody, CardHeader } from '../../components/UI/Card';
 import Button from '../../components/UI/Button';
 import ButtonPrimary from '../../components/ButtonPrimary';
 import Badge from '../../components/UI/Badge';
 import InputField from '../../components/InputField';
-import Field from "../../components/UI/Field"; 
+import Field from "../../components/UI/Field";
 import { ROLES_LABEL } from '../../utils/constants';
 import Modal from '../../components/UI/Modal';
 import { useToast } from '../../components/UI/Toast';
-import { PhoneVerificationModal } from '../../components/register/PhoneVerificationModal'; 
-import DocumentUploadModal from '../../components/DocumentUploadModal'; 
+import { PhoneVerificationModal } from '../../components/register/PhoneVerificationModal';
+import DocumentUploadModal from '../../components/DocumentUploadModal';
 import { FileText, Link, Upload, X, Camera, User, Image as ImageIcon, Trash2, Clock, UserPlus } from 'lucide-react';
-import professionalService from '../../services/professionalService'; 
+import professionalService from '../../services/professionalService';
 import auditService from '../../services/auditService';
 import api from '../../services/apiClient';
 
@@ -26,10 +26,10 @@ const cleanValue = (value) => {
 
 export default function ProfessionalProfile() {
     const context = useOutletContext() ?? {};
-    const { user, role, onLogout, setUser } = context; 
+    const { user, role, onLogout, setUser } = context;
     const navigate = useNavigate();
     const { success, error } = useToast() || {};
-    
+
     // --- DATOS DEL PERFIL ---
     const name = user?.name ?? "Usuario";
     const roleLabel = ROLES_LABEL[role] ?? role ?? "N/D";
@@ -49,13 +49,14 @@ export default function ProfessionalProfile() {
     // --- ESTADOS DE DATOS ---
     const [auditLogs, setAuditLogs] = useState([]);
     const [isAuditLoading, setIsAuditLoading] = useState(false);
-    const [uploadedDocuments, setUploadedDocuments] = useState(profileData.documentsJson || []); 
+    const [uploadedDocuments, setUploadedDocuments] = useState(profileData.documentsJson || []);
     const [documentModalOpen, setDocumentModalOpen] = useState(false);
-    const [currentFile, setCurrentFile] = useState(null); 
+    const [currentFile, setCurrentFile] = useState(null);
     const [delegates, setDelegates] = useState([]);
     const [delegatesLoading, setDelegatesLoading] = useState(false);
     const [securityErrors, setSecurityErrors] = useState({});
     const [isUploading, setIsUploading] = useState(false);
+    const [delegatesCount, setDelegatesCount] = useState(0);
 
     // --- REFS ---
     const fileInputRef = useRef(null);
@@ -67,24 +68,25 @@ export default function ProfessionalProfile() {
         phone: kycData.phone || '',
         emergencyContactName: kycData.emergencyName || '',
         emergencyContactPhone: kycData.emergencyPhone || '',
-        newEmail: user?.email || '', 
-        currentPassword: '',     
+        newEmail: user?.email || '',
+        currentPassword: '',
         newPassword: '',
         newPasswordConfirm: '',
-        phoneIsVerified: kycData.phoneIsVerified || false, 
+        phoneIsVerified: kycData.phoneIsVerified || false,
         profilePictureUrl: profileData.profilePictureUrl || null,
-        galleryPhotos: profileData.galleryPhotos || [], 
+        galleryPhotos: profileData.galleryPhotos || [],
     });
 
-    
+    useEffect(() => {
+        professionalService.countDelegates()
+            .then(setDelegatesCount)
+            .catch(() => { });
+    }, []);
+
     // --- EFECTOS ---
     useEffect(() => {
         if (activeSection === 'delegate') {
-            setDelegatesLoading(true);
-            professionalService.listDelegates()
-                .then(setDelegates)
-                .catch(() => error("Error al cargar asistentes."))
-                .finally(() => setDelegatesLoading(false));
+            loadDelegates();
         }
         if (activeSection === 'audit') {
             setIsAuditLoading(true);
@@ -133,14 +135,14 @@ export default function ProfessionalProfile() {
 
             if (isGallery) {
                 // Para galería guardamos el objeto con preview para verlo ya
-                setGeneralForm(prev => ({ 
-                    ...prev, 
-                    galleryPhotos: [...prev.galleryPhotos, previewUrl] 
+                setGeneralForm(prev => ({
+                    ...prev,
+                    galleryPhotos: [...prev.galleryPhotos, previewUrl]
                 }));
             } else {
-                setGeneralForm(prev => ({ 
-                    ...prev, 
-                    profilePictureUrl: previewUrl 
+                setGeneralForm(prev => ({
+                    ...prev,
+                    profilePictureUrl: previewUrl
                 }));
             }
             success("Previsualización lista. Guarda los cambios para confirmar.");
@@ -159,54 +161,58 @@ export default function ProfessionalProfile() {
         }));
     };
 
+    const loadDelegates = async () => {
+        setDelegatesLoading(true);
+        try {
+            const data = await professionalService.listDelegates();
+            setDelegates(data);
+            setDelegatesCount(data.length);
+        } catch (e) {
+            error("Error al cargar asistentes.");
+        } finally {
+            setDelegatesLoading(false);
+        }
+    };
+
     // --- HANDLERS ASISTENTES ---
-            const handleCreateDelegate = async (e) => {
-                e.preventDefault();
-                if (delegates.length >= MAX_DELEGATES) return error("Límite alcanzado.");
-                
-                setIsCreatingDelegate(true);
-                try {
-                    const payload = {
-                        name: newDelegate.name,
-                        email: newDelegate.email,
-                        password: newDelegate.password
-                    };
-
-                    await api.post("/delegates", payload);
-                        loadDelegates();
-                     if (typeof loadDelegates === 'function') {
-                        loadDelegates();
-                    } else {
-                        // Si tu función de carga se llama distinto (ej. fetchInitialData), úsala aquí
-                        console.log("Asistente creado, pero no se encontró la función para recargar la tabla.");
-                    }
-                    
-                    success(`Asistente ${payload.name} creado con éxito.`);
-                    setNewDelegate({ email: '', password: '', name: '' }); 
-                    loadDelegates(); 
-                } catch (err) {
-                    error(err?.message || "Error al crear asistente.");
-                } finally {
-                    setIsCreatingDelegate(false);
-                }
-
-
-
+    const handleCreateDelegate = async (e) => {
+        e.preventDefault();
+        if (delegatesCount >= MAX_DELEGATES) {
+            return error("Límite alcanzado.");
+        }
+        setIsCreatingDelegate(true);
+        try {
+            const payload = {
+                name: newDelegate.name,
+                email: newDelegate.email,
+                password: newDelegate.password,
             };
+
+            await api.post("/delegates", payload);
+            success(`Asistente ${payload.name} creado con éxito.`);
+            setNewDelegate({ email: '', password: '', name: '' });
+            await loadDelegates();
+        } catch (err) {
+            error(err?.message || "Error al crear asistente.");
+        } finally {
+            setIsCreatingDelegate(false);
+        }
+    };
+
 
     const handleDeleteDelegate = async (id) => {
         if (!window.confirm("¿Estás seguro de eliminar este asistente? Perderá acceso inmediato.")) return;
         try {
             await professionalService.deleteDelegate(id);
-            setDelegates(prev => prev.filter(d => d.id !== id));
             success("Asistente eliminado.");
+            loadDelegates();
         } catch (err) {
             error("No se pudo eliminar.");
         }
     };
 
     // --- HANDLERS DOCUMENTOS (SUBIDA DIRECTA) ---
-    const handleOpenUploadModal = () => { 
+    const handleOpenUploadModal = () => {
         setCurrentFile({ id: Date.now(), name: '', description: '', file: null });
         setDocumentModalOpen(true);
     };
@@ -223,13 +229,13 @@ export default function ProfessionalProfile() {
         setIsUploading(true);
         try {
             const response = await api.post("/uploads/profile-asset", formData);
-            
+
             const finalDoc = {
                 id: docMetadata.id || Date.now(),
                 name: docMetadata.name || docMetadata.file.name,
                 description: docMetadata.description,
                 url: response.previewUrl, // URL con SAS para ver el PDF
-                blobName: response.blobName 
+                blobName: response.blobName
             };
 
             setUploadedDocuments(prev => [...prev, finalDoc]);
@@ -276,12 +282,12 @@ export default function ProfessionalProfile() {
         };
 
         try {
-           const result = await professionalService.updateProfile(payload);
-           success("Perfil guardado con éxito.");
-           if (setUser) setUser(result.user);
-           setGeneralForm(prev => ({ ...prev, currentPassword: '', newPassword: '' }));
+            const result = await professionalService.updateProfile(payload);
+            success("Perfil guardado con éxito.");
+            if (setUser) setUser(result.user);
+            setGeneralForm(prev => ({ ...prev, currentPassword: '', newPassword: '' }));
         } catch (err) {
-           error(err?.message || "Error al actualizar.");
+            error(err?.message || "Error al actualizar.");
         } finally {
             setIsSaving(false);
         }
@@ -298,7 +304,7 @@ export default function ProfessionalProfile() {
         { id: 'general', label: 'Datos Generales' },
         { id: 'documents', label: 'Documentos' },
         { id: 'audit', label: 'Auditoría' },
-        { id: 'delegate', label: `Asistentes (${delegates.length}/${MAX_DELEGATES})` },
+        { id: 'delegate', label: `Asistentes (${delegatesCount}/${MAX_DELEGATES})` },
     ];
 
     const renderContent = () => {
@@ -348,7 +354,7 @@ export default function ProfessionalProfile() {
                                 <div className="form-grid">
                                     <InputField label="Email" value={generalForm.newEmail} onChange={(e) => handleGeneralFormChange('newEmail', e.target.value)} error={securityErrors.newEmail} />
                                     <Field label="Teléfono">
-                                        <div className="phone-verify-input"> 
+                                        <div className="phone-verify-input">
                                             <input name="phone" value={generalForm.phone} onChange={(e) => handleGeneralFormChange('phone', e.target.value)} className="input-field__input" maxLength={10} />
                                             <button type="button" onClick={() => setIsPhoneModalOpen(true)} className="ui-btn btn--primary btn--md">Verificar</button>
                                         </div>
@@ -381,7 +387,7 @@ export default function ProfessionalProfile() {
                                                 {doc.url && <a href={doc.url} target="_blank" rel="noreferrer" style={{ display: 'block', fontSize: '0.75rem' }} className="link">Ver archivo ↗</a>}
                                             </div>
                                         </div>
-                                        <Button variant="ghost" size="sm" onClick={() => handleRemoveDocument(doc.id)}><Trash2 size={16} color="red"/></Button>
+                                        <Button variant="ghost" size="sm" onClick={() => handleRemoveDocument(doc.id)}><Trash2 size={16} color="red" /></Button>
                                     </div>
                                 ))}
                             </div>
@@ -415,14 +421,14 @@ export default function ProfessionalProfile() {
                         </CardBody>
                     </Card>
                 );
-           case 'delegate':
+            case 'delegate':
                 return (
                     <Card>
                         <CardHeader>
                             <div className="cluster justify-between align-center">
-                                <h3 style={{ margin: 0 }}>Gestión de Asistentes ({delegates.length}/{MAX_DELEGATES})</h3>
-                                <Badge variant={delegates.length < MAX_DELEGATES ? 'success' : 'danger'}>
-                                    {delegates.length < MAX_DELEGATES ? 'Cupos disponibles' : 'Límite alcanzado'}
+                                <h3 style={{ margin: 0 }}>Gestión de Asistentes ({delegatesCount}/{MAX_DELEGATES})</h3>
+                                <Badge variant={delegatesCount < MAX_DELEGATES ? 'success' : 'danger'}>
+                                    {delegatesCount < MAX_DELEGATES ? 'Cupos disponibles' : 'Límite alcanzado'}
                                 </Badge>
                             </div>
                         </CardHeader>
@@ -435,29 +441,29 @@ export default function ProfessionalProfile() {
                                         <h4 style={{ margin: 0 }}>Crear Nuevo Asistente</h4>
                                     </div>
                                     <div className="form-grid">
-                                        <InputField 
-                                            label="Nombre Completo" 
-                                            placeholder="Ej: Juan Pérez" 
+                                        <InputField
+                                            label="Nombre Completo"
+                                            placeholder="Ej: Juan Pérez"
                                             value={newDelegate.name}
-                                            onChange={e => setNewDelegate({...newDelegate, name: e.target.value})}
+                                            onChange={e => setNewDelegate({ ...newDelegate, name: e.target.value })}
                                             required
                                         />
-                                        <InputField 
-                                            label="Correo Electrónico" 
-                                            type="email" 
+                                        <InputField
+                                            label="Correo Electrónico"
+                                            type="email"
                                             placeholder="asistente@klinia.mx"
                                             value={newDelegate.email}
-                                            onChange={e => setNewDelegate({...newDelegate, email: e.target.value})}
+                                            onChange={e => setNewDelegate({ ...newDelegate, email: e.target.value })}
                                             required
                                         />
-                                      <InputField 
-                                            type="password" 
-                                            value={newDelegate.password} 
-                                            onChange={(e) => setNewDelegate({...newDelegate, password: e.target.value})} 
+                                        <InputField
+                                            type="password"
+                                            value={newDelegate.password}
+                                            onChange={(e) => setNewDelegate({ ...newDelegate, password: e.target.value })}
                                         />
                                     </div>
                                     <div className="cluster justify-end">
-                                        <ButtonPrimary type="submit" loading={isCreatingDelegate} disabled={delegates.length >= MAX_DELEGATES}>
+                                        <ButtonPrimary type="submit" loading={isCreatingDelegate} disabled={delegatesCount >= MAX_DELEGATES}>
                                             Crear y Dar Acceso
                                         </ButtonPrimary>
                                     </div>
@@ -480,7 +486,7 @@ export default function ProfessionalProfile() {
                                         <tbody>
                                             {delegatesLoading ? (
                                                 <tr><td colSpan="4" style={{ textAlign: 'center' }}>Cargando asistentes...</td></tr>
-                                            ) : delegates.length === 0 ? (
+                                            ) : delegatesCount === 0 ? (
                                                 <tr><td colSpan="4" style={{ textAlign: 'center', padding: '2rem' }}>No has creado asistentes todavía.</td></tr>
                                             ) : delegates.map(d => (
                                                 <tr key={d.id}>
@@ -511,7 +517,7 @@ export default function ProfessionalProfile() {
                 <h1>Perfil Profesional</h1>
                 <p className="helper-text">Gestiona tu identidad y seguridad.</p>
             </header>
-            <div className="profile-layout"> 
+            <div className="profile-layout">
                 <aside className="profile-menu">
                     {menuItems.map(item => (
                         <button key={item.id} type="button" className={`profile-menu-item${item.id === activeSection ? ' is-active' : ''}`} onClick={() => setActiveSection(item.id)}>{item.label}</button>
@@ -529,15 +535,15 @@ export default function ProfessionalProfile() {
             </Modal>
 
             {documentModalOpen && <DocumentUploadModal currentFile={currentFile} onClose={() => setDocumentModalOpen(false)} onSave={handleSaveDocument} />}
-            
+
             {isPhoneModalOpen && (
-                <PhoneVerificationModal 
-                    phone={generalForm.phone} 
-                    onClose={() => setIsPhoneModalOpen(false)} 
+                <PhoneVerificationModal
+                    phone={generalForm.phone}
+                    onClose={() => setIsPhoneModalOpen(false)}
                     onSuccess={() => {
                         handleGeneralFormChange('phoneIsVerified', true);
                         success("Teléfono verificado.");
-                    }} 
+                    }}
                 />
             )}
         </section>

@@ -1,4 +1,4 @@
-import { api } from "./apiClient"; 
+import { api } from "./apiClient";
 const PROFESSIONAL_ENDPOINT = "/professional";
 const DELEGATES_ENDPOINT = "/delegates";
 
@@ -48,7 +48,7 @@ export async function createDelegate(email, password) {
  * @returns {Promise<boolean>}
  */
 export async function deleteDelegate(delegateId) {
-    await api.delete(`${DELEGATES_ENDPOINT}/${delegateId}`, { auth: true });
+    await api.del(`${DELEGATES_ENDPOINT}/${delegateId}`, { auth: true });
     return true;
 }
 
@@ -58,7 +58,21 @@ export async function deleteDelegate(delegateId) {
  */
 export async function listAuditLog() {
     console.warn("listAuditLog no implementado en backend. Devolviendo mock.");
-    return []; 
+    return [];
+}
+
+/**
+ * Obtiene el número de asistentes delegados del profesional logueado.
+ * @returns {Promise<number>} Cantidad de asistentes
+ */
+export async function countDelegates() {
+    try {
+        const response = await api.get(`${DELEGATES_ENDPOINT}/count`, { auth: true });
+        return response?.count ?? 0;
+    } catch (e) {
+        console.error("Error al contar delegados:", e);
+        return 0;
+    }
 }
 
 export default {
@@ -67,4 +81,5 @@ export default {
     createDelegate,
     deleteDelegate,
     listAuditLog,
+    countDelegates
 };

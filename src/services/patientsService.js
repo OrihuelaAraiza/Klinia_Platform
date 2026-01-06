@@ -35,7 +35,7 @@ export const getAttachmentUrl = (patientId, blobName) => {
   return api.get(`/patients/${patientId}/attachments/${encodedBlob}/url`);
 }
 export const deleteAttachment = (patientId, attachmentId) => {
-  return api.delete(`/patients/${patientId}/attachments/${attachmentId}`);
+  return api.del(`/patients/${patientId}/attachments/${attachmentId}`);
 }
 export const getProfessionalsList = () => {
     return api.get("/profiles/list-professionals"); // Ajusta la ruta según tu servidor
