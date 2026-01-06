@@ -6,6 +6,9 @@ import Card, { CardHeader, CardBody } from "../../components/UI/Card";
 import Badge from "../../components/UI/Badge";
 import Button from "../../components/UI/Button";
 import { useToast } from "../../components/UI/Toast";
+import { SkeletonCard, SkeletonLine, SkeletonTitle, SkeletonSubtitle, SkeletonList } from "../../components/UI/Skeleton";
+import EmptyState from "../../components/UI/EmptyState";
+import { Calendar } from "lucide-react";
 import {
   SESSION_STATUS,
   SESSION_STATUS_LABEL,
@@ -85,11 +88,15 @@ export default function PatientSessions() {
 
   if (loading) {
     return (
-      <section className="page stack-4">
+      <section className="page stack-5">
         <div className="page__header">
-          <h1>Mis Sesiones</h1>
+          <SkeletonTitle />
+          <SkeletonSubtitle />
         </div>
-        <p>Cargando tus sesiones...</p>
+        <div className="stack-3">
+          <SkeletonLine width="20%" style={{ height: "1.5rem" }} />
+          <SkeletonList count={3} />
+        </div>
       </section>
     );
   }
@@ -200,12 +207,11 @@ export default function PatientSessions() {
           {sessions.length === 0 && (
             <Card hoverable={false}>
               <CardBody>
-                <div className="stack-3" style={{ textAlign: "center", padding: "var(--s-8)" }}>
-                  <p className="helper-text">
-                    Aún no tienes sesiones registradas. Tu profesional de salud
-                    programará tus citas aquí.
-                  </p>
-                </div>
+                <EmptyState
+                  icon={Calendar}
+                  title="No hay sesiones programadas"
+                  message="Tu profesional de salud programará tus citas aquí. Cuando tengas una sesión agendada, aparecerá en esta sección con todos los detalles."
+                />
               </CardBody>
             </Card>
           )}

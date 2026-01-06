@@ -5,6 +5,9 @@ import { formatDateISOToHuman } from "../../utils/formatters";
 import Card, { CardHeader, CardBody } from "../../components/UI/Card";
 import Button from "../../components/UI/Button";
 import { useToast } from "../../components/UI/Toast";
+import { SkeletonCard, SkeletonLine, SkeletonTitle, SkeletonSubtitle, SkeletonList } from "../../components/UI/Skeleton";
+import EmptyState from "../../components/UI/EmptyState";
+import { Folder } from "lucide-react";
 
 /**
  * Vista de Documentos para pacientes
@@ -105,11 +108,12 @@ export default function PatientDocuments() {
 
   if (loading) {
     return (
-      <section className="page stack-4">
+      <section className="page stack-5">
         <div className="page__header">
-          <h1>Mis Documentos</h1>
+          <SkeletonTitle />
+          <SkeletonSubtitle />
         </div>
-        <p>Cargando tus documentos...</p>
+        <SkeletonList count={3} />
       </section>
     );
   }
@@ -136,12 +140,11 @@ export default function PatientDocuments() {
       ) : documents.length === 0 ? (
         <Card hoverable={false}>
           <CardBody>
-            <div className="stack-3" style={{ textAlign: "center", padding: "var(--s-8)" }}>
-              <p className="helper-text">
-                Aún no hay documentos compartidos. Tu profesional de salud
-                compartirá documentos relevantes aquí cuando sea necesario.
-              </p>
-            </div>
+            <EmptyState
+              icon={Folder}
+              title="No hay documentos compartidos"
+              message="Tu profesional de salud compartirá documentos relevantes aquí cuando sea necesario. Podrás descargarlos directamente desde esta sección."
+            />
           </CardBody>
         </Card>
       ) : (

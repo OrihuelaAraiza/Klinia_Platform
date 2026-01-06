@@ -10,6 +10,7 @@ import Card, { CardHeader, CardBody } from "../../components/UI/Card";
 import Badge from "../../components/UI/Badge";
 import { SESSION_STATUS, SESSION_STATUS_LABEL, SESSION_MODALITY_LABEL } from "../../utils/constants";
 import { useToast } from "../../components/UI/Toast";
+import { SkeletonGrid, SkeletonCard, SkeletonLine, SkeletonTitle, SkeletonSubtitle } from "../../components/UI/Skeleton";
 
 export default function PatientDashboard() {
   const { user } = useOutletContext() ?? {};
@@ -17,6 +18,12 @@ export default function PatientDashboard() {
   const patientId = user?.id;
 
   const [loading, setLoading] = useState(true);
+  const [loadingStates, setLoadingStates] = useState({
+    sessions: true,
+    notes: true,
+    prescriptions: true,
+    history: true,
+  });
   const [nextSession, setNextSession] = useState(null);
   const [lastNote, setLastNote] = useState(null);
   const [activePrescriptions, setActivePrescriptions] = useState([]);
@@ -31,52 +38,80 @@ export default function PatientDashboard() {
     let alive = true;
     async function load() {
       setLoading(true);
+      setLoadingStates({ sessions: true, notes: true, prescriptions: true, history: true });
+      
       try {
-        const [sessionsResp, notesResp, prescriptionsResp, historyResp] = await Promise.allSettled([
-          listSessionsByPatient(patientId, { size: 10 }),
-          listNotes(patientId, { page: 1, size: 1 }),
-          listPrescriptions(patientId),
-          getClinicalHistory(patientId).catch(() => null),
+        // Cargar datos en paralelo con estados individuales
+        const loadSessions = async () => {
+          try {
+            const sessionsResp = await listSessionsByPatient(patientId, { size: 10 });
+            if (!alive) return;
+            const sessions = Array.isArray(sessionsResp?.items)
+              ? sessionsResp.items
+              : sessionsResp || [];
+            const upcoming = sessions
+              .filter(
+                (s) =>
+                  s.status === SESSION_STATUS.PROGRAMADA ||
+                  s.status === SESSION_STATUS.CONFIRMADA
+              )
+              .sort((a, b) => new Date(a.datetime) - new Date(b.datetime))[0];
+            setNextSession(upcoming || null);
+          } finally {
+            if (alive) {
+              setLoadingStates((prev) => ({ ...prev, sessions: false }));
+            }
+          }
+        };
+
+        const loadNotes = async () => {
+          try {
+            const notesResp = await listNotes(patientId, { page: 1, size: 1 });
+            if (!alive) return;
+            const notes = Array.isArray(notesResp?.items) ? notesResp.items : [];
+            setLastNote(notes[0] || null);
+          } finally {
+            if (alive) {
+              setLoadingStates((prev) => ({ ...prev, notes: false }));
+            }
+          }
+        };
+
+        const loadPrescriptions = async () => {
+          try {
+            const prescriptionsResp = await listPrescriptions(patientId);
+            if (!alive) return;
+            const prescriptions = Array.isArray(prescriptionsResp) ? prescriptionsResp : [];
+            const active = prescriptions.filter((p) => !p.suspended && !p.completed);
+            setActivePrescriptions(active);
+          } finally {
+            if (alive) {
+              setLoadingStates((prev) => ({ ...prev, prescriptions: false }));
+            }
+          }
+        };
+
+        const loadHistory = async () => {
+          try {
+            const historyResp = await getClinicalHistory(patientId).catch(() => null);
+            if (!alive) return;
+            if (historyResp) {
+              setHistoryComplete(!historyResp.isDraft);
+            }
+          } finally {
+            if (alive) {
+              setLoadingStates((prev) => ({ ...prev, history: false }));
+            }
+          }
+        };
+
+        // Cargar todo en paralelo
+        await Promise.allSettled([
+          loadSessions(),
+          loadNotes(),
+          loadPrescriptions(),
+          loadHistory(),
         ]);
-
-        if (!alive) return;
-
-        // Próxima sesión
-        if (sessionsResp.status === "fulfilled") {
-          const sessions = Array.isArray(sessionsResp.value?.items)
-            ? sessionsResp.value.items
-            : sessionsResp.value || [];
-          const upcoming = sessions
-            .filter(
-              (s) =>
-                s.status === SESSION_STATUS.PROGRAMADA ||
-                s.status === SESSION_STATUS.CONFIRMADA
-            )
-            .sort((a, b) => new Date(a.datetime) - new Date(b.datetime))[0];
-          setNextSession(upcoming || null);
-        }
-
-        // Última nota
-        if (notesResp.status === "fulfilled") {
-          const notes = Array.isArray(notesResp.value?.items)
-            ? notesResp.value.items
-            : [];
-          setLastNote(notes[0] || null);
-        }
-
-        // Prescripciones activas
-        if (prescriptionsResp.status === "fulfilled") {
-          const prescriptions = Array.isArray(prescriptionsResp.value)
-            ? prescriptionsResp.value
-            : [];
-          const active = prescriptions.filter((p) => !p.suspended && !p.completed);
-          setActivePrescriptions(active);
-        }
-
-        // Estado de historia clínica
-        if (historyResp.status === "fulfilled" && historyResp.value) {
-          setHistoryComplete(!historyResp.value.isDraft);
-        }
       } catch (err) {
         if (!alive) return;
         console.error("Error loading dashboard:", err);
@@ -98,8 +133,10 @@ export default function PatientDashboard() {
     return (
       <section className="page stack-5 dashboard-page">
         <div className="page__header">
-          <h1>Cargando tu información...</h1>
+          <SkeletonTitle />
+          <SkeletonSubtitle />
         </div>
+        <SkeletonGrid count={4} />
       </section>
     );
   }
@@ -125,7 +162,13 @@ export default function PatientDashboard() {
             </div>
           </CardHeader>
           <CardBody>
-            {nextSession ? (
+            {loadingStates.sessions ? (
+              <div className="stack-3">
+                <SkeletonLine width="60%" />
+                <SkeletonLine width="40%" />
+                <SkeletonLine width="30%" style={{ height: "2rem" }} />
+              </div>
+            ) : nextSession ? (
               <div className="stack-3">
                 <div>
                   <p className="text-lg" style={{ fontWeight: 600 }}>
@@ -174,7 +217,13 @@ export default function PatientDashboard() {
             </div>
           </CardHeader>
           <CardBody>
-            {lastNote ? (
+            {loadingStates.notes ? (
+              <div className="stack-3">
+                <SkeletonLine width="50%" />
+                <SkeletonLine width="80%" />
+                <SkeletonLine width="25%" style={{ height: "2rem" }} />
+              </div>
+            ) : lastNote ? (
               <div className="stack-3">
                 <div>
                   <p className="text-lg" style={{ fontWeight: 600 }}>
@@ -218,7 +267,12 @@ export default function PatientDashboard() {
             </div>
           </CardHeader>
           <CardBody>
-            {activePrescriptions.length > 0 ? (
+            {loadingStates.prescriptions ? (
+              <div className="stack-3">
+                <SkeletonLine width="40%" />
+                <SkeletonLine width="30%" style={{ height: "2rem" }} />
+              </div>
+            ) : activePrescriptions.length > 0 ? (
               <div className="stack-3">
                 <p className="text-lg" style={{ fontWeight: 600 }}>
                   {activePrescriptions.length}{" "}
@@ -256,29 +310,37 @@ export default function PatientDashboard() {
             </div>
           </CardHeader>
           <CardBody>
-            <div className="stack-3">
-              <div className="cluster" style={{ alignItems: "center", gap: "var(--s-2)" }}>
-                {historyComplete ? (
-                  <>
-                    <CheckCircle size={20} style={{ color: "var(--success)" }} />
-                    <p style={{ fontWeight: 600 }}>Expediente completo</p>
-                  </>
-                ) : (
-                  <>
-                    <Clock size={20} style={{ color: "var(--warning)" }} />
-                    <p style={{ fontWeight: 600 }}>Expediente en proceso</p>
-                  </>
-                )}
+            {loadingStates.history ? (
+              <div className="stack-3">
+                <SkeletonLine width="50%" />
+                <SkeletonLine width="80%" />
+                <SkeletonLine width="40%" style={{ height: "2rem" }} />
               </div>
-              <p className="helper-text">
-                {historyComplete
-                  ? "Tu historia clínica está registrada y actualizada."
-                  : "Tu historia clínica está siendo completada por tu profesional de salud."}
-              </p>
-              <Link to="/patient/clinical-history" className="link link--button">
-                Ver mi historia clínica
-              </Link>
-            </div>
+            ) : (
+              <div className="stack-3">
+                <div className="cluster" style={{ alignItems: "center", gap: "var(--s-2)" }}>
+                  {historyComplete ? (
+                    <>
+                      <CheckCircle size={20} style={{ color: "var(--success)" }} />
+                      <p style={{ fontWeight: 600 }}>Expediente completo</p>
+                    </>
+                  ) : (
+                    <>
+                      <Clock size={20} style={{ color: "var(--warning)" }} />
+                      <p style={{ fontWeight: 600 }}>Expediente en proceso</p>
+                    </>
+                  )}
+                </div>
+                <p className="helper-text">
+                  {historyComplete
+                    ? "Tu historia clínica está registrada y actualizada."
+                    : "Tu historia clínica está siendo completada por tu profesional de salud."}
+                </p>
+                <Link to="/patient/clinical-history" className="link link--button">
+                  Ver mi historia clínica
+                </Link>
+              </div>
+            )}
           </CardBody>
         </Card>
       </div>

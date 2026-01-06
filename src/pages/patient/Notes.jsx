@@ -5,6 +5,9 @@ import { formatDateISOToHuman } from "../../utils/formatters";
 import Card, { CardHeader, CardBody } from "../../components/UI/Card";
 import Badge from "../../components/UI/Badge";
 import { useToast } from "../../components/UI/Toast";
+import { SkeletonCard, SkeletonLine, SkeletonTitle, SkeletonSubtitle, SkeletonList } from "../../components/UI/Skeleton";
+import EmptyState from "../../components/UI/EmptyState";
+import { FileText } from "lucide-react";
 
 /**
  * Vista de Notas para pacientes
@@ -59,11 +62,12 @@ export default function PatientNotes() {
 
   if (loading) {
     return (
-      <section className="page stack-4">
+      <section className="page stack-5">
         <div className="page__header">
-          <h1>Mis Notas de Evolución</h1>
+          <SkeletonTitle />
+          <SkeletonSubtitle />
         </div>
-        <p>Cargando tus notas...</p>
+        <SkeletonList count={3} />
       </section>
     );
   }
@@ -90,12 +94,11 @@ export default function PatientNotes() {
       ) : notes.length === 0 ? (
         <Card hoverable={false}>
           <CardBody>
-            <div className="stack-3" style={{ textAlign: "center", padding: "var(--s-8)" }}>
-              <p className="helper-text">
-                Aún no hay notas de seguimiento disponibles. Tu profesional de salud
-                registrará notas después de cada consulta.
-              </p>
-            </div>
+            <EmptyState
+              icon={FileText}
+              title="Aún no hay notas disponibles"
+              message="Tu profesional de salud registrará notas de seguimiento después de cada consulta. Aquí podrás ver un resumen de tus sesiones y recomendaciones."
+            />
           </CardBody>
         </Card>
       ) : (

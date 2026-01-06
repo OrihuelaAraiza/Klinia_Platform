@@ -6,6 +6,9 @@ import Card, { CardHeader, CardBody } from "../../components/UI/Card";
 import Badge from "../../components/UI/Badge";
 import Button from "../../components/UI/Button";
 import { useToast } from "../../components/UI/Toast";
+import { SkeletonCard, SkeletonLine, SkeletonTitle, SkeletonSubtitle, SkeletonList } from "../../components/UI/Skeleton";
+import EmptyState from "../../components/UI/EmptyState";
+import { Pill } from "lucide-react";
 
 /**
  * Vista de Prescripciones para pacientes
@@ -79,11 +82,15 @@ export default function PatientPrescriptions() {
 
   if (loading) {
     return (
-      <section className="page stack-4">
+      <section className="page stack-5">
         <div className="page__header">
-          <h1>Mis Prescripciones</h1>
+          <SkeletonTitle />
+          <SkeletonSubtitle />
         </div>
-        <p>Cargando tus prescripciones...</p>
+        <div className="stack-3">
+          <SkeletonLine width="25%" style={{ height: "1.5rem" }} />
+          <SkeletonList count={2} />
+        </div>
       </section>
     );
   }
@@ -207,12 +214,11 @@ export default function PatientPrescriptions() {
           {prescriptions.length === 0 && (
             <Card hoverable={false}>
               <CardBody>
-                <div className="stack-3" style={{ textAlign: "center", padding: "var(--s-8)" }}>
-                  <p className="helper-text">
-                    Aún no tienes prescripciones registradas. Tu profesional de salud
-                    creará prescripciones cuando sea necesario.
-                  </p>
-                </div>
+                <EmptyState
+                  icon={Pill}
+                  title="No hay prescripciones registradas"
+                  message="Cuando tu profesional de salud te recete algún medicamento o tratamiento, aparecerá aquí con todas las indicaciones necesarias para tu seguimiento."
+                />
               </CardBody>
             </Card>
           )}

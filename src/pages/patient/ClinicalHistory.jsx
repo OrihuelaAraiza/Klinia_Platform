@@ -3,6 +3,9 @@ import { useOutletContext } from "react-router-dom";
 import { getClinicalHistory } from "../../services/clinicalHistoryService";
 import Card, { CardHeader, CardBody } from "../../components/UI/Card";
 import { useToast } from "../../components/UI/Toast";
+import { SkeletonCard, SkeletonLine, SkeletonTitle, SkeletonSubtitle, SkeletonList } from "../../components/UI/Skeleton";
+import EmptyState from "../../components/UI/EmptyState";
+import { FileText, Clock } from "lucide-react";
 
 /**
  * Vista de Historia Clínica para pacientes
@@ -54,11 +57,12 @@ export default function PatientClinicalHistory() {
 
   if (loading) {
     return (
-      <section className="page stack-4">
+      <section className="page stack-5">
         <div className="page__header">
-          <h1>Mi Historia Clínica</h1>
+          <SkeletonTitle />
+          <SkeletonSubtitle />
         </div>
-        <p>Cargando tu información...</p>
+        <SkeletonList count={3} />
       </section>
     );
   }
@@ -82,7 +86,7 @@ export default function PatientClinicalHistory() {
 
   if (!history) {
     return (
-      <section className="page stack-4">
+      <section className="page stack-5">
         <div className="page__header">
           <h1>Mi Historia Clínica</h1>
           <p className="helper-text">
@@ -91,12 +95,11 @@ export default function PatientClinicalHistory() {
         </div>
         <Card hoverable={false}>
           <CardBody>
-            <div className="stack-3" style={{ textAlign: "center", padding: "var(--s-8)" }}>
-              <p className="helper-text">
-                Tu expediente clínico aún no está disponible. Tu profesional de salud
-                completará esta información durante tus consultas.
-              </p>
-            </div>
+            <EmptyState
+              icon={Clock}
+              title="Tu expediente está en proceso"
+              message="Tu profesional de salud completará tu historia clínica durante tus consultas. Una vez que esté lista, podrás verla aquí de forma segura y privada."
+            />
           </CardBody>
         </Card>
       </section>

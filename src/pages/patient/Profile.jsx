@@ -6,6 +6,7 @@ import InputField from "../../components/InputField";
 import Field from "../../components/UI/Field";
 import Badge from "../../components/UI/Badge";
 import { useToast } from "../../components/UI/Toast";
+import { SkeletonCard, SkeletonLine, SkeletonTitle, SkeletonSubtitle, SkeletonForm } from "../../components/UI/Skeleton";
 import { getMyProfile } from "../../services/patientsService";
 import { api } from "../../services/apiClient";
 import { formatDateISOToHuman, formatPhone } from "../../utils/formatters";
@@ -178,11 +179,16 @@ export default function PatientProfile() {
 
   if (loading) {
     return (
-      <section className="page stack-4">
+      <section className="page stack-5">
         <div className="page__header">
-          <h1>Mi Perfil</h1>
+          <SkeletonTitle />
+          <SkeletonSubtitle />
         </div>
-        <p>Cargando tu información...</p>
+        <SkeletonCard>
+          <div className="stack-4" style={{ padding: "var(--s-4)" }}>
+            <SkeletonForm fields={6} />
+          </div>
+        </SkeletonCard>
       </section>
     );
   }
