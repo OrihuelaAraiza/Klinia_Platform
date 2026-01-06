@@ -100,8 +100,14 @@ export default function NoteDetail() {
   );
 
   const context = useMemo(() => ({
-    patient,
-    patientId: id,
+    patient: patient ? patient : {
+      id: note?.patientId || null,
+      firstName: note?.patient?.firstName || null,
+      lastName: note?.patient?.lastName || null,
+      birthDate: note?.patient?.birthDate || null,
+      gender: note?.patient?.gender || null,
+    } || null,
+    patientId: id ? id : note?.patientId || null,
     professional: note?.professional || professional,
     datetime: note?.datetime || new Date().toISOString(),
   }), [patient, id, note, professional]);
@@ -192,7 +198,7 @@ export default function NoteDetail() {
 
   const addenda = note.addenda ?? note.addendums ?? [];
   const isClosed = note.status === "closed";
-  const canEdit = !isAssistant && !isClosed && !editing;
+  const canEdit = !isClosed && !editing;
 
   const handleExportPdf = async () => {
     if (isAssistant || !note) {
@@ -222,28 +228,26 @@ export default function NoteDetail() {
             <Badge variant={STATUS_BADGE[note.status] || "neutral"}>
               {note.status === "closed" ? "Cerrada" : "Abierta"}
             </Badge>
-            {!isAssistant ? (
-              <>
-                <Button variant="ghost" onClick={handleExportPdf} loading={exporting}>
-                  Exportar PDF
+            <>
+              <Button variant="ghost" onClick={handleExportPdf} loading={exporting}>
+                Exportar PDF
+              </Button>
+              {canEdit && (
+                <Button variant="secondary" onClick={() => setEditing(true)}>
+                  Editar
                 </Button>
-                {canEdit && (
-                  <Button variant="secondary" onClick={() => setEditing(true)}>
-                    Editar
-                  </Button>
-                )}
-                {!isClosed && (
-                  <Button variant="secondary" onClick={() => setConfirmClose(true)}>
-                    Cerrar nota
-                  </Button>
-                )}
-                {isClosed && (
-                  <Button variant="ghost" onClick={() => setAddendumOpen(true)}>
-                    Agregar addendum
-                  </Button>
-                )}
-              </>
-            ) : null}
+              )}
+              {!isClosed && !isAssistant && (
+                <Button variant="secondary" onClick={() => setConfirmClose(true)}>
+                  Cerrar nota
+                </Button>
+              )}
+              {isClosed && (
+                <Button variant="ghost" onClick={() => setAddendumOpen(true)}>
+                  Agregar addendum
+                </Button>
+              )}
+            </>
           </div>
         </div>
       </div>

@@ -99,27 +99,29 @@ export default function NoteEditor() {
   );
 
   const context = useMemo(() => ({
-    patient,
-    patientId: id,
-    professional: {
-      id: user?.id,
-      name: user?.name,
-      license: user?.license || user?.kycRecord?.certificateFolio,
-    },
+    patient: patient ? patient : {
+      id: note?.patientId || null,
+      firstName: note?.patient?.firstName || null,
+      lastName: note?.patient?.lastName || null,
+      birthDate: note?.patient?.birthDate || null,
+      gender: note?.patient?.gender || null,
+    } || null,
+    patientId: id ? id : note?.patientId || null,
     datetime: note?.datetime || new Date().toISOString(),
-  }), [patient, id, user, note?.datetime]);
+  }), [patient, id, user, note]);
 
   const handleSave = async (payload) => {
     try {
       if (isNew) {
         const created = await createNote(id, {
           ...payload,
+          patientId: id,
           professional: context.professional,
           datetime: context.datetime,
           status: "open",
         });
         toast.success("Nota creada correctamente");
-        navigate(`/patients/${id}/notes/${created.id}`);
+        navigate(`/notes/${created.id}`);
       } else {
         const updated = await updateNote(id, noteId, payload);
         setNote(updated);
@@ -138,6 +140,7 @@ export default function NoteEditor() {
       if (isNew) {
         await createNote(id, {
           ...payload,
+          patientId: id,
           professional: context.professional,
           datetime: context.datetime,
           status: "open",

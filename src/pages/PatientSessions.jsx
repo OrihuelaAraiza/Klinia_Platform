@@ -131,7 +131,7 @@ export default function PatientSessions() {
 
   const handleViewOrCreateNote = (session) => {
     if (session.noteId) {
-      navigate(`/patients/${session.patientId}/notes/${session.noteId}`);
+      navigate(`/notes/${session.noteId}`);
       return;
     }
     setNoteDialogSession(session);
