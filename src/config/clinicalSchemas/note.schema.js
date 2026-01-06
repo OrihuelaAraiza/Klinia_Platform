@@ -114,7 +114,7 @@ export const NOTE_SCHEMA = {
       description: "Subjetivo, Objetivo, Análisis, Plan",
       fields: [
         {
-          id: "subjetivo",
+          id: "subjective",
           label: "S - Subjetivo",
           type: "textarea",
           required: true,
@@ -122,7 +122,7 @@ export const NOTE_SCHEMA = {
           rows: 5,
         },
         {
-          id: "objetivo",
+          id: "objective",
           label: "O - Objetivo",
           type: "textarea",
           required: true,
@@ -130,7 +130,7 @@ export const NOTE_SCHEMA = {
           rows: 5,
         },
         {
-          id: "analisis",
+          id: "analysis",
           label: "A - Análisis / Formulación",
           type: "textarea",
           required: true,
@@ -200,7 +200,7 @@ export const NOTE_SCHEMA = {
       ],
     },
     {
-      sectionId: "diagnosticos",
+      sectionId: "diagnoses",
       title: "Diagnósticos",
       description: "Diagnósticos clínicos (CIE-10)",
       fields: [

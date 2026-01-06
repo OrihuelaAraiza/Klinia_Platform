@@ -146,7 +146,7 @@ export default function AppRoutes() {
             {/* Gestión de Notas */}
             <Route path="/patients/:id/notes" element={<ErrorBoundary><Notes /></ErrorBoundary>} />
             <Route path="/patients/:id/notes/new" element={<ErrorBoundary><NoteEditor /></ErrorBoundary>} />
-            <Route path="/patients/:id/notes/:noteId" element={<ErrorBoundary><NoteDetail /></ErrorBoundary>} />
+            <Route path="/notes/:noteId" element={<ErrorBoundary><NoteDetail /></ErrorBoundary>} />
             
             {/* Recetas y Órdenes */}
             <Route path={ROUTES.prescriptions} element={<Prescriptions />} />

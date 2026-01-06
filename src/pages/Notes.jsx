@@ -150,9 +150,7 @@ export default function Notes() {
               {patientName} • CURP {patient?.curp ?? "-"}
             </p>
           </div>
-          {!isAssistant ? (
             <Button onClick={() => navigate(`/patients/${id}/notes/new`)}>Nueva nota</Button>
-          ) : null}
         </div>
       </div>
 
@@ -190,7 +188,7 @@ export default function Notes() {
                         ? note.diagnosticos.map((dx) => `${dx.codigo} - ${dx.descripcion}`).join(", ")
                         : "Sin diagnóstico"}
                     </p>
-                    <Button variant="ghost" size="sm" onClick={() => navigate(`/patients/${id}/notes/${note.id}`)}>
+                    <Button variant="ghost" size="sm" onClick={() => navigate(`/notes/${note.id}`)}>
                       Ver detalle
                     </Button>
                   </CardBody>
