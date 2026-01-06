@@ -20,6 +20,7 @@ const PatientNotesView = lazy(() => import("../pages/patient/Notes"));
 const PatientSessionsView = lazy(() => import("../pages/patient/Sessions"));
 const PatientPrescriptionsView = lazy(() => import("../pages/patient/Prescriptions"));
 const PatientDocumentsView = lazy(() => import("../pages/patient/Documents"));
+const PatientProfile = lazy(() => import("../pages/patient/Profile"));
 
 const Home = lazy(() => import("../pages/Home"));
 const Login = lazy(() => import("../pages/Login"));
@@ -108,6 +109,7 @@ export default function AppRoutes() {
             <Route path={ROUTES.patientSessions} element={<PatientSessionsView />} />
             <Route path={ROUTES.patientPrescriptions} element={<PatientPrescriptionsView />} />
             <Route path={ROUTES.patientDocuments} element={<PatientDocumentsView />} />
+            <Route path={ROUTES.patientProfile} element={<PatientProfile />} />
           </Route>
 
           {/* PANEL COMPARTIDO (MÉDICO, ASISTENTE Y PACIENTE) */}
