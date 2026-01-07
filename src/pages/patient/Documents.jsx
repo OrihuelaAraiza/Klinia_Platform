@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useOutletContext } from "react-router-dom";
-import { getMyDocuments, getMyProfile } from "../../services/patientsService";
+import { getMyDocuments, getMyProfile, getAttachmentUrl } from "../../services/patientsService";
 import { formatDateISOToHuman } from "../../utils/formatters";
 import Card, { CardHeader, CardBody } from "../../components/UI/Card";
 import Button from "../../components/UI/Button";
@@ -29,7 +29,7 @@ export default function PatientDocuments() {
       setError("");
       try {
         // Intentar primero con endpoint específico para pacientes
-        const attachments = await getMyDocuments();
+        const attachments = await getMyDocuments(patientId);
         if (!alive) return;
         setDocuments(attachments);
       } catch (err) {
@@ -63,45 +63,21 @@ export default function PatientDocuments() {
 
   const handleDownload = async (blobName) => {
     try {
-      // Intentar primero con endpoint específico para pacientes
-      const { api } = await import("../../services/apiClient");
-      const response = await api.get(`/patient/documents/${encodeURIComponent(blobName)}/url`, { auth: true });
+      if (!patientId) {
+        toast.error("Paciente no identificado");
+        return;
+      }
+      const response = await getAttachmentUrl(patientId, blobName);
       const downloadUrl = response.url || response.data?.url;
 
-      if (downloadUrl) {
-        window.open(downloadUrl, "_blank");
-        toast.success("Descarga iniciada");
-      } else {
-        // Fallback al método tradicional si está disponible
-        if (patientId) {
-          const { getAttachmentUrl } = await import("../../services/patientsService");
-          const fallbackResponse = await getAttachmentUrl(patientId, blobName);
-          const fallbackUrl = fallbackResponse.url || fallbackResponse.data?.url;
-          if (fallbackUrl) {
-            window.open(fallbackUrl, "_blank");
-            toast.success("Descarga iniciada");
-            return;
-          }
-        }
+      if (!downloadUrl) {
         toast.error("No se pudo obtener la URL de descarga");
+        return;
       }
+      window.open(downloadUrl, "_blank");
+      toast.success("Descarga iniciada");
     } catch (err) {
       console.error(err);
-      // Intentar fallback si el endpoint específico falla
-      if (patientId) {
-        try {
-          const { getAttachmentUrl } = await import("../../services/patientsService");
-          const response = await getAttachmentUrl(patientId, blobName);
-          const downloadUrl = response.url || response.data?.url;
-          if (downloadUrl) {
-            window.open(downloadUrl, "_blank");
-            toast.success("Descarga iniciada");
-            return;
-          }
-        } catch (fallbackErr) {
-          // Continuar con el error original
-        }
-      }
       toast.error("No se pudo descargar el documento");
     }
   };

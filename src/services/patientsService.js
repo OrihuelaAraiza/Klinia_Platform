@@ -35,7 +35,7 @@ export const getAttachmentUrl = (patientId, blobName) => {
   return api.get(`/patients/${patientId}/attachments/${encodedBlob}/url`);
 }
 export const deleteAttachment = (patientId, attachmentId) => {
-  return api.delete(`/patients/${patientId}/attachments/${attachmentId}`);
+  return api.del(`/patients/${patientId}/attachments/${attachmentId}`);
 }
 export const getProfessionalsList = () => {
     return api.get("/profiles/list-professionals"); // Ajusta la ruta según tu servidor
@@ -54,8 +54,8 @@ export async function getMyProfile() {
  * Obtiene los documentos/adjuntos del paciente autenticado
  * Para uso cuando el usuario es un paciente (no requiere pasar patientId)
  */
-export async function getMyDocuments() {
-  const response = await api.get("/patient/documents", { auth: true });
+export async function getMyDocuments(patientId) {
+  const response = await api.get(`/patients/${patientId}/attachments`, { auth: true });
   return Array.isArray(response) ? response : (response?.items || []);
 }
 
