@@ -9,59 +9,65 @@ export default function StepContact({
   onChange, 
   disabled = false,
 }) {
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const isVerified = data.phoneIsVerified;
+  const [verificationTarget, setVerificationTarget] = useState(null); 
+  
+  const isPhoneVerified = data.phoneIsVerified;
+  const isEmergencyVerified = data.emergencyPhoneIsVerified; 
 
-const handleChange = (event) => {
+  const handleChange = (event) => {
     const { name, value } = event.target;
     
     onChange?.({ [name]: value }); 
 
-    if (name === 'phone' && isVerified) {
+    if (name === 'phone' && isPhoneVerified) {
       onChange?.({ phoneIsVerified: false });
+    }
+    if (name === 'emergencyPhone' && isEmergencyVerified) {
+      onChange?.({ emergencyPhoneIsVerified: false });
     }
   };
 
-  const handleVerificationSuccess = () => {
-    onChange?.({ phoneIsVerified: true }); 
-    setIsModalOpen(false);
+  const handleOpenModal = (target) => {
+    setVerificationTarget(target);
   };
 
+  const handleVerificationSuccess = () => {
+    if (verificationTarget === 'phone') {
+      onChange?.({ phoneIsVerified: true });
+    } else if (verificationTarget === 'emergencyPhone') {
+      onChange?.({ emergencyPhoneIsVerified: true });
+    }
+    setVerificationTarget(null);
+  };
 
   return (
     <div className="register-step">
       <div className="register-step__header">
+        <h2 className="register-step__title">Contacto</h2>
+        <p className="register-step__subtitle">Verifica los números de contacto para garantizar la seguridad del servicio.</p>
       </div>
 
       <div className="register-step__body register-step__grid">
         
-        <Field
-        
-          label="Telefono movil"
-          required
-          error={errors.phone}
-         
-        >
+        {/* TELÉFONO PRINCIPAL */}
+        <Field label="Teléfono móvil" required error={errors.phone}>
           <div className="phone-verify-input"> 
             <input
               name="phone"
               value={data.phone || ''} 
               onChange={handleChange}
               inputMode="tel"
-              pattern="\d{10}"
               placeholder="5512345678"
-              disabled={disabled || isVerified} 
-              autoComplete="tel-national"
+              disabled={disabled || isPhoneVerified} 
+              className="input-field__input" 
               maxLength={10}
-               className="input-field__input" 
             />
-            
-            {isVerified ? (
+            {isPhoneVerified ? (
               <span className="phone-verified-badge">✓ Verificado</span>
             ) : (
               <button 
                 type="button" 
-                onClick={() => setIsModalOpen(true)} 
+                onClick={() => handleOpenModal('phone')} 
                 disabled={disabled || (data.phone || '').length !== 10}
                 className="ui-btn btn--primary btn--md" 
               >
@@ -71,39 +77,51 @@ const handleChange = (event) => {
           </div>
         </Field>
 
-
         <InputField
           label="Contacto de emergencia"
           name="emergencyName"
-          value={data.emergencyName || ''} // <-- Añade || ''
-          onChange={handleChange}
+          value={data.emergencyName || ''}
+          onChange={(name, value) => onChange?.({ [name]: value })}
           required
           placeholder="Nombre completo"
           error={errors.emergencyName}
           disabled={disabled}
-          autoComplete="off"
         />
 
-        <InputField
-          label="Telefono de emergencia"
-          name="emergencyPhone"
-          value={data.emergencyPhone || ''} // <-- Añade || ''
-          onChange={handleChange}
-          required
-          inputMode="tel"
-          pattern="\d{10}"
-          placeholder="5512345678"
-          error={errors.emergencyPhone}
-          disabled={disabled}
-          autoComplete="off"
-        />
+        {/* TELÉFONO DE EMERGENCIA (Ahora con verificación) */}
+        <Field label="Teléfono de emergencia" required error={errors.emergencyPhone}>
+          <div className="phone-verify-input"> 
+            <input
+              name="emergencyPhone"
+              value={data.emergencyPhone || ''} 
+              onChange={handleChange}
+              inputMode="tel"
+              placeholder="5512345678"
+              disabled={disabled || isEmergencyVerified} 
+              className="input-field__input"
+              maxLength={10}
+            />
+            {isEmergencyVerified ? (
+              <span className="phone-verified-badge">✓ Verificado</span>
+            ) : (
+              <button 
+                type="button" 
+                onClick={() => handleOpenModal('emergencyPhone')} 
+                disabled={disabled || (data.emergencyPhone || '').length !== 10}
+                className="ui-btn btn--primary btn--md" 
+              >
+                Verificar
+              </button>
+            )}
+          </div>
+        </Field>
       </div>
 
-
-      {isModalOpen && (
+      {/* MODAL DINÁMICO */}
+      {verificationTarget && (
         <PhoneVerificationModal
-          phone={data.phone}
-          onClose={() => setIsModalOpen(false)}
+          phone={verificationTarget === 'phone' ? data.phone : data.emergencyPhone}
+          onClose={() => setVerificationTarget(null)}
           onSuccess={handleVerificationSuccess}
         />
       )}

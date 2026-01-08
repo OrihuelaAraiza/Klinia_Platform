@@ -74,11 +74,12 @@ function createInitialForm() {
             state: "",
         },
         contact: {
-            phone: "",
-            emergencyName: "",
-            emergencyPhone: "",
-            phoneIsVerified: false,
-        },
+                phone: "",
+                emergencyName: "",
+                emergencyPhone: "",
+                phoneIsVerified: false,
+                emergencyPhoneIsVerified: false, 
+            },
         documents: {
             idOrPassportFileId: null,      // Antes idOrPassport
             professionalLicenseFileId: null, // Antes professionalLicense
@@ -226,6 +227,9 @@ function validateContact(data) {
     if (!isValidMXPhone(data.emergencyPhone)) {
         errors.emergencyPhone = "Ingresa un telefono de emergencia de 10 digitos.";
     }
+    if (!data.emergencyPhoneIsVerified) {
+        errors.emergencyPhone = "Debes verificar el número de emergencia.";
+    }
     return errors;
 }
 
@@ -297,7 +301,8 @@ function buildPayload(form) {
             phone: sanitize(form.contact.phone),
             emergencyName: sanitize(form.contact.emergencyName),
             emergencyPhone: sanitize(form.contact.emergencyPhone),
-      phoneIsVerified: form.contact.phoneIsVerified, // <-- ¡CORRECCIÓN CLAVE 2!
+            phoneIsVerified: form.contact.phoneIsVerified, 
+            emergencyPhoneIsVerified: form.contact.emergencyPhoneIsVerified,
         },
         documents: {
             idOrPassportFileId: form.documents.idOrPassportFileId,
