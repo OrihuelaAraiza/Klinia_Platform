@@ -95,7 +95,6 @@ export default function AppRoutes() {
 
           {/* SÓLO ADMIN */}
           <Route element={<ProtectedRoute allow={[ROLES.ADMIN]} />}>
-            <Route path={ROUTES.dashboard} element={<Dashboard />} />
             <Route path="/auth/debug" element={<AuthDebug />} />
           </Route>
 
@@ -125,6 +124,7 @@ export default function AppRoutes() {
               />
             }
           >
+            <Route path={ROUTES.dashboard} element={<Dashboard />} />
             <Route path={ROUTES.patients} element={<Patients />} />
             <Route path={`${ROUTES.patients}/:id`} element={<PatientDetail />} />
             <Route path={`${ROUTES.patients}/:id/history`} element={<History />} />
