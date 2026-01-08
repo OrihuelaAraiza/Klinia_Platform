@@ -1,61 +1,55 @@
 import { api } from "./apiClient";
 import auditService from "./auditService";
-import storage from "./storage";
+import storage from "./storage"; // Tu archivo que exporta removeItem y setObject
 
 const STORAGE_KEY_PREFIX = "clinical_history_";
 
 /**
- * Get clinical history for a patient
- * Uses API if available, falls back to local storage
+ * Guarda el historial clínico en la base de datos (Neon).
+ * Si tiene éxito, limpia el almacenamiento local.
  */
-export async function getClinicalHistory(patientId) {
-  try {
-    const response = await api.get(`/patients/${patientId}/clinical-history`, { auth: true });
-    await auditService.logAudit("hc_view", { patientId });
-    return response;
-  } catch (error) {
-    // Fallback to local storage if API fails (404 or network error)
-    if (error.status === 404 || error.code === "NETWORK_ERROR") {
-      const stored = storage.getObject(`${STORAGE_KEY_PREFIX}${patientId}`);
-      if (stored) {
-        await auditService.logAudit("hc_view", { patientId, source: "local_storage" });
-        return stored;
-      }
-      return null;
-    }
-    throw error;
-  }
-}
-
-/**
- * Save clinical history (draft or final)
- * Uses API if available, falls back to local storage
- */
-export async function saveClinicalHistory(patientId, payload, isDraft = false) {
+export async function saveClinicalHistory(patientId, rawPayload, isDraft = false) {
   const timestamp = new Date().toISOString();
-  const historyData = {
-    ...payload,
-    patientId,
-    updatedAt: timestamp,
-    isDraft,
+
+  // 1. Clasificación de campos para el Backend
+  const idFields = ['genderIdentity', 'nationality', 'state', 'municipality', 'civilStatus', 'education', 'occupation', 'religion'];
+  const identification = {};
+  const clinical = {};
+
+  Object.keys(rawPayload).forEach(key => {
+    if (idFields.includes(key)) {
+      identification[key] = rawPayload[key] ?? "";
+    } else {
+      clinical[key] = rawPayload[key];
+    }
+  });
+
+  const finalPayload = {
+    identification,
+    clinical: {
+      ...clinical,
+      motive: rawPayload.motive || rawPayload.motivo_consulta || "Consulta registrada",
+      status: isDraft ? "draft" : "finalized",
+    }
   };
 
   try {
-    const response = await api.post(`/patients/${patientId}/clinical-history`, historyData, { auth: true });
+    const response = await api.post(`/patients/${patientId}/history`, finalPayload, { auth: true });
+    
+    storage.removeItem(`${STORAGE_KEY_PREFIX}${patientId}`);
+    
     await auditService.logAudit("hc_save", { patientId, isDraft });
     return response;
+
   } catch (error) {
-    // Fallback to local storage if API fails
     if (error.status >= 500 || error.code === "NETWORK_ERROR") {
-      const existing = storage.getObject(`${STORAGE_KEY_PREFIX}${patientId}`) || {};
-      const merged = {
-        ...existing,
-        ...historyData,
-        id: existing.id || `hc_${Date.now()}`,
-        createdAt: existing.createdAt || timestamp,
+      const merged = { 
+        ...rawPayload, 
+        id: `local_${Date.now()}`, 
+        isDraft, 
+        updatedAt: timestamp 
       };
       storage.setObject(`${STORAGE_KEY_PREFIX}${patientId}`, merged);
-      await auditService.logAudit("hc_save", { patientId, isDraft, source: "local_storage" });
       return merged;
     }
     throw error;
@@ -63,37 +57,34 @@ export async function saveClinicalHistory(patientId, payload, isDraft = false) {
 }
 
 /**
- * Update clinical history
+ * Recupera el historial.
  */
-export async function updateClinicalHistory(patientId, historyId, payload) {
+export async function getClinicalHistory(patientId) {
   try {
-    const response = await api.put(`/patients/${patientId}/clinical-history/${historyId}`, payload, { auth: true });
-    await auditService.logAudit("hc_update", { patientId, historyId });
-    return response;
+    const response = await api.get(`/patients/${patientId}/history`, { auth: true });
+    
+    const rawData = Array.isArray(response) ? response[0] : response;
+    
+    if (!rawData) return null;
+
+    const flattened = {
+      ...rawData.identification, 
+      ...rawData,               
+      ...rawData.clinical        
+    };
+
+    delete flattened.identification;
+    delete flattened.clinical;
+    delete flattened.professional;
+
+    return flattened;
   } catch (error) {
-    // Fallback to local storage
-    if (error.status >= 500 || error.code === "NETWORK_ERROR") {
-      const existing = storage.getObject(`${STORAGE_KEY_PREFIX}${patientId}`);
-      if (existing && existing.id === historyId) {
-        const updated = {
-          ...existing,
-          ...payload,
-          updatedAt: new Date().toISOString(),
-        };
-        storage.setObject(`${STORAGE_KEY_PREFIX}${patientId}`, updated);
-        await auditService.logAudit("hc_update", { patientId, historyId, source: "local_storage" });
-        return updated;
-      }
-      throw new Error("Historia clínica no encontrada");
-    }
-    throw error;
+    const stored = storage.getObject(`${STORAGE_KEY_PREFIX}${patientId}`);
+    return stored || null;
   }
 }
 
 export default {
-  getClinicalHistory,
   saveClinicalHistory,
-  updateClinicalHistory,
+  getClinicalHistory,
 };
-
-

@@ -157,7 +157,10 @@ export default function History() {
           <CardHeader>
             <h2>Historia clínica registrada</h2>
             <div className="cluster" style={{ gap: "var(--s-2)" }}>
-              <Button variant="secondary" onClick={() => setHistory({ ...history, isDraft: true })}>
+              <Button 
+                variant="secondary" 
+                onClick={() => setHistory({ ...history, isDraft: true })}
+              >
                 Editar
               </Button>
             </div>

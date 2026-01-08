@@ -198,12 +198,19 @@ if (response.status === 401) {
   }
 
   if (!response.ok) {
+   if (import.meta.env.DEV) {
+      console.error("[API Client] Error detallado del servidor:", {
+        status: response.status,
+        path,
+        data: data 
+      });
+    }
+
     const error = new Error(data?.message || `Error ${response.status}`);
     error.status = response.status;
     error.data = data;
     throw error;
   }
-
   return data;
 }
 
