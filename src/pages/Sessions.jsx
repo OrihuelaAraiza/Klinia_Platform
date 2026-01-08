@@ -7,7 +7,7 @@ import Button from "../components/UI/Button";
 import Badge from "../components/UI/Badge";
 import Table, { TableEmpty } from "../components/UI/Table";
 import SessionForm from "../components/SessionForm";
-import SessionRowActions from "../components/SessionRowActions"; 
+import SessionRowActions from "../components/SessionRowActions";
 import InputField from "../components/InputField";
 import Field from "../components/UI/Field";
 import SessionMiniCalendar from "../components/SessionMiniCalendar";
@@ -18,7 +18,7 @@ import { listSessions, createSession, changeStatus, exportIcs } from "../service
 import { ROUTES, SESSION_STATUS, SESSION_STATUS_LABEL, SESSION_STATUS_VARIANT } from "../utils/constants";
 import {
     formatSessionModality,
-    getSessionPatientName, 
+    getSessionPatientName,
     getSessionNoteLabel,
 } from "../utils/sessionHelpers";
 
@@ -33,7 +33,7 @@ const STATUS_OPTIONS = [
 
 function formatDateTime(value) {
     if (!value) return "—";
-    
+
     return new Date(value).toLocaleString("es-MX", {
         dateStyle: "medium",
         timeStyle: "short",
@@ -64,7 +64,7 @@ function getDateRangeISO(dateKey, isStart = true) {
     if (!dateKey) return null;
     let date;
     if (isStart) {
-        date = new Date(`${dateKey}T00:00:00`); 
+        date = new Date(`${dateKey}T00:00:00`);
     } else {
         date = new Date(`${dateKey}T23:59:59`);
         date.setMilliseconds(999);
@@ -79,12 +79,12 @@ export default function Sessions() {
     const { role, user } = useOutletContext() ?? {};
     const isAssistant = role === "ASSISTANT";
     const professionalId = user?.therapistId || user?.id || "";
-    
+
     const [selectedSessionId, setSelectedSessionId] = useState(null);
 
     const professional = useMemo(
         () => ({
-            id: professionalId, 
+            id: professionalId,
             name: user?.name || "Profesional Klinia",
             license: user?.license,
         }),
@@ -104,17 +104,17 @@ export default function Sessions() {
     const [todayLoading, setTodayLoading] = useState(true);
     const [todayError, setTodayError] = useState("");
     const [icsLoading, setIcsLoading] = useState("");
-    
-    
+
+
     const refreshTodaySessions = useCallback(async () => {
-        if (!professionalId) return; 
-        
+        if (!professionalId) return;
+
         setTodayLoading(true);
         setTodayError("");
         try {
             const { from, to } = getDayRange(new Date());
-            const response = await listSessions({ from, to, size: 50, professionalId }); 
-            
+            const response = await listSessions({ from, to, size: 50, professionalId });
+
             const items = Array.isArray(response.items) ? response.items : response;
             setTodaySessions(items || []);
             auditService.logAudit("sessions_list", { preset: "today" });
@@ -123,15 +123,15 @@ export default function Sessions() {
         } finally {
             setTodayLoading(false);
         }
-    }, [professionalId]); 
+    }, [professionalId]);
 
-    
+
     useEffect(() => {
         let active = true;
-        
+
         async function loadSessions() {
-            if (!professionalId) return; 
-            
+            if (!professionalId) return;
+
             setLoading(true);
             setError("");
             try {
@@ -143,8 +143,8 @@ export default function Sessions() {
                     queryWithRange.to = getDateRangeISO(query.to, false);
                 }
 
-                const response = await listSessions({ ...queryWithRange, professionalId: professionalId }); 
-                
+                const response = await listSessions({ ...queryWithRange, professionalId: professionalId });
+
                 if (!active) return;
                 setListState({
                     items: Array.isArray(response.items) ? response.items : response,
@@ -164,15 +164,15 @@ export default function Sessions() {
                 }
             }
         }
-        
+
         loadSessions();
-        
+
         return () => {
             active = false;
         };
-    }, [query, toast, professionalId]); 
+    }, [query, toast, professionalId]);
 
-    
+
     useEffect(() => {
         if (professionalId) {
             refreshTodaySessions();
@@ -196,25 +196,25 @@ export default function Sessions() {
     };
 
     const handleCreateSession = async (payload) => {
-    const finalPayload = {
-        ...payload,
-        professionalId: professionalId, 
-    };
-    
-    try {
-        const session = await createSession(finalPayload);
-        toast.success("Sesión creada");
-        
-        auditService.logAudit("session_create", { 
-            patientId: session.patientId, 
-            sessionId: session.id,
-            executorId: user.id 
-        });
+        const finalPayload = {
+            ...payload,
+            professionalId: professionalId,
+        };
 
-        setDrawerOpen(false);
-        setQuery((prev) => ({ ...prev }));
-        refreshTodaySessions();
-    } catch (err) {
+        try {
+            const session = await createSession(finalPayload);
+            toast.success("Sesión creada");
+
+            auditService.logAudit("session_create", {
+                patientId: session.patientId,
+                sessionId: session.id,
+                executorId: user.id
+            });
+
+            setDrawerOpen(false);
+            setQuery((prev) => ({ ...prev }));
+            refreshTodaySessions();
+        } catch (err) {
             toast.error(err?.message || "No pudimos crear la sesión.");
             throw err;
         }
@@ -237,19 +237,31 @@ export default function Sessions() {
     const handleStatusChange = async (session, nextStatus) => {
         setStatusLoading({ sessionId: session.id, status: nextStatus });
         try {
-            const response = await changeStatus(session.id, nextStatus);
-            const updated = response || { ...session, status: nextStatus, updatedAt: new Date().toISOString() };
+            const response = await changeStatus(session.id, {
+                status: nextStatus,
+            });
+
+            const updated = response || {
+                ...session,
+                status: nextStatus,
+                updatedAt: new Date().toISOString(),
+            };
+
             updateSessionInState(session.id, () => updated);
             updateTodaySession(session.id, () => updated);
+
             toast.success(`Sesión ${SESSION_STATUS_LABEL[nextStatus] || nextStatus}`);
+
             auditService.logAudit("session_status_change", {
                 sessionId: session.id,
                 status: nextStatus,
                 patientId: session.patientId,
             });
+
             if (nextStatus === SESSION_STATUS.ATENDIDA && !session.noteId) {
                 setPendingNoteSession({ ...session, ...updated });
             }
+
             refreshTodaySessions();
         } catch (err) {
             toast.error(err?.message || "No pudimos actualizar el estado.");
@@ -258,11 +270,12 @@ export default function Sessions() {
         }
     };
 
+
     const handleAutocreateNote = async () => {
         if (!pendingNoteSession) return;
         const session = pendingNoteSession;
         setPendingNoteSession(null);
-        
+
         navigate(`${ROUTES.patients}/${session.patientId}/notes`);
     };
 
@@ -309,14 +322,14 @@ export default function Sessions() {
     const rows = listState.items;
 
     const getFullName = (session) => {
-        if (!session) { 
+        if (!session) {
             return "—";
         }
 
         if (session.patientFirstName && session.patientLastName) {
             return `${session.patientFirstName} ${session.patientLastName}`.trim();
         }
-        return getSessionPatientName(session); 
+        return getSessionPatientName(session);
     }
 
     return (
@@ -332,10 +345,10 @@ export default function Sessions() {
                     <Button variant="secondary" size="sm" onClick={() => navigate(ROUTES.sessionsCalendar)}>
                         Vista calendario
                     </Button>
-                        <Button size="sm" onClick={() => setDrawerOpen(true)}>
-                            Nueva sesión
-                        </Button>
-                    
+                    <Button size="sm" onClick={() => setDrawerOpen(true)}>
+                        Nueva sesión
+                    </Button>
+
                 </div>
             </div>
 
@@ -357,21 +370,21 @@ export default function Sessions() {
                     </div>
                 ) : todaySessions.length === 0 ? (
                     <TableEmpty
-                    title="Sin sesiones para hoy"
-                    description={todayError || "Programa una sesión."}
-                    action={
-                        <Button size="sm" onClick={() => setDrawerOpen(true)}>
-                            Crear sesión
-                        </Button>
-                    }
-                />
+                        title="Sin sesiones para hoy"
+                        description={todayError || "Programa una sesión."}
+                        action={
+                            <Button size="sm" onClick={() => setDrawerOpen(true)}>
+                                Crear sesión
+                            </Button>
+                        }
+                    />
                 ) : (
                     <div className="sessions-today__grid">
                         {todaySessions.map((session) => {
                             const badgeVariant = SESSION_STATUS_VARIANT[session.status] || "neutral";
                             return (
-                                <article 
-                                    key={`today-${session.id}`} 
+                                <article
+                                    key={`today-${session.id}`}
                                     className="sessions-today-card cursor-pointer"
                                     onClick={() => setSelectedSessionId(session.id)}
                                 >
@@ -386,7 +399,7 @@ export default function Sessions() {
                                         <Button
                                             variant="ghost"
                                             size="sm"
-                                            onClick={(e) => { 
+                                            onClick={(e) => {
                                                 e.stopPropagation();
                                                 handleLinkDirect(session);
                                             }}
@@ -447,8 +460,8 @@ export default function Sessions() {
                             {({ fieldId }) => (
                                 <select id={fieldId} name="status" className="role-select" value={filters.status} onChange={handleFilterChange}>
                                     {STATUS_OPTIONS.map((option, index) => (
-                                        <option 
-                                            key={option.value || `status_todos_${index}`} 
+                                        <option
+                                            key={option.value || `status_todos_${index}`}
                                             value={option.value}
                                         >
                                             {option.label}
@@ -506,46 +519,65 @@ export default function Sessions() {
                             const badgeVariant = SESSION_STATUS_VARIANT[session.status] || "neutral";
                             const isChanging = statusLoading.sessionId === session.id ? statusLoading.status : null;
                             const patientFullName = getFullName(session);
+                            const TRANSITIONS = {
+                                [SESSION_STATUS.PROGRAMADA]: [SESSION_STATUS.CONFIRMADA, SESSION_STATUS.CANCELADA],
+                                [SESSION_STATUS.CONFIRMADA]: [SESSION_STATUS.ATENDIDA, SESSION_STATUS.NO_PRESENTADA, SESSION_STATUS.CANCELADA],
+                                [SESSION_STATUS.ATENDIDA]: [],
+                                [SESSION_STATUS.NO_PRESENTADA]: [],
+                                [SESSION_STATUS.CANCELADA]: [],
+                            };
+                            const canEdit = !isAssistant && (TRANSITIONS[session.status]?.length ?? 0) > 0;
 
                             return (
-                                <tr 
-                                    key={session.id} 
+                                <tr
+                                    key={session.id}
                                     onClick={() => setSelectedSessionId(session.id)}
-                                    className="cursor-pointer" 
+                                    className="cursor-pointer"
                                 >
                                     <td>
                                         <p className="sessions-table__primary">{formatDateTime(session.datetime)}</p>
                                         <p className="sessions-table__meta">{formatSessionModality(session)}</p>
                                     </td>
-                                    <td>{patientFullName}</td> 
-                                    <td>{session.professionalName || session.professional?.name || "—"}</td> 
+                                    <td>{patientFullName}</td>
+                                    <td>{session.professionalName || session.professional?.name || "—"}</td>
                                     <td>
                                         <Badge variant={badgeVariant}>{SESSION_STATUS_LABEL[session.status] || session.status}</Badge>
                                     </td>
-                                    
-                                    <td onClick={(e) => e.stopPropagation()}> 
+
+                                    <td onClick={(e) => e.stopPropagation()}>
                                         <Button
                                             variant="ghost"
                                             size="sm"
                                             onClick={(e) => {
-                                                e.stopPropagation(); 
-                                                handleLinkDirect(session); 
+                                                e.stopPropagation();
+                                                handleLinkDirect(session);
                                             }}
                                             title={session.noteId ? 'Ver nota clínica' : 'Crear/Vincular nota clínica'}
                                         >
                                             {session.noteId ? getSessionNoteLabel(session, isAssistant) : 'Nota'}
                                         </Button>
                                     </td>
-                                    
+
                                     <td className="align-right">
                                         <div className="session-actions-cell">
-                                            
+                                            {canEdit && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setSelectedSessionId(session.id);
+                                                    }}
+                                                >
+                                                    Editar
+                                                </Button>
+                                            )}
                                             {/* Botón ICS */}
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
                                                 onClick={(e) => {
-                                                    e.stopPropagation(); 
+                                                    e.stopPropagation();
                                                     handleExportIcs(session.id);
                                                 }}
                                                 loading={icsLoading === session.id}
@@ -553,17 +585,11 @@ export default function Sessions() {
                                             >
                                                 .ics
                                             </Button>
-                                            <SessionRowActions
-                                                session={session}
-                                                isAssistant={isAssistant}
-                                                onChangeStatus={(status) => handleStatusChange(session, status)}
-                                                changing={isChanging}
-                                            />
                                         </div>
                                     </td>
                                 </tr>
 
-                                
+
                             );
                         })}
                     </tbody>
@@ -603,8 +629,8 @@ export default function Sessions() {
                 sessionId={selectedSessionId}
                 onClose={() => setSelectedSessionId(null)}
                 onUpdate={(updatedSession) => {
-                    updateSessionInState(updatedSession.id, () => updatedSession); 
-                    updateTodaySession(updatedSession.id, () => updatedSession); 
+                    updateSessionInState(updatedSession.id, () => updatedSession);
+                    updateTodaySession(updatedSession.id, () => updatedSession);
                     setSelectedSessionId(null);
                 }}
                 isAssistant={isAssistant}
