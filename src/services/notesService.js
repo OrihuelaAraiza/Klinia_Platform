@@ -23,29 +23,34 @@ function buildAuditMeta(patientId, noteId) {
 
 
 export async function listNotes(patientId, params = {}) {
-    const normalizedPatientId = ensurePatientId(patientId);
-    const response = await api.get(`/patients/${normalizedPatientId}/notes`, { params, auth: true });
-    await auditService.logAudit("notes_list", buildAuditMeta(patientId));
+    if (!patientId) return { items: [], total: 0 };
+    
+    const cleanParams = {
+        page: params.page || 1,
+        size: params.size || 50
+    };
+
+    const response = await api.get(`/notes/patient/${patientId}`, { 
+        params: cleanParams, 
+        auth: true 
+    });
+    
     return response; 
 }
 
 
 export async function createNote(patientId, payload) {
-    //const normalizedPatientId = ensurePatientId(patientId);
     const response = await api.post(`/notes`, payload, { auth: true });
     await auditService.logAudit("note_create", buildAuditMeta(patientId, response.id));
     return response;
 }
 
-
 export async function getNote(patientId, noteId) {
-    //const normalizedPatientId = ensurePatientId(patientId);
     const normalizedNoteId = ensureNoteId(noteId);
     const response = await api.get(`/notes/${normalizedNoteId}`, { auth: true });
     await auditService.logAudit("note_view", buildAuditMeta(patientId, noteId));
     return response;
 }
-
 
 export async function closeNote(patientId, noteId) {
     const normalizedPatientId = ensurePatientId(patientId);
@@ -55,9 +60,7 @@ export async function closeNote(patientId, noteId) {
     return response;
 }
 
-
 export async function updateNote(patientId, noteId, payload) {
-    //const normalizedPatientId = ensurePatientId(patientId);
     const normalizedNoteId = ensureNoteId(noteId);
     const response = await api.put(`/notes/${normalizedNoteId}`, payload, { auth: true });
     await auditService.logAudit("note_update", buildAuditMeta(patientId, noteId));

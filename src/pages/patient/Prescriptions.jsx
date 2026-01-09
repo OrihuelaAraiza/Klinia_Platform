@@ -6,19 +6,19 @@ import Card, { CardHeader, CardBody } from "../../components/UI/Card";
 import Badge from "../../components/UI/Badge";
 import Button from "../../components/UI/Button";
 import { useToast } from "../../components/UI/Toast";
-import { SkeletonCard, SkeletonLine, SkeletonTitle, SkeletonSubtitle, SkeletonList } from "../../components/UI/Skeleton";
+import { SkeletonTitle, SkeletonList } from "../../components/UI/Skeleton";
 import EmptyState from "../../components/UI/EmptyState";
-import { Pill } from "lucide-react";
+import { Pill, Printer, FileText, Activity } from "lucide-react";
+import "./pdf.css"; 
 
 /**
- * Vista de Prescripciones para pacientes
- * Muestra prescripciones activas e historial
+ * Vista de Prescripciones para el Portal del Paciente.
+ * Permite visualizar el historial de recetas y las indicaciones activas.
  */
 export default function PatientPrescriptions() {
   const { user } = useOutletContext() ?? {};
   const toast = useToast();
-  const patientId = user?.id;
-
+  
   const [prescriptions, setPrescriptions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -29,147 +29,121 @@ export default function PatientPrescriptions() {
       setLoading(true);
       setError("");
       try {
-        // Usar endpoint específico para pacientes que identifica al paciente desde el token
+        // Llama al servicio que usa el token del paciente
         const response = await listMyPrescriptions();
         if (!alive) return;
+        
         const items = Array.isArray(response) ? response : [];
-        // Ordenar: activas primero, luego por fecha
+        // Ordenamos: Activas arriba, luego por fecha de creación
         const sorted = items.sort((a, b) => {
           if (a.suspended !== b.suspended) return a.suspended ? 1 : -1;
           return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
         });
+        
         setPrescriptions(sorted);
       } catch (err) {
         if (!alive) return;
-        // Si el endpoint no existe, intentar con el método tradicional como fallback
-        if (err.status === 404 && patientId) {
-          try {
-            const { listByPatient } = await import("../../services/prescriptionsService");
-            const response = await listByPatient(patientId);
-            const items = Array.isArray(response) ? response : [];
-            const sorted = items.sort((a, b) => {
-              if (a.suspended !== b.suspended) return a.suspended ? 1 : -1;
-              return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
-            });
-            setPrescriptions(sorted);
-            return;
-          } catch (fallbackErr) {
-            // Continuar con el error original
-          }
-        }
-        const message = err.message || "No pudimos cargar tus prescripciones.";
-        setError(message);
-        toast.error(message);
+        setError("No pudimos cargar tus prescripciones.");
+        toast.error("Error al conectar con el servidor.");
       } finally {
-        if (alive) {
-          setLoading(false);
-        }
+        if (alive) setLoading(false);
       }
     }
     load();
-    return () => {
-      alive = false;
-    };
-  }, [toast, patientId]);
+    return () => { alive = false; };
+  }, [toast]);
 
   const activePrescriptions = prescriptions.filter((p) => !p.suspended && !p.completed);
   const inactivePrescriptions = prescriptions.filter((p) => p.suspended || p.completed);
 
-  const handleDownloadPDF = (prescriptionId) => {
-    // Stub: implementar cuando el backend lo soporte
-    toast.success("Descarga de PDF (stub)");
-  };
-
   if (loading) {
     return (
       <section className="page stack-5">
-        <div className="page__header">
-          <SkeletonTitle />
-          <SkeletonSubtitle />
-        </div>
-        <div className="stack-3">
-          <SkeletonLine width="25%" style={{ height: "1.5rem" }} />
-          <SkeletonList count={2} />
-        </div>
+        <SkeletonTitle />
+        <SkeletonList count={3} />
       </section>
     );
   }
 
   return (
-    <section className="page stack-5">
-      <div className="page__header">
-        <div className="stack-2">
-          <h1>Mis Prescripciones</h1>
-          <p className="helper-text">
-            Aquí puedes ver tus prescripciones activas y el historial de indicaciones médicas.
-          </p>
+    <section className="page stack-5 print-container">
+      <div className="show-only-print">
+        <div style={{ textAlign: 'center', borderBottom: '2px solid #000', paddingBottom: '1rem', marginBottom: '2rem' }}>
+          <h1>INDICACIONES MÉDICAS Y PRESCRIPCIONES</h1>
+          <p>Plataforma Clínica Klinia</p>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+          <span><strong>Paciente:</strong> {user?.firstName} {user?.lastName}</span>
+          <span><strong>Fecha de consulta:</strong> {new Date().toLocaleDateString()}</span>
         </div>
       </div>
 
-      {error ? (
-        <Card hoverable={false}>
+      {/* HEADER DE PANTALLA (Invisible en PDF) */}
+      <div className="page__header cluster no-print" style={{ justifyContent: 'space-between' }}>
+        <div className="stack-2">
+          <h1>Mis Prescripciones</h1>
+          <p className="helper-text">Consulta tus medicamentos activos e historial de tratamientos.</p>
+        </div>
+        <button className="button button--ghost" onClick={() => window.print()} type="button">
+          <Printer size={18} />
+          <span className="hide-mobile">Imprimir Recetario</span>
+        </button>
+      </div>
+
+      {prescriptions.length === 0 ? (
+        <Card hoverable={false} className="no-print">
           <CardBody>
-            <p className="form-error" role="alert">
-              {error}
-            </p>
+            <EmptyState
+              icon={Pill}
+              title="Sin prescripciones registradas"
+              message="Tus recetas aparecerán aquí cuando tu médico registre nuevas indicaciones."
+            />
           </CardBody>
         </Card>
       ) : (
-        <div className="stack-5">
-          {/* Prescripciones activas */}
+        <div className="stack-6">
+          {/* SECCIÓN: ACTIVAS */}
           {activePrescriptions.length > 0 && (
-            <div className="stack-3">
-              <h2>Prescripciones activas</h2>
+            <div className="stack-3 print-section">
+              <h2 className="cluster no-print"><Activity size={20} color="var(--success)" /> Recetas Activas</h2>
               <div className="stack-3">
-                {activePrescriptions.map((prescription) => (
-                  <Card key={prescription.id} hoverable={false}>
-                    <CardHeader className="cluster" style={{ justifyContent: "space-between" }}>
+                {activePrescriptions.map((p) => (
+                  <Card key={p.id} className="print-card border-accent">
+                    <CardHeader className="cluster-print" style={{ justifyContent: "space-between" }}>
                       <div className="stack-1">
-                        <strong>
-                          {prescription.substance || "Medicamento"}
-                          {prescription.form ? ` - ${prescription.form}` : ""}
+                        <strong className="print-main-text text-lg">
+                          {p.substance} {p.form ? `- ${p.form}` : ""}
                         </strong>
-                        {prescription.createdAt && (
-                          <span className="helper-text">
-                            Prescrita el {formatDateISOToHuman(prescription.createdAt)}
-                          </span>
-                        )}
+                        <span className="helper-text print-sub-text">
+                          Indicado el {formatDateISOToHuman(p.createdAt)}
+                        </span>
                       </div>
-                      <Badge variant="success">Activa</Badge>
+                      <Badge variant="success" className="no-print">Activa</Badge>
                     </CardHeader>
-                    <CardBody className="stack-3">
-                      <div className="stack-2">
-                        {prescription.dose && (
-                          <p>
-                            <strong>Dosis:</strong> {prescription.dose}
-                          </p>
-                        )}
-                        {prescription.frequency && (
-                          <p>
-                            <strong>Frecuencia:</strong> {prescription.frequency}
-                          </p>
-                        )}
-                        {prescription.duration && (
-                          <p>
-                            <strong>Duración:</strong> {prescription.duration}
-                          </p>
-                        )}
-                        {prescription.notes && (
-                          <div className="stack-1">
-                            <strong>Indicaciones:</strong>
-                            <p className="helper-text">{prescription.notes}</p>
-                          </div>
-                        )}
+                    <CardBody className="stack-3 print-body">
+                      <div className="grid-2 print-grid">
+                        <div className="data-item">
+                          <span className="label-text no-print">Dosis:</span>
+                          <p className="print-info"><strong>Dosis:</strong> {p.dose || "Según indicación"}</p>
+                        </div>
+                        <div className="data-item">
+                          <span className="label-text no-print">Frecuencia:</span>
+                          <p className="print-info"><strong>Frecuencia:</strong> {p.frequency || "N/A"}</p>
+                        </div>
+                        <div className="data-item">
+                          <span className="label-text no-print">Duración:</span>
+                          <p className="print-info"><strong>Duración:</strong> {p.duration || "N/A"}</p>
+                        </div>
                       </div>
-                      {prescription.folio && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleDownloadPDF(prescription.id)}
-                        >
-                          Descargar PDF
-                        </Button>
+                      {p.notes && (
+                        <div className="print-notes-box" style={{ marginTop: '1rem' }}>
+                          <p className="text-main"><strong>Indicaciones adicionales:</strong></p>
+                          <p className="helper-text print-notes-text">{p.notes}</p>
+                        </div>
                       )}
+                      <div className="no-print" style={{ marginTop: '1rem', borderTop: '1px solid var(--border-light)', paddingTop: '1rem' }}>
+                        <p className="small text-muted">Prescrito por: {p.professional?.name || "Especialista"}</p>
+                      </div>
                     </CardBody>
                   </Card>
                 ))}
@@ -177,54 +151,40 @@ export default function PatientPrescriptions() {
             </div>
           )}
 
-          {/* Historial */}
+          {/* SECCIÓN: HISTORIAL */}
           {inactivePrescriptions.length > 0 && (
-            <div className="stack-3">
-              <h2>Historial de prescripciones</h2>
-              <div className="stack-3">
-                {inactivePrescriptions.map((prescription) => (
-                  <Card key={prescription.id} hoverable={false}>
-                    <CardHeader className="cluster" style={{ justifyContent: "space-between" }}>
-                      <div className="stack-1">
-                        <strong>
-                          {prescription.substance || "Medicamento"}
-                          {prescription.form ? ` - ${prescription.form}` : ""}
-                        </strong>
-                        {prescription.createdAt && (
-                          <span className="helper-text">
-                            Prescrita el {formatDateISOToHuman(prescription.createdAt)}
-                          </span>
-                        )}
+            <div className="stack-3 print-section">
+              <h2 className="helper-text print-title-past">Historial de Tratamientos</h2>
+              <div className="stack-2">
+                {inactivePrescriptions.map((p) => (
+                  <Card key={p.id} hoverable={false} className="card--sm print-card-mini">
+                    <CardBody className="cluster-print" style={{ justifyContent: "space-between" }}>
+                      <div className="cluster gap-4">
+                        <FileText size={16} className="no-print" />
+                        <div className="stack-0">
+                          <strong className="print-secondary-text">{p.substance}</strong>
+                          <span className="helper-text small print-sub-text">Finalizada el {formatDateISOToHuman(p.updatedAt)}</span>
+                        </div>
                       </div>
-                      <Badge variant={prescription.suspended ? "warning" : "neutral"}>
-                        {prescription.suspended ? "Suspendida" : "Completada"}
+                      <Badge variant={p.suspended ? "warning" : "neutral"} size="sm">
+                        {p.suspended ? "Suspendida" : "Completada"}
                       </Badge>
-                    </CardHeader>
-                    <CardBody>
-                      {prescription.notes && (
-                        <p className="helper-text">{prescription.notes}</p>
-                      )}
                     </CardBody>
                   </Card>
                 ))}
               </div>
             </div>
-          )}
-
-          {prescriptions.length === 0 && (
-            <Card hoverable={false}>
-              <CardBody>
-                <EmptyState
-                  icon={Pill}
-                  title="No hay prescripciones registradas"
-                  message="Cuando tu profesional de salud te recete algún medicamento o tratamiento, aparecerá aquí con todas las indicaciones necesarias para tu seguimiento."
-                />
-              </CardBody>
-            </Card>
           )}
         </div>
       )}
+
+      {/* PIE DE PÁGINA: Solo en PDF */}
+      <footer className="show-only-print" style={{ marginTop: '4rem', textAlign: 'center' }}>
+        <p style={{ fontSize: '8pt', color: '#666' }}>
+          Este documento es una representación digital de su receta médica. 
+          Consulte a su médico antes de realizar cualquier cambio en su tratamiento.
+        </p>
+      </footer>
     </section>
   );
 }
-

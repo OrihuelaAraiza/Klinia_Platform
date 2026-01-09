@@ -47,16 +47,26 @@ export async function listSessions({
 }
 
 export async function listSessionsByPatient(patientId, { page = 1, size = 10 } = {}, options = {}) {
-  const query = buildQuery({ page, size });
-  const response = await safeGet(`/patients/${patientId}/sessions${query}`, options);
+  try {
+    const url = `/sessions/patient/${patientId}?page=${page}&size=${size}`;
+    
+    const response = await api.get(url, { auth: true, ...options });
 
-  const items = Array.isArray(response) ? response : (response?.items || []);
-  return {
-    items,
-    total: Number(response?.total ?? items.length ?? 0),
-    page: Number(response?.page ?? page),
-    size: Number(response?.size ?? size),
-  };
+    const items = Array.isArray(response) ? response : (response?.items || []);
+    
+    return {
+      items: items.map(session => ({
+        ...session,
+        professionalName: session.professional?.name || "Especialista"
+      })),
+      total: Number(response?.total ?? items.length ?? 0),
+      page: Number(response?.page ?? page),
+      size: Number(response?.size ?? size),
+    };
+  } catch (error) {
+    console.error("Error en listSessionsByPatient:", error);
+    throw error;
+  }
 }
 
 export function createSession(payload, options = {}) {

@@ -1,0 +1,90 @@
+/* pdf.css */
+
+/* Ocultar elementos especiales en pantalla normal */
+.show-only-print {
+  display: none;
+}
+
+@media print {
+  /* 1. Limpieza total de la interfaz web */
+  nav, 
+  aside, 
+  header, 
+  footer:not(.show-only-print), 
+  .no-print,
+  .button, 
+  .select, 
+  .label,
+  .helper-text:not(.print-subtitle):not(.print-notes) {
+    display: none !important;
+  }
+
+  /* 2. Reset de contenedores principales */
+  body, 
+  .page, 
+  .print-container,
+  #root {
+    background: white !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    display: block !important;
+  }
+
+  /* 3. Forzar visibilidad de la información de la cita */
+  .card, 
+  .print-card, 
+  .print-card-mini {
+    display: block !important;
+    box-shadow: none !important;
+    border: 1px solid #333 !important; /* Borde más oscuro para impresión */
+    background: white !important;
+    break-inside: avoid; /* Evita que la cita se corte entre páginas */
+    margin-bottom: 1.2rem !important;
+    padding: 1rem !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+
+  /* 4. Tipografía y Colores */
+  h1, h2, h3, p, span, strong, div {
+    color: black !important;
+    fill: black !important; /* Para iconos que se lleguen a colar */
+  }
+
+  .print-date {
+    font-size: 14pt !important;
+    display: block !important;
+    margin-bottom: 0.2rem !important;
+  }
+
+  /* 5. Ajuste de Layouts (Convertir Grids en bloques verticales) */
+  .grid-2, 
+  .grid-print,
+  .cluster {
+    display: block !important; 
+  }
+
+  .cluster-print {
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    border-bottom: 1px solid #ddd;
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+
+  /* 6. Cabecera y Pie de página del documento */
+  .show-only-print {
+    display: block !important;
+    visibility: visible !important;
+  }
+
+  .print-header {
+    display: block !important;
+    text-align: center;
+    border-bottom: 2px solid #000 !important;
+    padding-bottom: 1rem;
+    margin-bottom: 2rem;
+  }
+}

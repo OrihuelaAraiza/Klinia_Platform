@@ -1,43 +1,67 @@
-// clinicalHistoryService.js
 import { api } from "./apiClient";
 import auditService from "./auditService";
 
-export async function getClinicalHistory(patientId) {
+/**
+ * Obtiene la historia clínica de un paciente.
+ * Soporta tanto PatientId (Médicos) como UserId (Pacientes).
+ * @param {string} patientId - ID del paciente o usuario.
+ * @param {object} options - Debe incluir { params: { professionalId } }.
+ */
+export async function getClinicalHistory(patientId, options = {}) {
   try {
-    const response = await api.get(`/histories/patient/${patientId}`, { auth: true });
+    // 1. Construcción manual de la URL con Query Params
+    // Esto garantiza que el Backend reciba el professionalId incluso si el apiClient es estricto
+    const profId = options.params?.professionalId;
+    const url = profId 
+      ? `/histories/patient/${patientId}?professionalId=${profId}`
+      : `/histories/patient/${patientId}`;
+
+    const response = await api.get(url, { auth: true });
 
     if (!response) return null;
 
-    // Aplanamos los datos del paciente dentro de la historia para que el formulario los vea
+    // 2. Lógica de flatData: Aplanamos el objeto para que sea fácil de leer en la vista
+    // Extraemos datos del objeto 'patient' que viene en el include de Prisma
     const flatData = {
       ...response,
-      firstName: response.patient?.firstName,
-      lastName: response.patient?.lastName,
-      birthDate: response.patient?.birthDate,
-      gender: response.patient?.gender,
-      curp: response.patient?.curp,
-      nationality: response.patient?.nationality,
-      state: response.patient?.state,
+      firstName: response.patient?.firstName || "",
+      lastName: response.patient?.lastName || "",
+      birthDate: response.patient?.birthDate || null,
+      gender: response.patient?.gender || "",
+      curp: response.patient?.curp || "",
+      nationality: response.patient?.nationality || "",
+      state: response.patient?.state || "",
     };
 
-    await auditService.logAudit("hc_view", { patientId });
+    // 3. Auditoría silenciosa
+    auditService.logAudit("hc_view", { patientId }).catch(() => {});
+
     return flatData;
   } catch (error) {
+    // Si el error es 404, devolvemos null para que el Front muestre el EmptyState
     if (error.status === 404) return null;
     throw error;
   }
 }
 
+/**
+ * Crea o actualiza la historia clínica.
+ */
 export async function saveClinicalHistory(patientId, payload) {
   try {
-    // Limpieza rápida en el front antes de enviar
     const cleanPayload = { ...payload };
     
-    // Aseguramos que los campos que el backend espera como Boolean se envíen correctamente
+    // Normalización de booleanos para compatibilidad con el esquema de Prisma
     const boolFields = ['hasAllergies', 'transfusions', 'psychUrgencies', 'suicideRiskScreening'];
     boolFields.forEach(field => {
-      if (cleanPayload[field] === "SI" || cleanPayload[field] === "SÍ") cleanPayload[field] = true;
-      if (cleanPayload[field] === "NO") cleanPayload[field] = false;
+      const val = cleanPayload[field];
+      if (val === "SI" || val === "SÍ" || val === true) {
+        cleanPayload[field] = true;
+      } else if (val === "NO" || val === false) {
+        cleanPayload[field] = false;
+      } else {
+        cleanPayload[field] = false; // Default seguro
+      }
     });
 
     const response = await api.post(`/histories/patient/${patientId}`, cleanPayload, { auth: true });
@@ -47,3 +71,8 @@ export async function saveClinicalHistory(patientId, payload) {
     throw error;
   }
 }
+
+export default {
+  getClinicalHistory,
+  saveClinicalHistory,
+};

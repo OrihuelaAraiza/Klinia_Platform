@@ -1,18 +1,14 @@
 import { useEffect, useState } from "react";
 import { useOutletContext } from "react-router-dom";
-import { getMyDocuments, getMyProfile, getAttachmentUrl } from "../../services/patientsService";
+import { getMyDocuments, getAttachmentUrl } from "../../services/patientsService";
 import { formatDateISOToHuman } from "../../utils/formatters";
 import Card, { CardHeader, CardBody } from "../../components/UI/Card";
 import Button from "../../components/UI/Button";
 import { useToast } from "../../components/UI/Toast";
-import { SkeletonCard, SkeletonLine, SkeletonTitle, SkeletonSubtitle, SkeletonList } from "../../components/UI/Skeleton";
+import { SkeletonTitle, SkeletonList } from "../../components/UI/Skeleton";
 import EmptyState from "../../components/UI/EmptyState";
-import { Folder } from "lucide-react";
+import { Folder, Download, FileText, Calendar } from "lucide-react";
 
-/**
- * Vista de Documentos para pacientes
- * Muestra documentos compartidos por el profesional
- */
 export default function PatientDocuments() {
   const { user } = useOutletContext() ?? {};
   const toast = useToast();
@@ -23,72 +19,48 @@ export default function PatientDocuments() {
   const [error, setError] = useState("");
 
   useEffect(() => {
+    if (!patientId) return;
+
     let alive = true;
     async function load() {
       setLoading(true);
       setError("");
       try {
-        // Intentar primero con endpoint específico para pacientes
         const attachments = await getMyDocuments(patientId);
-        if (!alive) return;
-        setDocuments(attachments);
+        if (alive) setDocuments(attachments);
       } catch (err) {
-        if (!alive) return;
-        // Si el endpoint no existe, intentar obtener desde el perfil como fallback
-        if (err.status === 404 && patientId) {
-          try {
-            const { getPatient } = await import("../../services/patientsService");
-            const patient = await getPatient(patientId);
-            const attachments = Array.isArray(patient?.attachments) ? patient.attachments : [];
-            setDocuments(attachments);
-            return;
-          } catch (fallbackErr) {
-            // Continuar con el error original
-          }
-        }
-        const message = err.message || "No pudimos cargar tus documentos.";
-        setError(message);
-        toast.error(message);
-      } finally {
         if (alive) {
-          setLoading(false);
+          setError("No pudimos cargar tus documentos compartidos.");
+          if (err.status !== 404) toast.error("Error al obtener archivos.");
         }
+      } finally {
+        if (alive) setLoading(false);
       }
     }
     load();
-    return () => {
-      alive = false;
-    };
-  }, [toast, patientId]);
+    return () => { alive = false; };
+  }, [patientId, toast]);
 
-  const handleDownload = async (blobName) => {
+  const handleDownload = async (blobName, originalName) => {
+    const loadingToast = toast.info("Generando enlace de descarga...", { duration: 2000 });
     try {
-      if (!patientId) {
-        toast.error("Paciente no identificado");
-        return;
-      }
       const response = await getAttachmentUrl(patientId, blobName);
       const downloadUrl = response.url || response.data?.url;
 
-      if (!downloadUrl) {
-        toast.error("No se pudo obtener la URL de descarga");
-        return;
-      }
+      if (!downloadUrl) throw new Error();
+
+      // Abrir en pestaña nueva para iniciar descarga
       window.open(downloadUrl, "_blank");
-      toast.success("Descarga iniciada");
+      toast.success(`Descargando: ${originalName || 'Documento'}`);
     } catch (err) {
-      console.error(err);
-      toast.error("No se pudo descargar el documento");
+      toast.error("No se pudo iniciar la descarga. Intenta más tarde.");
     }
   };
 
   if (loading) {
     return (
       <section className="page stack-5">
-        <div className="page__header">
-          <SkeletonTitle />
-          <SkeletonSubtitle />
-        </div>
+        <SkeletonTitle />
         <SkeletonList count={3} />
       </section>
     );
@@ -100,17 +72,15 @@ export default function PatientDocuments() {
         <div className="stack-2">
           <h1>Mis Documentos</h1>
           <p className="helper-text">
-            Aquí puedes ver y descargar los documentos compartidos por tu profesional de salud.
+            Archivos, estudios y documentos compartidos por tu equipo médico.
           </p>
         </div>
       </div>
 
       {error ? (
-        <Card hoverable={false}>
+        <Card hoverable={false} className="border-error">
           <CardBody>
-            <p className="form-error" role="alert">
-              {error}
-            </p>
+            <p className="form-error">{error}</p>
           </CardBody>
         </Card>
       ) : documents.length === 0 ? (
@@ -118,41 +88,52 @@ export default function PatientDocuments() {
           <CardBody>
             <EmptyState
               icon={Folder}
-              title="No hay documentos compartidos"
-              message="Tu profesional de salud compartirá documentos relevantes aquí cuando sea necesario. Podrás descargarlos directamente desde esta sección."
+              title="Tu carpeta está vacía"
+              message="Aquí aparecerán estudios, resultados o guías que tu profesional comparta contigo durante tu tratamiento."
             />
           </CardBody>
         </Card>
       ) : (
         <div className="stack-3">
           {documents.map((doc) => (
-            <Card key={doc.id || doc.blobName} hoverable={false}>
+            <Card key={doc.blobName || doc.id} hoverable={false}>
               <CardHeader className="cluster" style={{ justifyContent: "space-between" }}>
-                <div className="stack-1">
-                  <strong>{doc.name || doc.blobName || "Documento"}</strong>
-                  {doc.uploadedAt && (
-                    <span className="helper-text">
-                      Compartido el {formatDateISOToHuman(doc.uploadedAt)}
-                    </span>
-                  )}
+                <div className="cluster gap-3">
+                  <div className="icon-box variant-soft">
+                    <FileText size={20} />
+                  </div>
+                  <div className="stack-0">
+                    <strong className="text-main">{doc.name || "Archivo sin nombre"}</strong>
+                    <div className="cluster gap-2 helper-text small">
+                       <Calendar size={12} />
+                       {doc.uploadedAt ? formatDateISOToHuman(doc.uploadedAt) : "Fecha no disponible"}
+                    </div>
+                  </div>
                 </div>
                 {doc.type && (
-                  <span className="helper-text">{doc.type}</span>
+                  <span className="badge badge--neutral no-print">{doc.type.split('/')[1]?.toUpperCase() || 'DOC'}</span>
                 )}
               </CardHeader>
               <CardBody>
-                <div className="cluster" style={{ gap: "var(--s-2)" }}>
-                  <Button
-                    size="sm"
-                    onClick={() => handleDownload(doc.blobName || doc.name)}
-                  >
-                    Descargar
-                  </Button>
-                  {doc.size && (
-                    <span className="helper-text">
-                      Tamaño: {(doc.size / 1024).toFixed(2)} KB
-                    </span>
-                  )}
+                <div className="cluster" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div className="cluster gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => handleDownload(doc.blobName, doc.name)}
+                      className="gap-2"
+                    >
+                      <Download size={16} />
+                      Descargar
+                    </Button>
+                    {doc.size && (
+                      <span className="helper-text small">
+                        {(doc.size / 1024).toFixed(1)} KB
+                      </span>
+                    )}
+                  </div>
+                  <span className="helper-text small italic no-print">
+                    Seguro mediante cifrado de extremo a extremo
+                  </span>
                 </div>
               </CardBody>
             </Card>
@@ -162,4 +143,3 @@ export default function PatientDocuments() {
     </section>
   );
 }
-

@@ -11,7 +11,14 @@ export default function StepPatientSource({ data, onChange, errors, disabled }) 
       setIsLoading(true);
       try {
         const list = await getProfessionalsList();
-        setProfessionals(list || []);
+        
+        // Filtramos para omitir a los Psiquiatras
+        // Asumiendo que el campo es 'specialty' según tu esquema de Prisma
+        const filtered = (list || []).filter(
+          (pro) => pro.specialty !== "PSIQUIATRA"
+        );
+        
+        setProfessionals(filtered);
       } catch (err) {
         console.error("No se pudieron cargar los terapeutas");
       } finally {
@@ -24,6 +31,12 @@ export default function StepPatientSource({ data, onChange, errors, disabled }) 
   const handleChange = (e) => {
     const { name, value } = e.target;
     onChange(name, value);
+  };
+
+  // Función auxiliar para poner en bonita la especialidad
+  const formatSpecialty = (s) => {
+    if (!s) return "";
+    return s.charAt(0) + s.slice(1).toLowerCase();
   };
 
   return (
@@ -54,7 +67,7 @@ export default function StepPatientSource({ data, onChange, errors, disabled }) 
             <option value="">-- Elige un profesional --</option>
             {professionals.map((pro) => (
               <option key={pro.id} value={pro.id}>
-                {pro.name}
+                {pro.name} — ({formatSpecialty(pro.specialty)})
               </option>
             ))}
           </select>

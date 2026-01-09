@@ -17,8 +17,6 @@ function ensureId(id) {
   return normalized;
 }
 
-
-
 function buildAuditMeta(record = {}) {
   return {
     patientId: record.patientId,
@@ -38,26 +36,31 @@ export async function create(payload) {
   return response;
 }
 
+/**
+ * Uso para el panel del médico: lista por PatientId real
+ */
 export async function listByPatient(patientId) {
   const normalizedPatientId = ensurePatientId(patientId);
-  const response = await api.get(`/patients/${normalizedPatientId}/prescriptions`, { auth: true });
+  // Cambiamos a la ruta que el backend procesa con traducción de ID si es necesario
+  const response = await api.get(`/prescriptions/patient/${normalizedPatientId}`, { auth: true });
   await auditService.logAudit("prescription_list_patient", { patientId: normalizedPatientId });
   return Array.isArray(response) ? response : [];
 }
 
 /**
- * Obtiene las prescripciones del paciente autenticado
- * Para uso cuando el usuario es un paciente (no requiere pasar patientId)
+ * Obtiene las prescripciones del paciente autenticado.
+ * CORRECCIÓN: Apunta a la ruta de 'mis prescripciones' que usa el token.
  */
 export async function listMyPrescriptions() {
-  const response = await api.get(`/patient/prescriptions`, { auth: true });
+  // Ajustado para coincidir con el endpoint de "my-prescriptions" del backend
+  const response = await api.get(`/prescriptions/my-prescriptions`, { auth: true });
   await auditService.logAudit("prescription_list_my", {});
   return Array.isArray(response) ? response : [];
 }
 
 export function getOne(id) {
-  // Ajustamos la URL para que coincida con lo que espera el servidor
-  return api.get(`/prescriptions/detail/${id}`);
+  const normalizedId = ensureId(id);
+  return api.get(`/prescriptions/detail/${normalizedId}`, { auth: true });
 }
 
 export async function suspend(id) {
@@ -67,11 +70,10 @@ export async function suspend(id) {
   return response;
 }
 
-
-
 export default {
   create,
   listByPatient,
+  listMyPrescriptions,
   getOne,
   suspend,
 };

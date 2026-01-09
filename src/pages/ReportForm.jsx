@@ -29,7 +29,7 @@ export default function ReportForm() {
     const { role, user } = useOutletContext() ?? {};
     const navigate = useNavigate();
     
-    // 🚨 Desestructuración segura del toast
+    //  Desestructuración segura del toast
     const { success, error } = useToast() || {}; 
     
     const isAssistant = role === ROLES.ASSISTANT;
@@ -64,8 +64,7 @@ export default function ReportForm() {
                 const patientData = await patientsService.getPatient(patientId);
                 if (!active) return;
                 setPatient(patientData);
-
-                // 🚨 CORRECCIÓN: Solo cargar el reporte si existe reportId y no es solo whitespace.
+                // 2. Si es edición, cargar datos del informe
                 if (reportId && reportId.trim()) {
                     const reportData = await reportsService.getOne(reportId);
                     if (!active) return;

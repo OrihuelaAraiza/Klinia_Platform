@@ -93,32 +93,43 @@ export default function Reports() {
         setActiveFilters(reset);
     };
 
-    useEffect(() => {
+  useEffect(() => {
         let alive = true;
+
         async function loadPatients() {
             if (!professionalId) return;
+            
             setPatientsState((prev) => ({ ...prev, loading: true, error: "" }));
+            
             try {
-                const response = await listPatients({ page: 1, size: 50, professionalId }); 
+                const response = await listPatients({ 
+                    page: 1, 
+                    size: 100, 
+                    q: activeFilters.search 
+                }); 
+
                 if (!alive) return;
-                const items = Array.isArray(response?.items) ? response.items : Array.isArray(response) ? response : [];
+                const items = response?.items || [];
+                
                 setAllPatients(items);
                 setPatientsState(prev => ({ ...prev, loading: false, error: "" }));
             } catch (localError) { 
                 if (!alive) return;
                 const message = localError?.message || "No pudimos cargar la lista de pacientes.";
+                
                 setAllPatients([]);
                 setPatientsState({ items: [], loading: false, error: message });
                 error(message);
             }
         }
+
         if (professionalId) {
             loadPatients();
         }
         return () => {
             alive = false;
         };
-    }, [error, professionalId]);
+    }, [error, professionalId, activeFilters.search]);
 
     useEffect(() => {
         if (!allPatients.length) {
