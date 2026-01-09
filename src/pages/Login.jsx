@@ -268,9 +268,9 @@ export default function Login() {
             />
 
             <div className="form__actions">
-              <a href="#" className="link">
+              <Link to="/forgot-password" className="link">
                 ¿Olvidaste tu contraseña?
-              </a>
+              </Link>
             </div>
 
             <ButtonPrimary
@@ -281,7 +281,7 @@ export default function Login() {
             >
               {loading ? "Validando…" : "Iniciar sesión"}
             </ButtonPrimary>
-
+            {/*
             {msalEnabled ? (
               <AuthProviders
                 disabled={combinedBusy || isBlocked}
@@ -314,6 +314,7 @@ export default function Login() {
                 Configura VITE_MSAL_CLIENT_ID y el tenant para habilitar Microsoft.
               </small>
             ) : null}
+            */}
 
             {displayedError ? (
               <p className="form__error" role="alert">

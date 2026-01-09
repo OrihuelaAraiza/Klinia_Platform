@@ -25,6 +25,8 @@ const PatientProfile = lazy(() => import("../pages/patient/Profile"));
 const Home = lazy(() => import("../pages/Home"));
 const Login = lazy(() => import("../pages/Login"));
 const Register = lazy(() => import("../pages/Register"));
+const ForgotPassword = lazy(() => import("../pages/ForgotPassword"));
+const ResetPassword = lazy(() => import("../pages/ResetPassword"));
 const Dashboard = lazy(() => import("../pages/Dashboard"));
 const Health = lazy(() => import("../pages/Health"));
 const Patients = lazy(() => import("../pages/Patients"));
@@ -92,6 +94,10 @@ export default function AppRoutes() {
           <Route path={ROUTES.register} element={<Register />} />
           <Route path="/register/patient" element={<PatientRegister />} />
           <Route path="/health" element={<Health />} />
+
+          {/* RESET PASSWORD */}
+          <Route path={ROUTES.forgotPassword} element={<ForgotPassword />} />
+          <Route path={ROUTES.resetPassword} element={<ResetPassword />} />
 
           {/* SÓLO ADMIN */}
           <Route element={<ProtectedRoute allow={[ROLES.ADMIN]} />}>

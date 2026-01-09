@@ -5539,6 +5539,13 @@ hr {
   font-size: 1.1rem;
 }
 
+.auth-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.50rem;
+  margin-top: 0.5rem;
+}
+
 @media (max-width: 768px) {
   .profile-picture-section {
     padding: var(--s-4);
@@ -5605,4 +5612,7 @@ hr {
     font-size: 0.85rem;
     padding: 0.65rem 0.875rem;
   }
+
+
+
 }
