@@ -35,9 +35,16 @@ export default function ClinicalFieldRenderer({
 
   if (!shouldShow) return null;
 
-  // Handle computed readonly fields
   if (field.type === "readonly" && field.computed) {
-    const computedValue = field.computed(formData, context);
+    let computedValue = field.computed(formData, context);
+
+    if (field.options && computedValue) {
+      const match = field.options.find(
+        (opt) => opt.value === computedValue
+      );
+      computedValue = match?.label ?? computedValue;
+    }
+
     return (
       <ClinicalReadonlyField
         field={field}

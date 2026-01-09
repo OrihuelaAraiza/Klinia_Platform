@@ -104,7 +104,7 @@ function countValidatableFields(schema, formData) {
     for (const field of section.fields) {
       if (field.type === "readonly") continue;
       if (!shouldValidateConditional(field, formData)) continue;
-      
+
       // For list fields, count the list itself plus subfields if list has entries
       if (field.type === "list" && field.subfields) {
         const listValue = formData[field.id];
@@ -140,7 +140,7 @@ export function validateClinicalHistory(historyData = {}) {
 
   // Count total validatable fields
   const totalFields = countValidatableFields(HC_SCHEMA, formData);
-  
+
   // Count filled fields (simplified: total - missing)
   // Note: This is an approximation. A more accurate count would require
   // checking each field individually, but for UI purposes this is sufficient
@@ -163,6 +163,41 @@ export function validateClinicalHistory(historyData = {}) {
 export function isClinicalHistoryIncomplete(historyData = {}) {
   const validation = validateClinicalHistory(historyData);
   return !validation.isValid;
+}
+
+export function mapHistoryToForm(history) {
+  if (!history) return {};
+  return {
+    // --- AHF ---
+    familyBackground: history.familyBackground ?? [],
+    // --- APNP ---
+    dietaryHabits: history.dietaryHabits ?? "",
+    physicalActivity: history.physicalActivity ?? "",
+    toxicHabits: history.toxicHabits ?? "",
+    sleepPatterns: history.sleepPatterns ?? "",
+    // --- APP ---
+    hasAllergies: history.hasAllergies ?? false,
+    currentMedications: history.currentMedications ?? [],
+    chronicDiseases: history.chronicDiseases ?? [],
+    previousSurgeries: history.previousSurgeries ?? [],
+    previousHospitalizations: history.previousHospitalizations ?? [],
+    traumatisms: history.traumatisms ?? "",
+    transfusions: history.transfusions ?? false,
+    // --- APSIC ---
+    motive: history.motive ?? "",
+    symptomOnset: history.symptomOnset ?? "",
+    previousDiagnoses: history.previousDiagnoses ?? [],
+    psychHospitalizations: history.psychHospitalizations ?? [],
+    psychUrgencies: history.psychUrgencies ?? false,
+    suicideRiskScreening: history.suicideRiskScreening ?? false,
+    previousTreatments: history.previousTreatments ?? "",
+    treatmentAdherence: history.treatmentAdherence ?? "",
+    // --- NOTA CLÍNICA ---
+    mentalStatusExam: history.mentalStatusExam ?? "",
+    diagnoses: history.diagnoses ?? [],
+    goals: history.goals ?? "",
+    therapeuticPlan: history.therapeuticPlan ?? "",
+  };
 }
 
 export default {
