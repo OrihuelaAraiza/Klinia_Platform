@@ -1,7 +1,7 @@
 /**
  * DynamicClinicalForm
- * Schema-driven form renderer for clinical history and notes
- * Uses React Hook Form for form management and validation
+ * Generador de formularios basado en esquemas para historia clínica y notas.
+ * Utiliza React Hook Form para la gestión de estados y Zod para validación.
  */
 
 import { useEffect, useMemo } from "react";
@@ -13,21 +13,21 @@ import ClinicalFieldRenderer from "./fields/ClinicalFieldRenderer";
 import Button from "../UI/Button";
 
 /**
- * Builds a Zod schema from field configuration
+ * Construye un esquema de Zod dinámicamente a partir de la configuración de campos.
  */
 function buildZodSchema(fields) {
   const schemaObj = {};
+
   fields.forEach((field) => {
-    // Skip readonly fields from validation
+    // Omitir campos de solo lectura de la validación
     if (field.type === "readonly") {
       return;
     }
 
-    // Conditional fields are always optional in schema
-    // UI handles showing/hiding them
+    // Los campos condicionales siempre son opcionales en el esquema base
     const isConditional = !!field.conditional;
 
-    // Handle list fields with subfield validation
+    // --- Manejo de campos tipo LISTA (con subcampos) ---
     if (field.type === "list" && field.subfields) {
       const itemSchema = {};
       field.subfields.forEach((subfield) => {
@@ -36,18 +36,18 @@ function buildZodSchema(fields) {
         switch (subfield.type) {
           case "text":
           case "textarea":
-            subSchema = subfield.required ? z.string().min(1) : z.string().optional();
+            subSchema = subfield.required ? z.string().min(1, "Requerido") : z.string().optional().or(z.literal(""));
             break;
           case "number":
-            subSchema = subfield.required ? z.number() : z.number().optional();
+            subSchema = subfield.required ? z.coerce.number() : z.coerce.number().optional();
             break;
           case "date":
           case "datetime":
-            subSchema = subfield.required ? z.string().min(1) : z.string().optional();
+            subSchema = subfield.required ? z.string().min(1, "Requerido") : z.string().optional();
             break;
           case "select":
           case "yesno":
-            subSchema = subfield.required ? z.string().min(1) : z.string().optional();
+            subSchema = z.any().optional();
             break;
           default:
             subSchema = z.any().optional();
@@ -59,12 +59,12 @@ function buildZodSchema(fields) {
       if (field.required) {
         schemaObj[field.id] = listSchema.min(1, `${field.label} es requerido`);
       } else {
-        schemaObj[field.id] = listSchema.optional();
+        schemaObj[field.id] = listSchema.optional().default([]);
       }
       return;
     }
 
-    // Handle regular fields
+    // --- Manejo de campos REGULARES ---
     let fieldSchema;
 
     switch (field.type) {
@@ -80,9 +80,12 @@ function buildZodSchema(fields) {
 
       case "number":
         if (field.required && !isConditional) {
-          fieldSchema = z.number({ required_error: `${field.label} es requerido` });
+          fieldSchema = z.coerce.number({ 
+            required_error: `${field.label} es requerido`,
+            invalid_type_error: "Debe ser un número" 
+          });
         } else {
-          fieldSchema = z.union([z.number(), z.nan()]).optional();
+          fieldSchema = z.union([z.coerce.number(), z.nan()]).optional();
         }
         break;
 
@@ -97,8 +100,27 @@ function buildZodSchema(fields) {
         break;
 
       case "select":
+        // CORRECCIÓN GÉNERO: Los selectores siempre validan como STRING
+        fieldSchema = z.string();
+        if (!isConditional && field.required) {
+          fieldSchema = fieldSchema.min(1, `${field.label} es requerido`);
+        } else {
+          fieldSchema = fieldSchema.optional().or(z.literal("")).or(z.null());
+        }
+        break;
+
       case "yesno":
-        fieldSchema = z.boolean();
+        // CORRECCIÓN SÍ/NO: Pre-procesamos para aceptar "SI"/"NO" o Booleanos
+        fieldSchema = z.preprocess((val) => {
+          if (typeof val === "boolean") return val;
+          if (typeof val === "string") {
+            const s = val.toUpperCase().trim();
+            if (s === "SI" || s === "SÍ" || s === "TRUE") return true;
+            if (s === "NO" || s === "FALSE") return false;
+          }
+          return val;
+        }, z.boolean({ invalid_type_error: `${field.label} debe ser Sí/No` }));
+
         if (!isConditional && field.required) {
           fieldSchema = fieldSchema.refine(val => val === true || val === false, `${field.label} es requerido`);
         } else {
@@ -107,7 +129,7 @@ function buildZodSchema(fields) {
         break;
 
       case "list":
-        fieldSchema = z.array(z.any()).optional();
+        fieldSchema = z.array(z.any()).optional().default([]);
         if (field.required) {
           fieldSchema = z.array(z.any()).min(1, `${field.label} es requerido`);
         }
@@ -138,8 +160,7 @@ export default function DynamicClinicalForm({
   submitLabel = "Guardar",
   draftLabel = "Guardar borrador",
 }) {
-  // Build Zod schema from field definitions
-  // For conditional fields, we make them optional and validate in UI
+  // Memorizamos el esquema para evitar re-validaciones innecesarias
   const zodSchema = useMemo(() => {
     const allFields = schema.sections.flatMap((section) => section.fields);
     return buildZodSchema(allFields);
@@ -158,25 +179,31 @@ export default function DynamicClinicalForm({
     mode: "onBlur",
   });
 
-  // Watch all form values to get current state
+  // Observamos los datos para lógica condicional en tiempo real
   const formData = watch();
 
-  // Update form when initialData changes
+  // Sincronizamos el formulario si initialData cambia (ej: al cargar de la BD)
   useEffect(() => {
     if (initialData) {
       reset(initialData);
     }
   }, [initialData, reset]);
 
+  // Manejador central de cambios para componentes personalizados
   const handleFieldChange = (fieldId, value) => {
-    setValue(fieldId, value, { shouldValidate: true });
+    setValue(fieldId, value, { 
+      shouldValidate: true, 
+      shouldDirty: true, 
+      shouldTouch: true 
+    });
   };
 
   const handleFormSubmit = async (data) => {
     try {
+      // Enviamos el objeto plano al manejador superior
       await onSubmit?.(data);
     } catch (error) {
-      console.error("Form submission error:", error);
+      console.error("Error al enviar el formulario dinámico:", error);
     }
   };
 
@@ -185,17 +212,9 @@ export default function DynamicClinicalForm({
       const currentData = watch();
       await onSaveDraft?.(currentData);
     } catch (error) {
-      console.error("Draft save error:", error);
+      console.error("Error al guardar borrador dinámico:", error);
     }
   };
-
-  /*schema.sections.forEach(section => {
-    section.fields.forEach(field => {
-      if (!(field.id in initialData)) {
-        console.warn("NO MATCH:", field.id);
-      }
-    });
-  });*/
 
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)} className="stack-5" noValidate>
@@ -204,6 +223,7 @@ export default function DynamicClinicalForm({
           <div className="stack-4">
             {section.fields.map((field) => {
               const fieldValue = formData[field.id];
+              // Extraemos el mensaje de error si existe para este campo
               const fieldError = errors[field.id]?.message;
 
               return (
@@ -212,7 +232,7 @@ export default function DynamicClinicalForm({
                   field={field}
                   value={fieldValue}
                   onChange={handleFieldChange}
-                  errors={{ [field.id]: fieldError }}
+                  errors={errors} // Pasamos el objeto completo de errores
                   readOnly={readOnly}
                   context={context}
                   formData={formData}
@@ -243,4 +263,3 @@ export default function DynamicClinicalForm({
     </form>
   );
 }
-
