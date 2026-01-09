@@ -6,7 +6,7 @@ function buildQuery(params = {}) {
     if (value === undefined || value === null || value === "") {
       return;
     }
-    query.set(key, value); 
+    query.set(key, value);
   });
   const qs = query.toString();
   return qs ? `?${qs}` : "";
@@ -23,17 +23,17 @@ async function safeGet(url, options) {
   }
 }
 
-export async function listSessions({ 
-    q, 
-    from, 
-    to, 
-    status, 
-    professionalId,
-    page = 1, 
-    size = 10 
+export async function listSessions({
+  q,
+  from,
+  to,
+  status,
+  professionalId,
+  page = 1,
+  size = 10
 } = {}, options = {}) {
   const query = buildQuery({ q, from, to, status, professionalId, page, size });
-  
+
   const response = await safeGet(`/sessions${query}`, options);
   if (Array.isArray(response)) {
     return { items: response, total: response.length, page, size };
@@ -49,7 +49,7 @@ export async function listSessions({
 export async function listSessionsByPatient(patientId, { page = 1, size = 10 } = {}, options = {}) {
   const query = buildQuery({ page, size });
   const response = await safeGet(`/patients/${patientId}/sessions${query}`, options);
-  
+
   const items = Array.isArray(response) ? response : (response?.items || []);
   return {
     items,
@@ -80,28 +80,25 @@ export function getTodayCounts(options = {}) {
   return api.get("/sessions/today-counts", options);
 }
 
-export async function exportIcs(id, options = {}) {
-  const response = await api.get(`/sessions/${id}?export=ics`, { 
-        headers: { Accept: "text/calendar", ...(options.headers || {}) },
-        ...options,
-    });
-  if (typeof window === "undefined") {
-    return response;
-  }
-  const blob = new Blob([response], { type: "text/calendar;charset=utf-8" });
+export async function exportIcs(id) {
+  const response = await api.get(`/sessions/${id}/ics`, {
+    responseType: "blob",
+  });
+
+  const blob = new Blob([response.data], { type: "text/calendar;charset=utf-8" });
   const url = window.URL.createObjectURL(blob);
-  const link = window.document.createElement("a");
+  const link = document.createElement("a");
   link.href = url;
   link.download = `sesion-${id}.ics`;
-  window.document.body.appendChild(link);
+  document.body.appendChild(link);
   link.click();
-  window.document.body.removeChild(link);
+  document.body.removeChild(link);
   window.URL.revokeObjectURL(url);
-  return true;
 }
 
+
 export function changeStatus(id, payload, options = {}) {
-    return api.put(`/sessions/${id}/status`, payload, options);
+  return api.put(`/sessions/${id}/status`, payload, options);
 }
 
 
