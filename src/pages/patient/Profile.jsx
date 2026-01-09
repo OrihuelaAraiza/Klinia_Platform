@@ -6,16 +6,13 @@ import InputField from "../../components/InputField";
 import Field from "../../components/UI/Field";
 import Badge from "../../components/UI/Badge";
 import { useToast } from "../../components/UI/Toast";
-import { SkeletonCard, SkeletonLine, SkeletonTitle, SkeletonSubtitle, SkeletonForm } from "../../components/UI/Skeleton";
+import { SkeletonCard, SkeletonTitle, SkeletonSubtitle, SkeletonForm } from "../../components/UI/Skeleton";
 import { getMyProfile } from "../../services/patientsService";
 import { api } from "../../services/apiClient";
-import { formatDateISOToHuman, formatPhone } from "../../utils/formatters";
+import { formatDateISOToHuman } from "../../utils/formatters";
 import { isValidEmail, isValidPassword } from "../../utils/validators";
+import { Phone, ShieldCheck, AlertCircle } from "lucide-react";
 
-/**
- * Página de Perfil del Paciente
- * Permite ver y editar información personal
- */
 export default function PatientProfile() {
   const { user } = useOutletContext() ?? {};
   const toast = useToast();
@@ -24,6 +21,9 @@ export default function PatientProfile() {
   const [saving, setSaving] = useState(false);
   const [profile, setProfile] = useState(null);
   const [errors, setErrors] = useState({});
+  
+  // Estado para rastrear si el teléfono original cambió
+  const [originalPhone, setOriginalPhone] = useState("");
 
   const [form, setForm] = useState({
     firstName: "",
@@ -42,15 +42,18 @@ export default function PatientProfile() {
     async function load() {
       setLoading(true);
       try {
-        // Intentar obtener perfil del paciente autenticado
         const profileData = await getMyProfile();
         if (!alive) return;
+        
         setProfile(profileData);
+        const phone = profileData.phone || "";
+        setOriginalPhone(phone); // Guardamos el teléfono inicial
+
         setForm({
           firstName: profileData.firstName || user?.name?.split(" ")[0] || "",
           lastName: profileData.lastName || user?.name?.split(" ").slice(1).join(" ") || "",
           email: profileData.email || user?.email || "",
-          phone: profileData.phone || "",
+          phone: phone,
           emergencyName: profileData.emergencyName || "",
           emergencyPhone: profileData.emergencyPhone || "",
           currentPassword: "",
@@ -59,33 +62,13 @@ export default function PatientProfile() {
         });
       } catch (err) {
         if (!alive) return;
-        // Si el endpoint no existe, usar datos del usuario actual
-        if (err.status === 404) {
-          const nameParts = (user?.name || "").split(" ");
-          setForm({
-            firstName: nameParts[0] || "",
-            lastName: nameParts.slice(1).join(" ") || "",
-            email: user?.email || "",
-            phone: "",
-            emergencyName: "",
-            emergencyPhone: "",
-            currentPassword: "",
-            newPassword: "",
-            newPasswordConfirm: "",
-          });
-        } else {
-          toast.error(err.message || "No pudimos cargar tu perfil.");
-        }
+        toast.error("No pudimos cargar tu perfil.");
       } finally {
-        if (alive) {
-          setLoading(false);
-        }
+        if (alive) setLoading(false);
       }
     }
     load();
-    return () => {
-      alive = false;
-    };
+    return () => { alive = false; };
   }, [user, toast]);
 
   const handleChange = (field, value) => {
@@ -93,36 +76,11 @@ export default function PatientProfile() {
     setErrors((prev) => ({ ...prev, [field]: "" }));
   };
 
-  const validateForm = () => {
-    const newErrors = {};
-
-    if (form.email && !isValidEmail(form.email)) {
-      newErrors.email = "Ingresa un correo electrónico válido.";
-    }
-
-    if (form.newPassword) {
-      if (!isValidPassword(form.newPassword)) {
-        newErrors.newPassword =
-          "La contraseña debe tener al menos 8 caracteres, con letras y números.";
-      }
-      if (form.newPassword !== form.newPasswordConfirm) {
-        newErrors.newPasswordConfirm = "Las contraseñas no coinciden.";
-      }
-      if (!form.currentPassword) {
-        newErrors.currentPassword = "Debes ingresar tu contraseña actual para cambiarla.";
-      }
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!validateForm()) return;
 
-    if (!validateForm()) {
-      return;
-    }
+    const isPhoneChanged = form.phone !== originalPhone;
 
     setSaving(true);
     try {
@@ -130,210 +88,155 @@ export default function PatientProfile() {
         firstName: form.firstName.trim(),
         lastName: form.lastName.trim(),
         email: form.email.trim(),
-        phone: form.phone.trim() || undefined,
-        emergencyName: form.emergencyName.trim() || undefined,
-        emergencyPhone: form.emergencyPhone.trim() || undefined,
+        phone: form.phone.trim(),
+        emergencyName: form.emergencyName.trim(),
+        emergencyPhone: form.emergencyPhone.trim(),
       };
 
-      // Si hay nueva contraseña, incluirla
       if (form.newPassword) {
         payload.currentPassword = form.currentPassword;
         payload.newPassword = form.newPassword;
       }
 
-      // Intentar actualizar usando endpoint específico para pacientes
-      try {
-        const response = await api.put("/patient/profile", payload, { auth: true });
-        setProfile(response);
+      const response = await api.put("/patient/profile", payload, { auth: true });
+      setProfile(response);
+      setOriginalPhone(response.phone);
+      
+      if (isPhoneChanged) {
+        toast.info("Número actualizado. Por seguridad, debe ser verificado nuevamente.");
+        // Aquí podrías redirigir a una pantalla de validación OTP
+        // window.location.href = "/verify-phone";
+      } else {
         toast.success("Perfil actualizado correctamente");
-        // Limpiar campos de contraseña
-        setForm((prev) => ({
-          ...prev,
-          currentPassword: "",
-          newPassword: "",
-          newPasswordConfirm: "",
-        }));
-      } catch (err) {
-        // Si el endpoint no existe, intentar con el método tradicional
-        if (err.status === 404 && user?.id) {
-          const { updatePatient } = await import("../../services/patientsService");
-          await updatePatient(user.id, payload);
-          toast.success("Perfil actualizado correctamente");
-          setForm((prev) => ({
-            ...prev,
-            currentPassword: "",
-            newPassword: "",
-            newPasswordConfirm: "",
-          }));
-        } else {
-          throw err;
-        }
       }
+
+      setForm((prev) => ({ ...prev, currentPassword: "", newPassword: "", newPasswordConfirm: "" }));
     } catch (err) {
-      const message = err.message || "No pudimos actualizar tu perfil.";
-      toast.error(message);
+      toast.error(err.message || "Error al actualizar");
     } finally {
       setSaving(false);
     }
   };
 
-  if (loading) {
-    return (
-      <section className="page stack-5">
-        <div className="page__header">
-          <SkeletonTitle />
-          <SkeletonSubtitle />
-        </div>
-        <SkeletonCard>
-          <div className="stack-4" style={{ padding: "var(--s-4)" }}>
-            <SkeletonForm fields={6} />
-          </div>
-        </SkeletonCard>
-      </section>
-    );
-  }
+  const validateForm = () => {
+    const newErrors = {};
+    if (form.email && !isValidEmail(form.email)) newErrors.email = "Email inválido.";
+    if (form.phone && form.phone.length < 10) newErrors.phone = "El teléfono debe tener 10 dígitos.";
+    
+    if (form.newPassword) {
+      if (!isValidPassword(form.newPassword)) newErrors.newPassword = "Mínimo 8 caracteres, letras y números.";
+      if (form.newPassword !== form.newPasswordConfirm) newErrors.newPasswordConfirm = "No coinciden.";
+      if (!form.currentPassword) newErrors.currentPassword = "Requerida para cambios.";
+    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  if (loading) return <SkeletonProfile />;
 
   return (
     <section className="page stack-5">
-      <div className="page__header">
+      <div className="page__header cluster" style={{ justifyContent: 'space-between' }}>
         <div className="stack-2">
           <h1>Mi Perfil</h1>
-          <p className="helper-text">
-            Actualiza tu información personal y de contacto de emergencia.
-          </p>
+          <p className="helper-text">Gestiona tu identidad y seguridad en la plataforma.</p>
         </div>
+        <Badge variant={profile?.phoneVerified ? "success" : "warning"}>
+          {profile?.phoneVerified ? "Cuenta Verificada" : "Verificación Pendiente"}
+        </Badge>
       </div>
 
       <Card hoverable={false}>
-        <CardHeader>
-          <h2>Información Personal</h2>
-        </CardHeader>
         <CardBody>
-          <form onSubmit={handleSubmit} className="stack-4">
-            <div className="form-grid">
-              <InputField
-                label="Nombre"
-                value={form.firstName}
-                onChange={(e) => handleChange("firstName", e.target.value)}
-                required
-                error={errors.firstName}
-              />
-              <InputField
-                label="Apellido"
-                value={form.lastName}
-                onChange={(e) => handleChange("lastName", e.target.value)}
-                required
-                error={errors.lastName}
-              />
-            </div>
+          <form onSubmit={handleSubmit} className="stack-5">
+            <div className="stack-4">
+              <h3 className="cluster gap-2"><Phone size={18} /> Datos de Contacto</h3>
+              
+              <div className="form-grid">
+                <InputField
+                  label="Nombre"
+                  value={form.firstName}
+                  onChange={(e) => handleChange("firstName", e.target.value)}
+                  required
+                />
+                <InputField
+                  label="Apellido"
+                  value={form.lastName}
+                  onChange={(e) => handleChange("lastName", e.target.value)}
+                  required
+                />
+              </div>
 
-            <div className="form-grid">
-              <InputField
-                label="Correo electrónico"
-                type="email"
-                value={form.email}
-                onChange={(e) => handleChange("email", e.target.value)}
-                required
-                error={errors.email}
-              />
-              <InputField
-                label="Teléfono"
-                value={form.phone}
-                onChange={(e) => handleChange("phone", e.target.value)}
-                placeholder="10 dígitos"
-                maxLength={10}
-                error={errors.phone}
-              />
-            </div>
-
-            {profile?.curp && (
-              <div className="detail-grid">
-                <div>
-                  <strong>CURP</strong>
-                  <span>{profile.curp}</span>
+              <div className="form-grid">
+                <InputField
+                  label="Correo electrónico"
+                  type="email"
+                  value={form.email}
+                  disabled // Normalmente el email es el ID, no se cambia fácil
+                  onChange={(e) => handleChange("email", e.target.value)}
+                />
+                <div className="stack-1">
+                  <InputField
+                    label="Teléfono Móvil"
+                    value={form.phone}
+                    onChange={(e) => handleChange("phone", e.target.value)}
+                    placeholder="10 dígitos"
+                    maxLength={10}
+                    error={errors.phone}
+                  />
+                  {form.phone === originalPhone && profile?.phoneVerified ? (
+                    <span className="helper-text success cluster gap-1">
+                      <ShieldCheck size={14} /> Número verificado
+                    </span>
+                  ) : form.phone !== originalPhone ? (
+                    <span className="helper-text warning cluster gap-1">
+                      <AlertCircle size={14} /> El nuevo número requerirá validación
+                    </span>
+                  ) : null}
                 </div>
-                {profile.birthDate && (
-                  <div>
-                    <strong>Fecha de nacimiento</strong>
-                    <span>{formatDateISOToHuman(profile.birthDate)}</span>
-                  </div>
-                )}
-              </div>
-            )}
-
-            <hr />
-
-            <div className="stack-3">
-              <h3>Contacto de Emergencia</h3>
-              <div className="form-grid">
-                <InputField
-                  label="Nombre del contacto"
-                  value={form.emergencyName}
-                  onChange={(e) => handleChange("emergencyName", e.target.value)}
-                  placeholder="Nombre completo"
-                  error={errors.emergencyName}
-                />
-                <InputField
-                  label="Teléfono del contacto"
-                  value={form.emergencyPhone}
-                  onChange={(e) => handleChange("emergencyPhone", e.target.value)}
-                  placeholder="10 dígitos"
-                  maxLength={10}
-                  error={errors.emergencyPhone}
-                />
               </div>
             </div>
 
             <hr />
 
-            <div className="stack-3">
-              <h3>Cambiar Contraseña</h3>
-              <p className="helper-text">
-                Deja estos campos vacíos si no deseas cambiar tu contraseña.
-              </p>
-              <Field label="Contraseña actual">
-                <input
-                  type="password"
-                  className="input-field__input"
-                  value={form.currentPassword}
-                  onChange={(e) => handleChange("currentPassword", e.target.value)}
-                  placeholder="Solo necesario si cambias la contraseña"
-                />
-                {errors.currentPassword && (
-                  <span className="form-error">{errors.currentPassword}</span>
-                )}
-              </Field>
+            <div className="stack-4">
+              <h3>Seguridad</h3>
               <div className="form-grid">
-                <Field label="Nueva contraseña">
+                <Field label="Contraseña Actual">
                   <input
                     type="password"
                     className="input-field__input"
-                    value={form.newPassword}
-                    onChange={(e) => handleChange("newPassword", e.target.value)}
-                    placeholder="Mínimo 8 caracteres"
+                    value={form.currentPassword}
+                    onChange={(e) => handleChange("currentPassword", e.target.value)}
+                    placeholder="••••••••"
                   />
-                  {errors.newPassword && (
-                    <span className="form-error">{errors.newPassword}</span>
-                  )}
+                  {errors.currentPassword && <span className="form-error">{errors.currentPassword}</span>}
                 </Field>
-                <Field label="Confirmar nueva contraseña">
-                  <input
-                    type="password"
-                    className="input-field__input"
-                    value={form.newPasswordConfirm}
-                    onChange={(e) => handleChange("newPasswordConfirm", e.target.value)}
-                    placeholder="Repite la nueva contraseña"
-                  />
-                  {errors.newPasswordConfirm && (
-                    <span className="form-error">{errors.newPasswordConfirm}</span>
-                  )}
-                </Field>
+                <div className="form-grid">
+                  <Field label="Nueva Contraseña">
+                    <input
+                      type="password"
+                      className="input-field__input"
+                      value={form.newPassword}
+                      onChange={(e) => handleChange("newPassword", e.target.value)}
+                    />
+                  </Field>
+                  <Field label="Confirmar Nueva">
+                    <input
+                      type="password"
+                      className="input-field__input"
+                      value={form.newPasswordConfirm}
+                      onChange={(e) => handleChange("newPasswordConfirm", e.target.value)}
+                    />
+                  </Field>
+                </div>
               </div>
+              {errors.newPassword && <p className="form-error">{errors.newPassword}</p>}
             </div>
 
-            <div className="cluster" style={{ justifyContent: "flex-end", gap: "var(--s-2)" }}>
-              <Button type="submit" loading={saving} disabled={saving}>
-                Guardar Cambios
+            <div className="cluster" style={{ justifyContent: "flex-end" }}>
+              <Button type="submit" loading={saving}>
+                Actualizar Perfil
               </Button>
             </div>
           </form>
@@ -343,3 +246,11 @@ export default function PatientProfile() {
   );
 }
 
+function SkeletonProfile() {
+  return (
+    <section className="page stack-5">
+      <SkeletonTitle />
+      <SkeletonCard><div style={{ padding: '2rem' }}><SkeletonForm fields={6} /></div></SkeletonCard>
+    </section>
+  );
+}

@@ -40,7 +40,6 @@ export const deleteAttachment = (patientId, attachmentId) => {
   return api.del(`/patients/${patientId}/attachments/${attachmentId}`, { auth: true });
 }
 
-
 export const getProfessionalsList = () => {
     return api.get("/profiles/list-professionals", { auth: true });
 };
@@ -51,16 +50,23 @@ export async function getMyProfile() {
 }
 
 
+export async function updateMyProfile(payload) {
+  return api.put("/patient/profile", payload, { auth: true });
+}
+
+
+export async function requestPhoneVerification() {
+  return api.post("/patient/verify-phone/request", {}, { auth: true });
+}
+
 export async function getMyDocuments(patientId) {
   const response = await api.get(`/patients/${patientId}/attachments`, { auth: true });
   return Array.isArray(response) ? response : (response?.items || []);
 }
 
-
 export async function listMyTherapists() {
   return api.get("/patient/my-therapists", { auth: true });
 }
-
 
 export default {
   listPatients,
@@ -73,6 +79,8 @@ export default {
   deleteAttachment, 
   getProfessionalsList,
   getMyProfile,
+  updateMyProfile, 
+  requestPhoneVerification, 
   getMyDocuments,
   listMyTherapists,
 };
