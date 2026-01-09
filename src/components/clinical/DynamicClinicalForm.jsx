@@ -17,7 +17,6 @@ import Button from "../UI/Button";
  */
 function buildZodSchema(fields) {
   const schemaObj = {};
-  
   fields.forEach((field) => {
     // Skip readonly fields from validation
     if (field.type === "readonly") {
@@ -33,7 +32,6 @@ function buildZodSchema(fields) {
       const itemSchema = {};
       field.subfields.forEach((subfield) => {
         if (subfield.type === "readonly") return;
-        
         let subSchema;
         switch (subfield.type) {
           case "text":
@@ -56,7 +54,7 @@ function buildZodSchema(fields) {
         }
         itemSchema[subfield.id] = subSchema;
       });
-      
+
       const listSchema = z.array(z.object(itemSchema));
       if (field.required) {
         schemaObj[field.id] = listSchema.min(1, `${field.label} es requerido`);
@@ -65,10 +63,10 @@ function buildZodSchema(fields) {
       }
       return;
     }
-    
+
     // Handle regular fields
     let fieldSchema;
-    
+
     switch (field.type) {
       case "text":
       case "textarea":
@@ -79,7 +77,7 @@ function buildZodSchema(fields) {
           fieldSchema = fieldSchema.optional().or(z.literal(""));
         }
         break;
-      
+
       case "number":
         if (field.required && !isConditional) {
           fieldSchema = z.number({ required_error: `${field.label} es requerido` });
@@ -87,7 +85,7 @@ function buildZodSchema(fields) {
           fieldSchema = z.union([z.number(), z.nan()]).optional();
         }
         break;
-      
+
       case "date":
       case "datetime":
         fieldSchema = z.string();
@@ -97,35 +95,35 @@ function buildZodSchema(fields) {
           fieldSchema = fieldSchema.optional().or(z.literal(""));
         }
         break;
-      
+
       case "select":
       case "yesno":
-        fieldSchema = z.string();
-        if (field.required && !isConditional) {
-          fieldSchema = fieldSchema.min(1, `${field.label} es requerido`);
+        fieldSchema = z.boolean();
+        if (!isConditional && field.required) {
+          fieldSchema = fieldSchema.refine(val => val === true || val === false, `${field.label} es requerido`);
         } else {
-          fieldSchema = fieldSchema.optional().or(z.literal(""));
+          fieldSchema = fieldSchema.optional();
         }
         break;
-      
+
       case "list":
         fieldSchema = z.array(z.any()).optional();
         if (field.required) {
           fieldSchema = z.array(z.any()).min(1, `${field.label} es requerido`);
         }
         break;
-      
+
       case "file":
         fieldSchema = z.array(z.any()).optional();
         break;
-      
+
       default:
         fieldSchema = z.any().optional();
     }
-    
+
     schemaObj[field.id] = fieldSchema;
   });
-  
+
   return z.object(schemaObj);
 }
 
@@ -190,6 +188,14 @@ export default function DynamicClinicalForm({
       console.error("Draft save error:", error);
     }
   };
+
+  /*schema.sections.forEach(section => {
+    section.fields.forEach(field => {
+      if (!(field.id in initialData)) {
+        console.warn("NO MATCH:", field.id);
+      }
+    });
+  });*/
 
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)} className="stack-5" noValidate>

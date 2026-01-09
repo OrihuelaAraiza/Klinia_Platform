@@ -1,9 +1,7 @@
 /**
  * Historia Clínica (HC) Schema
- * Schema-driven configuration for clinical history form
- * Based on Excel: "Maquetado de campos por sección HC y Nota"
+ * IDs alineados con backend / Prisma History model
  */
-
 import { MEXICAN_STATES } from "../../utils/constants";
 
 // Catalogs
@@ -86,6 +84,9 @@ const computeAge = (birthDate) => {
 
 export const HC_SCHEMA = {
   sections: [
+    /* =====================================================
+     * FICHA DE IDENTIFICACIÓN
+     * ===================================================== */
     {
       sectionId: "ficha",
       title: "Ficha de Identificación",
@@ -95,475 +96,198 @@ export const HC_SCHEMA = {
           id: "expediente",
           label: "No. Expediente",
           type: "readonly",
-          computed: (formData, context) => {
-            // Auto-generated from patient ID or sequential number
-            return context?.patientId ? `EXP-${context.patientId.slice(0, 8).toUpperCase()}` : "EXP-00000000";
-          },
+          computed: (_, context) =>
+            context?.patientId
+              ? `EXP-${context.patientId.slice(0, 8).toUpperCase()}`
+              : "",
         },
         {
-          id: "nombre_completo",
+          id: "nombreCompleto",
           label: "Nombre completo",
           type: "readonly",
-          computed: (formData, context) => {
-            return context?.patient ? `${context.patient.firstName} ${context.patient.lastName}`.trim() : "";
-          },
+          computed: (_, context) =>
+            context?.patient
+              ? `${context.patient.firstName} ${context.patient.lastName}`.trim()
+              : "",
         },
         {
-          id: "fecha_nacimiento",
+          id: "fechaNacimiento",
           label: "Fecha de nacimiento",
-          type: "date",
-          required: true,
-          computed: (formData, context) => {
-            return context?.patient?.birthDate || "";
-          },
-        },
-        {
-          id: "edad",
-          label: "Edad",
           type: "readonly",
-          computed: (formData, context) => {
-            const birthDate = formData.fecha_nacimiento || context?.patient?.birthDate;
-            const age = computeAge(birthDate);
-            return age !== null ? `${age} años` : "";
-          },
+          computed: (_, context) => context?.patient?.birthDate || "",
         },
         {
-          id: "sexo",
-          label: "Sexo",
-          type: "select",
-          required: true,
-          options: GENDER_OPTIONS,
-          computed: (formData, context) => {
-            return context?.patient?.gender || "";
-          },
-        },
-        {
-          id: "identidad_genero",
-          label: "Identidad de género",
-          type: "select",
-          options: GENDER_IDENTITY_OPTIONS,
+          id: "curp",
+          label: "CURP",
+          type: "readonly",
+          computed: (_, context) => context?.patient?.curp || "",
         },
         {
           id: "nacionalidad",
           label: "Nacionalidad",
-          type: "select",
-          required: true,
+          type: "readonly",
           options: NATIONALITY_OPTIONS,
+          computed: (_, context) => context?.patient?.nationality || "",
         },
         {
           id: "entidad",
           label: "Entidad federativa",
-          type: "select",
-          required: true,
+          type: "readonly",
           options: MEXICAN_STATES,
+          computed: (_, context) => context?.patient?.state || "",
         },
         {
           id: "municipio",
           label: "Municipio",
           type: "text",
-          required: true,
-          placeholder: "Nombre del municipio",
         },
         {
-          id: "curp",
-          label: "CURP",
-          type: "text",
-          placeholder: "XXXX000000XXXXXX00",
-          computed: (formData, context) => {
-            return context?.patient?.curp || "";
-          },
+          id: "sexo",
+          label: "Sexo",
+          type: "readonly",
+          options: GENDER_OPTIONS,
+          computed: (_, context) => context?.patient?.gender || "",
+        },
+        {
+          id: "genderIdentity",
+          label: "Identidad de género",
+          type: "select",
+          options: GENDER_IDENTITY_OPTIONS,
         },
       ],
     },
+
+    /* =====================================================
+     * AHF
+     * ===================================================== */
     {
       sectionId: "ahf",
       title: "Antecedentes Heredofamiliares (AHF)",
       description: "Historial médico familiar",
       fields: [
         {
-          id: "ahf_entries",
+          id: "familyBackground",
           label: "Antecedentes familiares",
           type: "list",
           repeatable: true,
-          addLabel: "Agregar antecedente familiar",
-          emptyMessage: "No hay antecedentes familiares registrados",
           subfields: [
-            {
-              id: "enfermedad",
-              label: "Enfermedad",
-              type: "text",
-              required: true,
-              placeholder: "Ej: Diabetes, Hipertensión",
-            },
-            {
-              id: "parentesco",
-              label: "Parentesco",
-              type: "select",
-              required: true,
-              options: RELATIONSHIP_OPTIONS,
-            },
-            {
-              id: "edad_diagnostico",
-              label: "Edad al diagnóstico",
-              type: "number",
-              placeholder: "Años",
-            },
-            {
-              id: "estado_vital",
-              label: "Estado vital",
-              type: "select",
-              options: VITAL_STATUS_OPTIONS,
-            },
+            { id: "enfermedad", label: "Enfermedad", type: "text", required: true },
+            { id: "parentesco", label: "Parentesco", type: "text" },
+            { id: "edadDiagnostico", label: "Edad al diagnóstico", type: "number" },
+            { id: "estadoVital", label: "Estado vital", type: "text" },
           ],
         },
       ],
     },
+
+    /* =====================================================
+     * APNP
+     * ===================================================== */
     {
       sectionId: "apnp",
       title: "Antecedentes Personales No Patológicos (APNP)",
       description: "Datos sociales y demográficos",
       fields: [
-        {
-          id: "estado_civil",
-          label: "Estado civil",
-          type: "select",
-          options: MARITAL_STATUS_OPTIONS,
-        },
-        {
-          id: "escolaridad",
-          label: "Escolaridad",
-          type: "select",
-          options: EDUCATION_OPTIONS,
-        },
-        {
-          id: "ocupacion",
-          label: "Ocupación",
-          type: "text",
-          placeholder: "Ocupación actual",
-        },
-        {
-          id: "religion",
-          label: "Religión",
-          type: "text",
-          placeholder: "Religión o creencia",
-        },
-        {
-          id: "habitos_alimenticios",
-          label: "Hábitos alimenticios",
-          type: "textarea",
-          placeholder: "Describe hábitos alimenticios",
-        },
-        {
-          id: "actividad_fisica",
-          label: "Actividad física",
-          type: "textarea",
-          placeholder: "Describe actividad física regular",
-        },
-        {
-          id: "habitos_toxicos",
-          label: "Hábitos tóxicos",
-          type: "textarea",
-          placeholder: "Alcohol, tabaco, drogas, etc.",
-        },
-        {
-          id: "sueño",
-          label: "Patrón de sueño",
-          type: "textarea",
-          placeholder: "Horas de sueño, calidad, etc.",
-        },
+        { id: "dietaryHabits", label: "Hábitos alimenticios", type: "textarea", placeholder: "Alimentación habitual, preferencias, etc." },
+        { id: "physicalActivity", label: "Actividad física", type: "textarea", placeholder: "Tipo, frecuencia, duración de la actividad física" },
+        { id: "toxicHabits", label: "Hábitos tóxicos", type: "textarea", placeholder: "Alcohol, tabaco, drogas, etc." },
+        { id: "sleepPatterns", label: "Patrón de sueño", type: "textarea", placeholder: "Horas de sueño, calidad, etc." },
       ],
     },
+
+    /* =====================================================
+     * APP
+     * ===================================================== */
     {
       sectionId: "app",
       title: "Antecedentes Personales Patológicos (APP)",
       description: "Historial médico personal",
       fields: [
+        { id: "hasAllergies", label: "¿Tiene alergias?", type: "yesno", required: true },
         {
-          id: "tiene_alergias",
-          label: "¿Tiene alergias?",
-          type: "yesno",
-          required: true,
-        },
-        {
-          id: "alergias_lista",
-          label: "Lista de alergias",
-          type: "list",
-          repeatable: true,
-          conditional: {
-            field: "tiene_alergias",
-            value: "SI",
-          },
-          addLabel: "Agregar alergia",
-          subfields: [
-            {
-              id: "alergeno",
-              label: "Alérgeno",
-              type: "text",
-              required: true,
-              placeholder: "Ej: Penicilina, Polen",
-            },
-            {
-              id: "reaccion",
-              label: "Reacción",
-              type: "text",
-              placeholder: "Tipo de reacción",
-            },
-          ],
-        },
-        {
-          id: "medicacion_actual",
+          id: "currentMedications",
           label: "Medicación actual",
           type: "list",
           repeatable: true,
           addLabel: "Agregar medicamento",
           subfields: [
-            {
-              id: "medicamento",
-              label: "Medicamento",
-              type: "text",
-              required: true,
-              placeholder: "Nombre del medicamento",
-            },
-            {
-              id: "dosis",
-              label: "Dosis",
-              type: "text",
-              placeholder: "Dosis y frecuencia",
-            },
-            {
-              id: "indicacion",
-              label: "Indicación",
-              type: "text",
-              placeholder: "Para qué se prescribe",
-            },
+            { id: "medicamento", label: "Medicamento", type: "text", required: true, placeholder: "Nombre del medicamento" },
+            { id: "dosis", label: "Dosis", type: "text" },
+            { id: "indicacion", label: "Indicación", type: "text" },
           ],
         },
         {
-          id: "enfermedades_cronicas",
+          id: "chronicDiseases",
           label: "Enfermedades crónicas",
           type: "list",
           repeatable: true,
-          addLabel: "Agregar enfermedad",
           subfields: [
-            {
-              id: "enfermedad",
-              label: "Enfermedad",
-              type: "text",
-              required: true,
-              placeholder: "Nombre de la enfermedad",
-            },
-            {
-              id: "fecha_diagnostico",
-              label: "Fecha de diagnóstico",
-              type: "date",
-            },
-            {
-              id: "tratamiento",
-              label: "Tratamiento",
-              type: "text",
-              placeholder: "Tratamiento actual",
-            },
+            { id: "enfermedad", label: "Enfermedad", type: "text" },
+            { id: "fechaDiagnostico", label: "Fecha diagnóstico", type: "date" },
+            { id: "tratamiento", label: "Tratamiento", type: "text" },
           ],
         },
         {
-          id: "cirugias",
+          id: "previousSurgeries",
           label: "Cirugías previas",
           type: "list",
           repeatable: true,
-          addLabel: "Agregar cirugía",
           subfields: [
-            {
-              id: "procedimiento",
-              label: "Procedimiento",
-              type: "text",
-              required: true,
-              placeholder: "Tipo de cirugía",
-            },
-            {
-              id: "fecha",
-              label: "Fecha",
-              type: "date",
-            },
-            {
-              id: "complicaciones",
-              label: "Complicaciones",
-              type: "text",
-              placeholder: "Si las hubo",
-            },
+            { id: "procedimiento", label: "Procedimiento", type: "text" },
+            { id: "fecha", label: "Fecha", type: "date" },
+            { id: "complicaciones", label: "Complicaciones", type: "text" },
           ],
         },
         {
-          id: "hospitalizaciones",
+          id: "previousHospitalizations",
           label: "Hospitalizaciones previas",
           type: "list",
           repeatable: true,
-          addLabel: "Agregar hospitalización",
           subfields: [
-            {
-              id: "motivo",
-              label: "Motivo",
-              type: "text",
-              required: true,
-              placeholder: "Razón de hospitalización",
-            },
-            {
-              id: "fecha",
-              label: "Fecha",
-              type: "date",
-            },
-            {
-              id: "duracion",
-              label: "Duración (días)",
-              type: "number",
-            },
+            { id: "motivo", label: "Motivo", type: "text" },
+            { id: "fecha", label: "Fecha", type: "date" },
+            { id: "duracion", label: "Duración", type: "number" },
           ],
         },
-        {
-          id: "traumatismos",
-          label: "Traumatismos",
-          type: "textarea",
-          placeholder: "Traumatismos importantes",
-        },
-        {
-          id: "transfusiones",
-          label: "Transfusiones",
-          type: "yesno",
-        },
-        {
-          id: "transfusiones_detalle",
-          label: "Detalle de transfusiones",
-          type: "textarea",
-          conditional: {
-            field: "transfusiones",
-            value: "SI",
-          },
-          placeholder: "Tipo, fecha, motivo",
-        },
+        { id: "traumatisms", label: "Traumatismos", type: "textarea", placeholder: "Traumatismos importantes" },
+        { id: "transfusions", label: "Transfusiones", type: "yesno" },
       ],
     },
+
+    /* =====================================================
+     * APSIC
+     * ===================================================== */
     {
       sectionId: "apsic",
-      title: "Antecedentes Psiquiátricos (APsic)",
-      description: "Historial psiquiátrico y psicológico",
+      title: "Antecedentes Psiquiátricos",
       fields: [
+        { id: "motive", label: "Motivo de consulta", type: "textarea", required: true, placeholder: "Razón principal de consulta" },
+        { id: "symptomOnset", label: "Inicio de síntomas", type: "textarea", placeholder: "Cuándo y cómo comenzaron los síntomas" },
         {
-          id: "motivo_consulta",
-          label: "Motivo de consulta",
-          type: "textarea",
-          required: true,
-          placeholder: "Razón principal de consulta",
-        },
-        {
-          id: "inicio_sintomas",
-          label: "Inicio de síntomas",
-          type: "textarea",
-          placeholder: "Cuándo y cómo comenzaron los síntomas",
-        },
-        {
-          id: "diagnosticos_previos",
+          id: "previousDiagnoses",
           label: "Diagnósticos previos",
           type: "list",
           repeatable: true,
           addLabel: "Agregar diagnóstico previo",
           subfields: [
-            {
-              id: "diagnostico",
-              label: "Diagnóstico",
-              type: "text",
-              required: true,
-              placeholder: "Código o nombre del diagnóstico",
-            },
-            {
-              id: "fecha",
-              label: "Fecha",
-              type: "date",
-            },
-            {
-              id: "profesional",
-              label: "Profesional que diagnosticó",
-              type: "text",
-              placeholder: "Nombre del profesional",
-            },
+            { id: "diagnostico", label: "Diagnóstico", type: "text", required: true, placeholder: "Código o nombre del diagnóstico" },
+            { id: "fecha", label: "Fecha", type: "date" },
+            { id: "profesional", label: "Profesional", type: "text", placeholder: "Nombre del profesional" },
           ],
         },
         {
-          id: "hospitalizaciones_psiquiatricas",
+          id: "psychHospitalizations",
           label: "Hospitalizaciones psiquiátricas",
           type: "list",
           repeatable: true,
-          addLabel: "Agregar hospitalización",
-          subfields: [
-            {
-              id: "motivo",
-              label: "Motivo",
-              type: "text",
-              required: true,
-            },
-            {
-              id: "fecha",
-              label: "Fecha",
-              type: "date",
-            },
-            {
-              id: "duracion",
-              label: "Duración (días)",
-              type: "number",
-            },
-            {
-              id: "institucion",
-              label: "Institución",
-              type: "text",
-            },
-          ],
         },
-        {
-          id: "urgencias_psiquiatricas",
-          label: "Urgencias psiquiátricas",
-          type: "yesno",
-        },
-        {
-          id: "urgencias_detalle",
-          label: "Detalle de urgencias",
-          type: "textarea",
-          conditional: {
-            field: "urgencias_psiquiatricas",
-            value: "SI",
-          },
-          placeholder: "Fecha, motivo, atención recibida",
-        },
-        {
-          id: "suicidio_autolesion_tamiz",
-          label: "Tamizaje de riesgo suicida/autolesión",
-          type: "yesno",
-          required: true,
-        },
-        {
-          id: "suicidio_autolesion_detalle",
-          label: "Detalle de riesgo",
-          type: "textarea",
-          conditional: {
-            field: "suicidio_autolesion_tamiz",
-            value: "SI",
-          },
-          required: true,
-          placeholder: "Describir ideación, intentos, planes, factores protectores",
-        },
-        {
-          id: "tratamientos_previos",
-          label: "Tratamientos previos",
-          type: "textarea",
-          placeholder: "Psicoterapias, medicamentos, otros tratamientos",
-        },
-        {
-          id: "adherencia_tratamiento",
-          label: "Adherencia a tratamientos previos",
-          type: "textarea",
-          placeholder: "Nivel de adherencia y razones",
-        },
+        { id: "psychUrgencies", label: "Urgencias psiquiátricas", type: "yesno" },
+        { id: "suicideRiskScreening", label: "Tamizaje riesgo suicida", type: "yesno" },
+        { id: "previousTreatments", label: "Tratamientos previos", type: "textarea", placeholder: "Psicoterapias, medicamentos, otros tratamientos" },
+        { id: "treatmentAdherence", label: "Adherencia a tratamientos", type: "textarea", placeholder: "Nivel de adherencia y razones" },
       ],
     },
   ],
 };
 
 export default HC_SCHEMA;
-
