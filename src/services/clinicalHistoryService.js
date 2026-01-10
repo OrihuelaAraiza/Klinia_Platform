@@ -72,7 +72,15 @@ export async function saveClinicalHistory(patientId, payload) {
   }
 }
 
+export async function getPatientHistory(patientId, professionalId) {
+  // Enviamos el professionalId como query param para que el backend filtre esa historia específica
+  return api.get(`/histories/patient/${patientId}?professionalId=${professionalId}`, { 
+    auth: true 
+  });
+}
+
 export default {
   getClinicalHistory,
   saveClinicalHistory,
+  getPatientHistory
 };
