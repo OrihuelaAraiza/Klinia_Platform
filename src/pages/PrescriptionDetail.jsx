@@ -216,7 +216,7 @@ export default function PrescriptionDetail() {
                         <div className="stack-2">
                             <h3>Profesional tratante</h3>
                             <p>
-                                <strong>Nombre:</strong> {professionalData.name || "Profesional Klinia"}
+                                <strong>Nombre:</strong> {professionalData.name || "Profesional BreveMente"}
                             </p>
                             <p>
                                 <strong>Email:</strong> {professionalData.email || "—"}

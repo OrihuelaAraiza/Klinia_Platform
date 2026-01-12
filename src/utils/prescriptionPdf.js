@@ -200,7 +200,7 @@ export async function generatePrescriptionPdf({
 
 export async function downloadPrescriptionPdf(config) {
   const blob = await generatePrescriptionPdf(config);
-  const filename = `prescripcion_${config?.prescription?.folio || "klinia"}.pdf`;
+  const filename = `prescripcion_${config?.prescription?.folio || "brevemente"}.pdf`;
   triggerDownload(blob, filename);
   return blob;
 }

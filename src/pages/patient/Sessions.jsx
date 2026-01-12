@@ -196,7 +196,7 @@ export default function PatientSessions() {
       {/* PIE DE PÁGINA: Solo en PDF [cite: 31, 34] */}
       <footer className="show-only-print" style={{ marginTop: '3rem', textAlign: 'center', borderTop: '1px solid #eee', paddingTop: '1rem' }}>
         <p style={{ fontSize: '9pt', color: '#999' }}>
-          Documento generado automáticamente por Klinia Platform. 
+          Documento generado automáticamente por BreveMente. 
           Válido para fines informativos del paciente.
         </p>
       </footer>

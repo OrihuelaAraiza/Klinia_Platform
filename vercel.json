@@ -8,8 +8,8 @@
   "redirects": [
     {
       "source": "/(.*)",
-      "has": [{ "type": "host", "value": "klinia.ai" }],
-      "destination": "https://www.klinia.ai/$1",
+      "has": [{ "type": "host", "value": "brevemente.ai" }],
+      "destination": "https://www.brevemente.ai/$1",
       "statusCode": 308
     }
   ],

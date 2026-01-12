@@ -34,7 +34,7 @@ async function copyHtaccess() {
     let content = await readFile(sourceFile, "utf-8");
 
     // Placeholder URL que debe ser reemplazada
-    const placeholderUrl = "https://klinia-api.azurewebsites.net";
+    const placeholderUrl = "https://brevemente-api.azurewebsites.net";
     const placeholderPattern = new RegExp(placeholderUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g");
 
     // Verificar si contiene el placeholder

@@ -66,7 +66,7 @@ export default function StepAddress({
           value={data.city}
           onChange={handleChange}
           required
-          placeholder="Ciudad Klinia"
+          placeholder="Ciudad"
           error={errors.city}
           disabled={disabled}
           autoComplete="address-level2"

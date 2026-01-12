@@ -233,7 +233,7 @@ export default function PatientDetail() {
     try {
       if (action === "sign") {
         const response = await signConsent(id, type, {
-          professional: user?.name ?? "Profesional Klinia",
+          professional: user?.name ?? "Profesional BreveMente",
         });
         setConsents((prev) => {
           const next = prev.filter((item) => item.type !== type);
@@ -245,7 +245,7 @@ export default function PatientDetail() {
       } else if (action === "revoke") {
         const consent = ensureConsentEntry(id, type);
         const response = await revokeConsent(id, consent.id, {
-          professional: consent.professional || user?.name || "Profesional Klinia",
+          professional: consent.professional || user?.name || "Profesional BreveMente",
         });
         setConsents((prev) => prev.map((item) => (item.id === response.id ? response : item)));
         toast.warn("Consentimiento revocado");

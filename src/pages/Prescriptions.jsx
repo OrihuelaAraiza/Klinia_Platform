@@ -231,7 +231,7 @@ export default function Prescriptions() {
                 patientRecordId: patient.id, 
                 professional: {
                     id: user?.id,
-                    name: user?.name || "Profesional Klinia",
+                    name: user?.name || "Profesional BreveMente",
                     role: role || "PROFESSIONAL",
                 },
             };

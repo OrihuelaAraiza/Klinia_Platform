@@ -166,7 +166,7 @@ export async function generateOrderPdf({
 
 export async function downloadOrderPdf(config) {
   const blob = await generateOrderPdf(config);
-  const filename = `orden_${config?.order?.folio || "klinia"}.pdf`;
+  const filename = `orden_${config?.order?.folio || "brevemente"}.pdf`;
   triggerDownload(blob, filename);
   return blob;
 }

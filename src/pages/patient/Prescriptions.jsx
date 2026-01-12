@@ -70,7 +70,7 @@ export default function PatientPrescriptions() {
       <div className="show-only-print">
         <div style={{ textAlign: 'center', borderBottom: '2px solid #000', paddingBottom: '1rem', marginBottom: '2rem' }}>
           <h1>INDICACIONES MÉDICAS Y PRESCRIPCIONES</h1>
-          <p>Plataforma Clínica Klinia</p>
+          <p>Plataforma Clínica BreveMente</p>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
           <span><strong>Paciente:</strong> {user?.firstName} {user?.lastName}</span>

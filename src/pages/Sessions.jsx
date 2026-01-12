@@ -85,7 +85,7 @@ export default function Sessions() {
     const professional = useMemo(
         () => ({
             id: professionalId,
-            name: user?.name || "Profesional Klinia",
+            name: user?.name || "Profesional BreveMente",
             license: user?.license,
         }),
         [user, professionalId]

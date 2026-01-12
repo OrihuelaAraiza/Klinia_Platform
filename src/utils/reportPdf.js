@@ -180,7 +180,7 @@ export async function generateReportPdf({
 
 export async function downloadReportPdf(config) {
   const blob = await generateReportPdf(config);
-  const filename = `informe_${config?.report?.folio || "klinia"}.pdf`;
+  const filename = `informe_${config?.report?.folio || "brevemente"}.pdf`;
   triggerDownload(blob, filename);
   return blob;
 }

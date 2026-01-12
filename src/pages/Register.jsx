@@ -669,7 +669,7 @@ export default function Register() {
         <div className="register-page">
             <section className="register-main">
                 <header className="register-header">
-                    <img src={logo} alt="ROMI Klinia" className="register-logo" />
+                    <img src={logo} alt="BreveMente" className="register-logo" />
                     <div className="register-heading">
                         <h1>Registro profesional</h1>
                         <p>

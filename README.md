@@ -1,6 +1,6 @@
-# Klinia Platform (Frontend)
+# BreveMente Platform (Frontend)
 
-Aplicación SPA construida con React 19 y Vite para la plataforma clínica de **Klinia**.  
+Aplicación SPA construida con React 19 y Vite para la plataforma clínica de **BreveMente**.  
 El proyecto ofrece autenticación, dashboards administrativos y flujos de operaciones clínicas con un enfoque en accesibilidad, auditoría y diseño responsive para escritorio y dispositivos móviles.
 
 ## Stack principal
@@ -37,7 +37,7 @@ El proyecto ofrece autenticación, dashboards administrativos y flujos de operac
 │   ├── services/          # API client, MSAL, auditoría, pacientes, sesiones, etc.
 │   ├── styles/            # `global.css` con tokens y estilos responsivos
 │   └── utils/             # Constantes, validadores y helpers
-├── klinia-api/            # Stub de API Express para desarrollo local (opcional)
+├── brevemente-api/        # Stub de API Express para desarrollo local (opcional)
 └── vite.config.js         # Configuración de compilación/front
 ```
 
@@ -66,7 +66,7 @@ Para desplegar en Vercel, configura las variables de entorno en el dashboard de 
 1. Ve a tu proyecto en Vercel → **Settings** → **Environment Variables**
 2. Agrega la variable:
    - **Variable**: `VITE_API_BASE_URL`
-   - **Value**: `https://klinia-api-gmdbb0ezfbhybjcw.canadacentral-01.azurewebsites.net/api`
+   - **Value**: `https://brevemente-api-gmdbb0ezfbhybjcw.canadacentral-01.azurewebsites.net/api`
    - **Environments**: Production, Preview, Development
 
 **Nota**: El backend ya está desplegado en Azure. El frontend en Vercel se conectará a este backend usando la variable de entorno.
@@ -125,10 +125,10 @@ Aplica las reglas definidas en `eslint.config.js`.
 
 ## Backend de referencia (opcional)
 
-El repositorio incluye un stub de API en `klinia-api/` para pruebas locales rápidas:
+El repositorio incluye un stub de API en `brevemente-api/` para pruebas locales rápidas:
 
 ```bash
-cd klinia-api
+cd brevemente-api
 npm install
 npm run dev
 ```
@@ -137,7 +137,7 @@ Por defecto escucha en `http://localhost:4000`. Ajusta `VITE_API_BASE_URL` para 
 
 ### Variables de entorno del API
 
-1. Copia el archivo de ejemplo: `cp klinia-api/env.example klinia-api/.env`.
+1. Copia el archivo de ejemplo: `cp brevemente-api/env.example brevemente-api/.env`.
 2. Completa los valores reales (Azure, Twilio, JWT, etc.) únicamente en tu `.env` local o en los secretos de la plataforma de despliegue.
 3. Para la base de datos PostgreSQL (Azure, Neon, o cualquier proveedor):
 
@@ -150,7 +150,7 @@ Por defecto escucha en `http://localhost:4000`. Ajusta `VITE_API_BASE_URL` para 
 4. Ejecuta las migraciones:
 
    ```bash
-   cd klinia-api
+   cd brevemente-api
    npx prisma migrate deploy   # o `npx prisma db push` si es un entorno nuevo
    ```
 
@@ -179,7 +179,7 @@ Esta es la configuración recomendada para un deployment profesional:
 
 - 🚀 **[Quick Start Guide](./QUICK_START.md)** - Inicio rápido
 - 📚 **[Guía Completa de Deployment](./DEPLOYMENT_GUIDE.md)** - Guía maestra
-- 🔧 **[Azure Deployment](./klinia-api/AZURE_DEPLOYMENT.md)** - Backend en Azure
+- 🔧 **[Azure Deployment](./brevemente-api/AZURE_DEPLOYMENT.md)** - Backend en Azure
 - 🌐 **[cPanel Deployment](./CPANEL_DEPLOYMENT.md)** - Frontend en cPanel
 
 **Pasos rápidos:**
@@ -206,7 +206,7 @@ Esta es la configuración actual del proyecto:
 
 - **Frontend**: Vercel (React SPA)
 - **Backend**: Azure App Service (ya desplegado)
-- **URL del Backend**: `https://klinia-api-gmdbb0ezfbhybjcw.canadacentral-01.azurewebsites.net/api`
+- **URL del Backend**: `https://brevemente-api-gmdbb0ezfbhybjcw.canadacentral-01.azurewebsites.net/api`
 
 **Pasos para desplegar:**
 
@@ -217,7 +217,7 @@ Esta es la configuración actual del proyecto:
 
 2. **Configurar variables de entorno en Vercel**:
    - Ve a **Settings** → **Environment Variables**
-   - Agrega: `VITE_API_BASE_URL` = `https://klinia-api-gmdbb0ezfbhybjcw.canadacentral-01.azurewebsites.net/api`
+   - Agrega: `VITE_API_BASE_URL` = `https://brevemente-api-gmdbb0ezfbhybjcw.canadacentral-01.azurewebsites.net/api`
    - Selecciona todos los entornos (Production, Preview, Development)
 
 3. **Configurar CORS en Azure**:
@@ -233,7 +233,7 @@ Esta es la configuración actual del proyecto:
 
 **Configuración técnica**:
 - El archivo `vercel.json` aplica **rewrites SPA**, fuerza `cleanUrls`, agrega cabeceras de seguridad (`X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options`, `Permissions-Policy`) y define la política de caché (HTML `no-store`, assets versionados cacheados un año).
-- El mismo archivo también realiza la canonización de dominio: cualquier visita a `https://klinia.ai` se redirige (308) hacia `https://www.klinia.ai`, asegurando que las cookies y redirects sean consistentes.
+- El mismo archivo también realiza la canonización de dominio: cualquier visita a `https://brevemente.ai` se redirige (308) hacia `https://www.brevemente.ai`, asegurando que las cookies y redirects sean consistentes.
 - `robots.prod.txt` / `robots.preview.txt` se copian al paquete final mediante `scripts/postbuild.mjs`, garantizando `Disallow: /` en previews.
 - El footer muestra `Build: <VITE_APP_VERSION>` y el último mensaje de commit cuando están disponibles, ayudando a auditar qué versión está desplegada.
 
