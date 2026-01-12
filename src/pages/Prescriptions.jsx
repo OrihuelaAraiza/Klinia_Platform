@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useOutletContext } from "react-router-dom";
+import { Search, User, Calendar, FileText } from "lucide-react";
 import Card, { CardBody, CardHeader } from "../components/UI/Card";
 import Button from "../components/UI/Button";
 import ButtonPrimary from "../components/ButtonPrimary";
 import InputField from "../components/InputField";
 import { useToast } from "../components/UI/Toast";
+import { SkeletonCard, SkeletonList } from "../components/UI/Skeleton";
+import EmptyState from "../components/UI/EmptyState";
 import { PRESCRIPTION_FIELDS, ROLES, ROUTES } from "../utils/constants";
 import auditService from "../services/auditService";
 import * as patientsService from "../services/patientsService";
@@ -12,7 +15,8 @@ import * as prescriptionsService from "../services/prescriptionsService";
 import { formatDateISOToHuman } from "../utils/formatters"; // Importar función de formato de fecha
 
 const REQUIRED_FIELDS = new Set(["substance", "dose", "frequency", "duration"]);
-const DEFAULT_PAGE_SIZE = 5; 
+const DEFAULT_PAGE_SIZE = 10;
+const SEARCH_DEBOUNCE_MS = 400; 
 
 
 function buildInitialForm(patientId = "") {
@@ -147,23 +151,64 @@ export default function Prescriptions() {
     }, [selectedPatientId]);
 
 
-    const handleSearch = async (event) => {
-        event.preventDefault();
-        if (!searchQuery.trim()) {
+    // Búsqueda con debounce para tiempo real
+    const searchTimeoutRef = useRef(null);
+    
+    const performSearch = async (query) => {
+        if (!query.trim()) {
             setSearchResults([]);
+            setSearchLoading(false);
             return;
         }
+        
         setSearchLoading(true);
         try {
-            // Asegúrate de que listPatients reciba el professionalId si es necesario para el filtrado inicial
-            const response = await patientsService.listPatients({ q: searchQuery.trim(), page: 1, size: DEFAULT_PAGE_SIZE, professionalId: user?.id });
+            const response = await patientsService.listPatients({ 
+                q: query.trim(), 
+                page: 1, 
+                size: DEFAULT_PAGE_SIZE, 
+                professionalId: user?.id 
+            });
             const items = Array.isArray(response?.items) ? response.items : [];
             setSearchResults(items);
         } catch (err) {
-            error(err?.message || "No pudimos buscar pacientes."); // 🚨 Usando error()
+            error(err?.message || "No pudimos buscar pacientes.");
         } finally {
             setSearchLoading(false);
         }
+    };
+
+    // Búsqueda automática con debounce
+    useEffect(() => {
+        if (searchTimeoutRef.current) {
+            clearTimeout(searchTimeoutRef.current);
+        }
+
+        if (!searchQuery.trim()) {
+            setSearchResults([]);
+            setSearchLoading(false);
+            return;
+        }
+
+        setSearchLoading(true);
+        searchTimeoutRef.current = setTimeout(() => {
+            performSearch(searchQuery);
+        }, SEARCH_DEBOUNCE_MS);
+
+        return () => {
+            if (searchTimeoutRef.current) {
+                clearTimeout(searchTimeoutRef.current);
+            }
+        };
+    }, [searchQuery]);
+
+    const handleSearch = async (event) => {
+        event.preventDefault();
+        // Cancelar debounce y buscar inmediatamente al hacer submit
+        if (searchTimeoutRef.current) {
+            clearTimeout(searchTimeoutRef.current);
+        }
+        performSearch(searchQuery);
     };
 
     const selectPatient = useCallback(
@@ -291,41 +336,126 @@ export default function Prescriptions() {
             {!selectedPatientId ? (
                 <Card hoverable={false}>
                     <CardHeader>
-                        <h2>Selecciona un paciente</h2>
+                        <div className="cluster align-center gap-2">
+                            <Search size={24} />
+                            <h2>Buscar paciente</h2>
+                        </div>
                     </CardHeader>
-                    <CardBody className="stack-3">
+                    <CardBody className="stack-4">
                         <form className="form-inline" onSubmit={handleSearch}>
-                            <InputField
-                                label="Buscar por nombre, CURP o correo"
-                                name="patient-search"
-                                value={searchQuery}
-                                onChange={(event) => setSearchQuery(event.target.value)}
-                                placeholder="Ej. Carmen Pérez"
-                                autoComplete="off"
-                            />
-                            <ButtonPrimary type="submit" loading={searchLoading}>
-                                Buscar
-                            </ButtonPrimary>
+                            <div style={{ position: 'relative', flex: 1 }}>
+                                <InputField
+                                    label="Buscar por nombre, CURP o correo"
+                                    name="patient-search"
+                                    value={searchQuery}
+                                    onChange={(event) => setSearchQuery(event.target.value)}
+                                    placeholder="Escribe para buscar automáticamente..."
+                                    autoComplete="off"
+                                    autoFocus
+                                />
+                                {searchLoading && (
+                                    <div style={{
+                                        position: 'absolute',
+                                        right: '12px',
+                                        top: '50%',
+                                        transform: 'translateY(-50%)'
+                                    }}>
+                                        <div className="loading-spinner loading-spinner--sm" />
+                                    </div>
+                                )}
+                            </div>
                         </form>
-                        {searchResults.length ? (
-                            <ul className="list list--card">
-                                {searchResults.map((item) => (
-                                    <li key={item.id}>
-                                        <button
-                                            type="button"
-                                            className="link link--button"
+
+                        {/* Resultados de búsqueda */}
+                        {searchLoading && !searchResults.length ? (
+                            <div className="stack-3">
+                                <SkeletonCard />
+                                <SkeletonCard />
+                                <SkeletonCard />
+                            </div>
+                        ) : searchResults.length > 0 ? (
+                            <div className="stack-3">
+                                <p className="helper-text" style={{ margin: 0 }}>
+                                    {searchResults.length} resultado{searchResults.length !== 1 ? 's' : ''} encontrado{searchResults.length !== 1 ? 's' : ''}
+                                </p>
+                                <div className="stack-2">
+                                    {searchResults.map((item) => (
+                                        <Card 
+                                            key={item.id} 
+                                            as="button"
                                             onClick={() => selectPatient(item)}
+                                            hoverable
+                                            style={{ 
+                                                textAlign: 'left',
+                                                cursor: 'pointer',
+                                                transition: 'all 0.2s ease'
+                                            }}
                                         >
-                                            <span>
-                                                {item.firstName} {item.lastName}
-                                            </span>
-                                            <small>{item.curp}</small>
-                                        </button>
-                                    </li>
-                                ))}
-                            </ul>
-                        ) : searchQuery ? (
-                            <p className="helper-text">No encontramos coincidencias.</p>
+                                            <CardBody>
+                                                <div className="cluster align-center gap-3">
+                                                    <div 
+                                                        style={{
+                                                            width: '48px',
+                                                            height: '48px',
+                                                            borderRadius: '50%',
+                                                            background: 'var(--bm-blue-conciencia)',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center',
+                                                            color: 'white',
+                                                            flexShrink: 0
+                                                        }}
+                                                    >
+                                                        <User size={24} />
+                                                    </div>
+                                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                                        <p style={{ 
+                                                            margin: 0, 
+                                                            fontWeight: 600,
+                                                            fontSize: '1rem',
+                                                            color: 'var(--text)'
+                                                        }}>
+                                                            {item.firstName} {item.lastName}
+                                                        </p>
+                                                        <div className="cluster gap-3" style={{ 
+                                                            marginTop: '4px',
+                                                            fontSize: '0.875rem',
+                                                            color: 'var(--text-muted)'
+                                                        }}>
+                                                            {item.curp && (
+                                                                <span className="cluster align-center gap-1">
+                                                                    <FileText size={14} />
+                                                                    {item.curp}
+                                                                </span>
+                                                            )}
+                                                            {item.birthDate && (
+                                                                <span className="cluster align-center gap-1">
+                                                                    <Calendar size={14} />
+                                                                    {calculateAge(item.birthDate)} años
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </CardBody>
+                                        </Card>
+                                    ))}
+                                </div>
+                            </div>
+                        ) : searchQuery.trim() && !searchLoading ? (
+                            <EmptyState
+                                icon={<Search size={48} />}
+                                title="No se encontraron pacientes"
+                                message={`No encontramos resultados para "${searchQuery}"`}
+                                className="empty-state--small"
+                            />
+                        ) : !searchQuery.trim() ? (
+                            <EmptyState
+                                icon={<Search size={48} />}
+                                title="Busca un paciente"
+                                message="Escribe el nombre, CURP o correo del paciente para comenzar"
+                                className="empty-state--small"
+                            />
                         ) : null}
                     </CardBody>
                 </Card>
