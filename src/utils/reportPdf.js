@@ -80,7 +80,7 @@ export async function generateReportPdf({
     color: rgb(0.54, 0.79, 0.05),
   });
 
-  page.drawText("Klinia — Informe clínico", {
+  page.drawText("BreveMente — Informe clínico", {
     x: MARGIN,
     y: height - 35,
     font: fontBold,
@@ -112,7 +112,7 @@ export async function generateReportPdf({
     size: 13,
   });
   cursorY -= LINE;
-  page.drawText(`Nombre: ${professional?.name || "Profesional Klinia"}`, {
+  page.drawText(`Nombre: ${professional?.name || "Profesional BreveMente"}`, {
     x: MARGIN,
     y: cursorY,
     font: fontRegular,
@@ -159,7 +159,7 @@ export async function generateReportPdf({
   const hashFull = await sha256(canonicalize(hashPayload));
   const hashShort = hashFull.slice(0, 10).toUpperCase();
 
-  page.drawText("Documento generado digitalmente por Klinia.", {
+  page.drawText("Documento generado digitalmente por BreveMente.", {
     x: MARGIN,
     y: 60,
     font: fontRegular,

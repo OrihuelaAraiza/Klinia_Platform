@@ -1,39 +1,77 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap");
+/* =================================================================
+   BreveMente - Design System Tokens
+   Fuente: BreveMente Guía de Uso
+   ================================================================= */
+
+/* Tipografía BreveMente: Inclusive Sans */
+@import url("https://fonts.googleapis.com/css2?family=Inclusive+Sans:wght@300;400;500;600;700&display=swap");
 
 :root {
-  /* Design system palette */
-  --primary: #1d3557;
-  --secondary: #4a5d7a;
-  --accent: #2d6cdf;
-  --text-primary: #0b1f3a;
+  /* ===== BRAND COLORS - BreveMente (fuente de verdad) ===== */
+  /* Azul Neural: Color primario de la marca */
+  --bm-blue-neural: #304768;
+  /* Azul Conciencia: Color de acento */
+  --bm-blue-conciencia: #75AFBC;
+  /* Gris Digital: Color de fondo neutro */
+  --bm-gray-digital: #F4F4F4;
 
-  /* Palette */
-  --brand: var(--accent);
-  --brand-ink: #0b1f3a;
-  --bg: #f1f5fb;
+  /* ===== SEMANTIC TOKENS (derivados de marca) ===== */
+  /* Color primario = Azul Neural */
+  --primary: var(--bm-blue-neural);
+  --secondary: #426387; /* Variación más clara de Azul Neural */
+  /* Color de acento = Azul Conciencia */
+  --accent: var(--bm-blue-conciencia);
+  --brand: var(--primary);
+  --brand-ink: #1a2a3f; /* Versión más oscura de Azul Neural */
+  
+  /* Backgrounds */
+  --bg: var(--bm-gray-digital);
   --surface: #ffffff;
-  --surface-2: #e6efff;
+  --surface-2: #e8ecef; /* Tono intermedio entre blanco y Gris Digital */
+  
+  /* Text colors */
+  --text-primary: #1a2a3f;
   --text: var(--text-primary);
-  --text-muted: #5b6b81;
-  --border: #d0d8e8;
+  --text-muted: #5a6b7f;
+  
+  /* Borders */
+  --border: #d0d5db;
+  --sidebar-border: rgba(48, 71, 104, 0.15);
+  
+  /* Status colors (mantener accesibilidad) */
   --success: #1b9c85;
   --warning: #f79009;
   --danger: #dc3545;
-  --focus: #2563eb;
-  --sidebar-border: rgba(74, 93, 122, 0.18);
-  --gradient-app: radial-gradient(circle at top left, color-mix(in srgb, var(--accent) 22%, transparent) 0%, transparent 55%), radial-gradient(circle at bottom right, rgba(37, 99, 235, 0.16), transparent 50%);
+  
+  /* Focus ring = Azul Conciencia */
+  --focus: var(--bm-blue-conciencia);
+  
+  /* Gradients con identidad BreveMente */
+  --gradient-app: radial-gradient(
+    circle at top left, 
+    color-mix(in srgb, var(--bm-blue-conciencia) 18%, transparent) 0%, 
+    transparent 55%
+  ), 
+  radial-gradient(
+    circle at bottom right, 
+    color-mix(in srgb, var(--bm-blue-neural) 12%, transparent) 0%, 
+    transparent 50%
+  );
+  
+  /* Dashboard & Module tokens */
   --dashboard-module-title: var(--text);
   --dashboard-module-icon: var(--primary);
   --dashboard-metric-icon: var(--primary);
 
+  /* ===== COMPONENT TOKENS ===== */
   /* Radii */
   --r-sm: 8px;
   --r-md: 12px;
   --r-lg: 20px;
 
-  /* Shadows */
-  --shadow-1: 0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.06);
-  --shadow-2: 0 20px 40px rgba(15, 23, 42, 0.12);
+  /* Shadows (ajustadas a paleta BreveMente) */
+  --shadow-1: 0 1px 3px rgba(48, 71, 104, 0.08), 0 1px 2px rgba(48, 71, 104, 0.06);
+  --shadow-2: 0 20px 40px rgba(48, 71, 104, 0.12);
 
   /* Spacing scale */
   --s-1: 4px;
@@ -42,77 +80,103 @@
   --s-4: 16px;
   --s-5: 24px;
   --s-6: 32px;
+  --s-8: 48px;
 
-  /* Typography */
-  --font-main: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-    Roboto, sans-serif;
+  /* Typography - Inclusive Sans */
+  --font-main: "Inclusive Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-weight-light: 300;
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
   --line-tight: 1.25;
   --line-normal: 1.5;
 
-  /* Legacy aliases (for gradual refactor) */
-  --primary-bg: var(--bg);
-  --primary-color: var(--brand);
-  --text-dark: var(--text);
-  --border-color: var(--border);
-  --muted: var(--text-muted);
-  --muted-2: #94a3b8;
-  --surface-muted: var(--surface-2);
-  --shadow-soft: var(--shadow-2);
-  --radius-sm: var(--r-sm);
-  --radius-md: var(--r-md);
-  --radius-lg: 16px;
+  /* Sidebar usando Azul Neural como base */
   --sidebar-bg: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--primary) 92%, #ffffff 8%) 0%,
-    color-mix(in srgb, var(--secondary) 88%, #ffffff 12%) 100%
+    var(--bm-blue-neural) 0%,
+    color-mix(in srgb, var(--bm-blue-neural) 92%, #000000 8%) 100%
   );
   --sidebar-text: #f8fafc;
-  --sidebar-active-bg: color-mix(in srgb, var(--accent) 24%, transparent);
-  --sidebar-active-text: var(--accent);
+  --sidebar-active-bg: color-mix(in srgb, var(--bm-blue-conciencia) 28%, transparent);
+  --sidebar-active-text: var(--bm-blue-conciencia);
+  
+  /* Form fields */
   --field-bg-light: #ffffff;
-  --field-text-light: #111827;
-  --field-border-light: #d1d5db;
-  --field-placeholder-light: #6b7280;
-  --field-bg-dark: #041017;
+  --field-text-light: #1a2a3f;
+  --field-border-light: #d0d5db;
+  --field-placeholder-light: #6b7885;
+  --field-bg-dark: #1a2a3f;
   --field-text-dark: #f9fafb;
-  --field-border-dark: #1f2933;
+  --field-border-dark: #426387;
   --field-placeholder-dark: #9ca3af;
   --field-bg: var(--field-bg-light);
   --field-text: var(--field-text-light);
   --field-border: var(--field-border-light);
   --field-placeholder: var(--field-placeholder-light);
+
+  /* Legacy aliases (mantener compatibilidad) */
+  --primary-bg: var(--bg);
+  --primary-color: var(--brand);
+  --text-dark: var(--text);
+  --border-color: var(--border);
+  --muted: var(--text-muted);
+  --muted-2: #7a8a9c;
+  --surface-muted: var(--surface-2);
+  --shadow-soft: var(--shadow-2);
+  --radius-sm: var(--r-sm);
+  --radius-md: var(--r-md);
+  --radius-lg: 16px;
 }
 
+/* ===== DARK MODE - BreveMente ===== */
 [data-theme="dark"] {
-  --primary: #0f766e;
-  --secondary: #134e4a;
-  --accent: #22d3ee;
-  --text-primary: #e0f2f1;
-  --brand-ink: #052f2d;
+  /* Mantener identidad de marca en dark mode */
+  --primary: var(--bm-blue-neural);
+  --secondary: #5a7aa0;
+  --accent: var(--bm-blue-conciencia);
+  --brand-ink: #0f1820;
 
-  --bg: #031a1b;
-  --surface: #062225;
-  --surface-2: #0b2f33;
+  /* Dark backgrounds */
+  --bg: #0f1820;
+  --surface: #1a2a3f;
+  --surface-2: #243548;
+  
+  /* Dark text */
+  --text-primary: #e8ecef;
   --text: var(--text-primary);
-  --text-muted: #7dc4bc;
-  --border: #16484c;
-  --focus: #5eead4;
-  --shadow-1: 0 1px 3px rgba(4, 47, 49, 0.7);
-  --shadow-2: 0 28px 60px rgba(3, 26, 27, 0.6);
+  --text-muted: #9ca8b8;
+  
+  /* Dark borders */
+  --border: #3a4a5f;
+  
+  /* Focus permanece en Azul Conciencia */
+  --focus: var(--bm-blue-conciencia);
+  
+  /* Shadows ajustadas para dark */
+  --shadow-1: 0 1px 3px rgba(15, 24, 32, 0.7);
+  --shadow-2: 0 28px 60px rgba(15, 24, 32, 0.6);
+  
+  /* Dark module tokens */
   --muted: var(--text-muted);
-  --muted-2: #4fb4a9;
+  --muted-2: #7a8a9c;
   --surface-muted: var(--surface-2);
   --dashboard-module-title: #ffffff;
-  --dashboard-module-icon: #ffffff;
-  --dashboard-metric-icon: #22d3ee;
+  --dashboard-module-icon: var(--bm-blue-conciencia);
+  --dashboard-metric-icon: var(--bm-blue-conciencia);
+  
+  /* Dark sidebar */
   --sidebar-bg: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--primary) 80%, #031a1b 20%) 0%,
-    color-mix(in srgb, var(--secondary) 75%, #031a1b 25%) 100%
+    #1a2a3f 0%,
+    color-mix(in srgb, var(--bm-blue-neural) 85%, #000000 15%) 100%
   );
-  --sidebar-text: #e0f2f1;
-  --sidebar-active-bg: color-mix(in srgb, var(--accent) 28%, transparent);
-  --sidebar-active-text: var(--accent);
+  --sidebar-text: #e8ecef;
+  --sidebar-active-bg: color-mix(in srgb, var(--bm-blue-conciencia) 32%, transparent);
+  --sidebar-active-text: var(--bm-blue-conciencia);
+  
+  /* Dark form fields */
   --field-bg: var(--field-bg-dark);
   --field-text: var(--field-text-dark);
   --field-border: var(--field-border-dark);
@@ -4675,7 +4739,7 @@ main {
 
 /* =========================================
    MODALES DE ACCIÓN (Cámara / OTP)
-   Adaptado al Design System de Klinia
+   Adaptado al Design System de BreveMente
    ========================================= */
 
 /* Reutiliza la lógica de z-index y overlay de tu sistema */

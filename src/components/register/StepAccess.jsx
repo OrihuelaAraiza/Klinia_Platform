@@ -16,7 +16,7 @@ export default function StepAccess({
       <div className="register-step__header">
         <h2 className="register-step__title">Acceso</h2>
         <p className="register-step__subtitle">
-          Crea las credenciales que usaras para acceder a Klinia.
+          Crea las credenciales que usarás para acceder a BreveMente.
         </p>
       </div>
 
@@ -29,7 +29,7 @@ export default function StepAccess({
           onChange={handleChange}
           required
           autoComplete="email"
-          placeholder="profesional@klinialabs.mx"
+          placeholder="profesional@brevemente.mx"
           error={errors.email}
           disabled={disabled}
         />

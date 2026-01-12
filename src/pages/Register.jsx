@@ -26,7 +26,7 @@ import {
 import { useToast } from "../components/UI/Toast";
 import logo from "../assets/logo-romi.svg";
 
-const DRAFT_STORAGE_KEY = "klinia.register.draft";
+const DRAFT_STORAGE_KEY = "brevemente.register.draft";
 const REGISTER_ASIDE_IMAGE = null;
 
 const STEP_FLOW = [
@@ -674,7 +674,7 @@ export default function Register() {
                         <h1>Registro profesional</h1>
                         <p>
                             Completa los pasos para habilitar tu acceso como profesional de
-                            la salud en Klinia.
+                            la salud en BreveMente.
                         </p>
                     </div>
                 </header>

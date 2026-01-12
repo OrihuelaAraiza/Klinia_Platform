@@ -78,7 +78,7 @@ export default function NoteDetail() {
   const professional = useMemo(
     () => ({
       id: user?.id ?? "user",
-      name: user?.name ?? "Profesional Klinia",
+      name: user?.name ?? "Profesional BreveMente",
       license: user?.license || user?.kycRecord?.certificateFolio,
     }),
     [user]

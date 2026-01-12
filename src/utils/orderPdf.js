@@ -79,7 +79,7 @@ export async function generateOrderPdf({
     color: rgb(0.54, 0.79, 0.05),
   });
 
-  page.drawText("Klinia — Orden clínica", {
+  page.drawText("BreveMente — Orden clínica", {
     x: MARGIN,
     y: height - 35,
     font: fontBold,
@@ -108,7 +108,7 @@ export async function generateOrderPdf({
     size: 13,
   });
   cursorY -= LINE;
-  page.drawText(`Nombre: ${professional?.name || "Profesional Klinia"}`, {
+  page.drawText(`Nombre: ${professional?.name || "Profesional BreveMente"}`, {
     x: MARGIN,
     y: cursorY,
     font: fontRegular,
@@ -152,7 +152,7 @@ export async function generateOrderPdf({
     cursorY -= LINE * 0.5;
   }
 
-  page.drawText("Documento generado digitalmente por Klinia. Uso clínico exclusivo.", {
+  page.drawText("Documento generado digitalmente por BreveMente. Uso clínico exclusivo.", {
     x: MARGIN,
     y: 60,
     font: fontRegular,

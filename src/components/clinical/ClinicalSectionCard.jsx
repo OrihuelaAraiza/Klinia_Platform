@@ -21,3 +21,4 @@ export default function ClinicalSectionCard({ section, children }) {
 }
 
 
+

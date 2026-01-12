@@ -451,7 +451,7 @@ export default function ProfessionalProfile() {
                                         <InputField
                                             label="Correo Electrónico"
                                             type="email"
-                                            placeholder="asistente@klinia.mx"
+                                            placeholder="asistente@brevemente.mx"
                                             value={newDelegate.email}
                                             onChange={e => setNewDelegate({ ...newDelegate, email: e.target.value })}
                                             required

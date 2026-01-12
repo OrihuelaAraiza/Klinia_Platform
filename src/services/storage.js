@@ -1,7 +1,7 @@
-const TOKEN_KEY = "klinia.token";
-const ROLE_KEY = "klinia.role";
-const USER_KEY = "klinia.user";
-const PARTIAL_TOKEN_KEY = "klinia.partial_token";
+const TOKEN_KEY = "brevemente.token";
+const ROLE_KEY = "brevemente.role";
+const USER_KEY = "brevemente.user";
+const PARTIAL_TOKEN_KEY = "brevemente.partial_token";
 
 
 const isBrowser = () => typeof window !== "undefined";

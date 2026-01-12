@@ -212,7 +212,7 @@ export default function Login() {
       <div className="login-layout">
         <section className="login-card">
           <header className="login-card__header">
-            <img src={logo} alt="ROMI Klinia" className="login-logo" />
+            <img src={logo} alt="BreveMente" className="login-logo" />
             <ThemeToggle className="login-theme-toggle" />
           </header>
           <div className="stack-1">
@@ -251,7 +251,7 @@ export default function Login() {
               name="email"
               autoComplete="email"
               required
-              placeholder="profesional@klinialabs.mx"
+              placeholder="profesional@brevemente.mx"
               error={errors.email}
             />
 
@@ -332,7 +332,7 @@ export default function Login() {
             >
               <p style={{ margin: 0 }}>
                 {userType === "professional"
-                  ? "¿Eres nuevo en Klinia?"
+                  ? "¿Eres nuevo en BreveMente?"
                   : "¿Primera vez aquí?"}
               </p>
 
@@ -360,7 +360,7 @@ export default function Login() {
         >
           <img
             src={doctorImg}
-            alt="Profesional de salud usando la plataforma Klinia"
+            alt="Profesional de salud usando la plataforma BreveMente"
             className="login-hero__image"
           />
         </Motion.aside>

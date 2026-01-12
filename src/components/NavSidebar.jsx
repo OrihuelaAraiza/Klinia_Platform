@@ -78,8 +78,8 @@ export default function NavSidebar({
       aria-label="Navegación principal"
     >
       <div className="sidebar__brand">
-        <img className="sidebar__logo" src={logo} alt="Klinia" />
-        <span className="sidebar__title">Klinia</span>
+        <img className="sidebar__logo" src={logo} alt="BreveMente" />
+        <span className="sidebar__title">BreveMente</span>
       </div>
       <ul className="sidebar__list">
         {filteredItems.map((item) => (

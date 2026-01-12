@@ -75,8 +75,8 @@ export default function PatientNavSidebar({
       aria-label="Navegación del paciente"
     >
       <div className="sidebar__brand">
-        <img className="sidebar__logo" src={logo} alt="Klinia" />
-        <span className="sidebar__title">Klinia</span>
+        <img className="sidebar__logo" src={logo} alt="BreveMente" />
+        <span className="sidebar__title">BreveMente</span>
       </div>
       <ul className="sidebar__list">
         {PATIENT_NAV_ITEMS.map((item) => (

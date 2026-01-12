@@ -74,7 +74,7 @@ export default function PatientSessions() {
       <div className="show-only-print">
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
           <h1 style={{ fontSize: '24pt', margin: 0 }}>AGENDA DE SESIONES</h1>
-          <p style={{ fontSize: '12pt', color: '#666' }}>Plataforma Clínica Klinia</p>
+          <p style={{ fontSize: '12pt', color: '#666' }}>Plataforma Clínica BreveMente</p>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #000', paddingBottom: '1rem' }}>
           <span><strong>Paciente:</strong> {user?.firstName} {user?.lastName}</span>
