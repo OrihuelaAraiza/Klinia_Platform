@@ -200,6 +200,7 @@ export default function Prescriptions() {
                 clearTimeout(searchTimeoutRef.current);
             }
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [searchQuery]);
 
     const handleSearch = async (event) => {
@@ -444,14 +445,14 @@ export default function Prescriptions() {
                             </div>
                         ) : searchQuery.trim() && !searchLoading ? (
                             <EmptyState
-                                icon={<Search size={48} />}
+                                icon={Search}
                                 title="No se encontraron pacientes"
                                 message={`No encontramos resultados para "${searchQuery}"`}
                                 className="empty-state--small"
                             />
                         ) : !searchQuery.trim() ? (
                             <EmptyState
-                                icon={<Search size={48} />}
+                                icon={Search}
                                 title="Busca un paciente"
                                 message="Escribe el nombre, CURP o correo del paciente para comenzar"
                                 className="empty-state--small"
