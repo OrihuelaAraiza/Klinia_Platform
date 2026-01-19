@@ -85,7 +85,6 @@ export default function NavSidebar({
           alt="BreveMente"
           className="sidebar__logo"
         />
-        <span className="sidebar__title">BreveMente</span>
       </div>
       <ul className="sidebar__list">
         {filteredItems.map((item) => (

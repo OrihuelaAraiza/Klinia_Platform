@@ -82,7 +82,6 @@ export default function PatientNavSidebar({
           alt="BreveMente"
           className="sidebar__logo"
         />
-        <span className="sidebar__title">BreveMente</span>
       </div>
       <ul className="sidebar__list">
         {PATIENT_NAV_ITEMS.map((item) => (

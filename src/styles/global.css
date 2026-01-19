@@ -814,7 +814,8 @@ main {
 .sidebar__brand {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  justify-content: center;
+  width: 100%;
   margin-bottom: 2.5rem;
   transition: opacity 0.3s ease;
 }
@@ -826,8 +827,8 @@ main {
 }
 
 .sidebar__logo {
-  width: 36px;
-  height: 36px;
+  max-width: 100%;
+  height: auto;
 }
 
 .sidebar__title {
