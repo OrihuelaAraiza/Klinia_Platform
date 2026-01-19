@@ -80,16 +80,15 @@ export default function StepContact({
         <InputField
           label="Contacto de emergencia"
           name="emergencyName"
-          value={data.emergencyName || ''}
-          onChange={(name, value) => onChange?.({ [name]: value })}
-          required
+          value={data.emergencyName || ""}
+          onChange={handleChange}
           placeholder="Nombre completo"
           error={errors.emergencyName}
           disabled={disabled}
         />
 
         {/* TELÉFONO DE EMERGENCIA (Ahora con verificación) */}
-        <Field label="Teléfono de emergencia" required error={errors.emergencyPhone}>
+        <Field label="Teléfono de emergencia" error={errors.emergencyPhone}>
           <div className="phone-verify-input"> 
             <input
               name="emergencyPhone"

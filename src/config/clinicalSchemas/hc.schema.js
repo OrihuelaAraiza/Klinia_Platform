@@ -3,6 +3,7 @@
  * IDs alineados con backend / Prisma History model
  */
 import { MEXICAN_STATES } from "../../utils/constants";
+import { buildExpedienteNumber } from "../../utils/formatters";
 
 // Catalogs
 const GENDER_OPTIONS = [
@@ -97,9 +98,7 @@ export const HC_SCHEMA = {
           label: "No. Expediente",
           type: "readonly",
           computed: (_, context) =>
-            context?.patientId
-              ? `EXP-${context.patientId.slice(0, 8).toUpperCase()}`
-              : "",
+            context?.patient ? buildExpedienteNumber(context.patient) : "",
         },
         {
           id: "nombreCompleto",

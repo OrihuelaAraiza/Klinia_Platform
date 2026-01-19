@@ -24,7 +24,13 @@ function createInitialForm() {
     access: { email: "", password: "", confirmPassword: "" },
     identity: { firstName: "", lastName: "", curp: "", birthDate: "", gender: "" },
     source: { referral: "", purpose: "" }, 
-    contact: { phone: "", emergencyName: "", emergencyPhone: "", phoneIsVerified: false },
+    contact: {
+      phone: "",
+      emergencyName: "",
+      emergencyPhone: "",
+      phoneIsVerified: false,
+      emergencyPhoneIsVerified: false,
+    },
   };
 }
 
@@ -56,10 +62,22 @@ function validateSource(data) {
 }
 function validateContact(data) {
   const errors = {};
-  if (!isValidMXPhone(data.phone)) { errors.phone = "Teléfono inválido (10 dígitos)."; }
-  if (!data.phoneIsVerified) { errors.phone = "Debes verificar tu teléfono."; }
-  if (!minLength(data.emergencyName, 2)) { errors.emergencyName = "Nombre de contacto requerido."; }
-  if (!isValidMXPhone(data.emergencyPhone)) { errors.emergencyPhone = "Teléfono de emergencia inválido."; }
+  const emergencyName = String(data.emergencyName || "").trim();
+  const emergencyPhone = String(data.emergencyPhone || "").trim();
+
+  if (!isValidMXPhone(data.phone)) {
+    errors.phone = "Teléfono inválido (10 dígitos).";
+  }
+  if (!data.phoneIsVerified) {
+    errors.phone = "Debes verificar tu teléfono.";
+  }
+
+  if (emergencyName && !minLength(emergencyName, 2)) {
+    errors.emergencyName = "Nombre de contacto inválido.";
+  }
+  if (emergencyPhone && !isValidMXPhone(emergencyPhone)) {
+    errors.emergencyPhone = "Teléfono de emergencia inválido.";
+  }
   return errors;
 }
 

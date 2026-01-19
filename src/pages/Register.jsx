@@ -215,20 +215,20 @@ function validateAddress(data) {
 
 function validateContact(data) {
     const errors = {};
+    const emergencyName = String(data.emergencyName || "").trim();
+    const emergencyPhone = String(data.emergencyPhone || "").trim();
+
     if (!isValidMXPhone(data.phone)) {
         errors.phone = "Ingresa un telefono movil de 10 digitos.";
     }
     if (!data.phoneIsVerified) {
         errors.phone = "Debes verificar tu número de teléfono.";
     }
-    if (!minLength(data.emergencyName, 2)) {
-        errors.emergencyName = "Ingresa el nombre de tu contacto de emergencia.";
+    if (emergencyName && !minLength(emergencyName, 2)) {
+        errors.emergencyName = "Ingresa un nombre válido para tu contacto de emergencia.";
     }
-    if (!isValidMXPhone(data.emergencyPhone)) {
+    if (emergencyPhone && !isValidMXPhone(emergencyPhone)) {
         errors.emergencyPhone = "Ingresa un telefono de emergencia de 10 digitos.";
-    }
-    if (!data.emergencyPhoneIsVerified) {
-        errors.emergencyPhone = "Debes verificar el número de emergencia.";
     }
     return errors;
 }
