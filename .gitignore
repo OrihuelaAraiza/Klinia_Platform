@@ -28,3 +28,8 @@ dist-ssr
 .env.local
 klinia-api/.env
 klinia-api/.env.local
+
+# Documents (do not commit)
+*.pdf
+*.doc
+*.docx

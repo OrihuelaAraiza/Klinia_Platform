@@ -7,7 +7,7 @@ import StepContact from "../components/register/StepContact";
 import StepPatientSource from "../components/register/StepPatientSource"; 
 import ButtonPrimary from "../components/ButtonPrimary";
 import { useToast } from "../components/UI/Toast";
-import logo from "../assets/logo-romi.svg";
+import Logo from "../components/Brand/Logo";
 import { ROUTES } from "../utils/constants";
 import apiClient from "../services/apiClient";
 import { isValidEmail, isValidPassword, minLength, required, isValidMXPhone, isAdult, isValidCURP } from "../utils/validators";
@@ -177,7 +177,13 @@ export default function PatientRegister() {
     <div className="register-page">
       <section className="register-main">
         <header className="register-header">
-          <img src={logo} alt="Logo" className="register-logo" />
+          <Logo
+            variant="horizontal"
+            size="lg"
+            theme="light"
+            alt="BreveMente"
+            className="register-logo"
+          />
           <div className="register-heading">
             <h1>Registro de Paciente</h1>
             <p>Crea tu expediente digital para conectar con tus especialistas.</p>

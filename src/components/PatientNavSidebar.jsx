@@ -1,4 +1,4 @@
-import logo from "../assets/logo-romi.svg";
+import Logo from "./Brand/Logo";
 import { ROLES } from "../utils/constants";
 import SidebarLink from "./SidebarLink";
 
@@ -75,7 +75,13 @@ export default function PatientNavSidebar({
       aria-label="Navegación del paciente"
     >
       <div className="sidebar__brand">
-        <img className="sidebar__logo" src={logo} alt="BreveMente" />
+        <Logo
+          variant="horizontal"
+          size="sm"
+          theme="dark"
+          alt="BreveMente"
+          className="sidebar__logo"
+        />
         <span className="sidebar__title">BreveMente</span>
       </div>
       <ul className="sidebar__list">

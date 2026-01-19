@@ -21,7 +21,7 @@ import { ROLES, ROUTES } from "../utils/constants";
 import { isValidEmail, isValidPassword } from "../utils/validators";
 import { useToast } from "../components/UI/Toast";
 import doctorImg from "../assets/hero/doctor-login.jpg";
-import logo from "../assets/logo-romi.svg";
+import Logo from "../components/Brand/Logo";
 const INITIAL_FORM = {
   email: "",
   password: "",
@@ -212,7 +212,13 @@ export default function Login() {
       <div className="login-layout">
         <section className="login-card">
           <header className="login-card__header">
-            <img src={logo} alt="BreveMente" className="login-logo" />
+            <Logo
+              variant="horizontal"
+              size="lg"
+              theme="light"
+              alt="BreveMente"
+              className="login-logo"
+            />
             <ThemeToggle className="login-theme-toggle" />
           </header>
           <div className="stack-1">

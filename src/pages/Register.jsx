@@ -24,7 +24,7 @@ import {
     required,
 } from "../utils/validators";
 import { useToast } from "../components/UI/Toast";
-import logo from "../assets/logo-romi.svg";
+import Logo from "../components/Brand/Logo";
 
 const DRAFT_STORAGE_KEY = "brevemente.register.draft";
 const REGISTER_ASIDE_IMAGE = null;
@@ -669,7 +669,13 @@ export default function Register() {
         <div className="register-page">
             <section className="register-main">
                 <header className="register-header">
-                    <img src={logo} alt="BreveMente" className="register-logo" />
+                    <Logo
+                        variant="horizontal"
+                        size="lg"
+                        theme="light"
+                        alt="BreveMente"
+                        className="register-logo"
+                    />
                     <div className="register-heading">
                         <h1>Registro profesional</h1>
                         <p>
