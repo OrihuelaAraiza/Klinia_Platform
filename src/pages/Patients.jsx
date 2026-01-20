@@ -281,7 +281,11 @@ export default function Patients() {
             }
           />
         ) : (
-          <Table density="compact" aria-label="Listado de pacientes">
+          <Table
+            density="compact"
+            aria-label="Listado de pacientes"
+            className="table--responsive"
+          >
             <thead>
               <tr>
                 <th>Nombre</th>

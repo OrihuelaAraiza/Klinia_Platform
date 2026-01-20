@@ -672,7 +672,7 @@ export default function Register() {
                     <Logo
                         variant="horizontal"
                         size="lg"
-                        theme="light"
+                        theme="auto"
                         alt="BreveMente"
                         className="register-logo"
                     />

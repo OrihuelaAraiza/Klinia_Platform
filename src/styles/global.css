@@ -827,7 +827,7 @@ main {
 }
 
 .sidebar__logo {
-  max-width: 100%;
+  width: min(160px, 100%);
   height: auto;
 }
 
@@ -1160,7 +1160,15 @@ main {
 }
 
 .patients-header__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
   gap: var(--s-3);
+}
+
+.patients-header__actions .ui-field {
+  flex: 1 1 240px;
+  min-width: 220px;
 }
 
 .patients-header__actions .ui-btn {
@@ -2045,6 +2053,10 @@ main {
   font-size: 0.9rem;
 }
 
+.ui-table.table--responsive {
+  min-width: 720px;
+}
+
 .ui-table thead th {
   position: sticky;
   top: 0;
@@ -2782,6 +2794,23 @@ main {
   align-items: flex-start;
 }
 
+@media (max-width: 1024px) {
+  .sessions-header__actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .sessions-filters {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sessions-filters__field,
+  .sessions-filters__actions {
+    width: 100%;
+  }
+}
+
 @media (max-width: 768px) {
   .sessions-filters__new {
     width: 100%;
@@ -2968,6 +2997,13 @@ main {
   justify-content: flex-end;
   gap: 0.35rem;
   align-items: center;
+}
+
+@media (max-width: 768px) {
+  .session-actions-cell {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
 }
 
 .sessions-calendar__layout {
@@ -3547,8 +3583,9 @@ main {
 }
 
 .login-logo {
-  width: 44px;
-  height: 44px;
+  width: min(220px, 100%);
+  height: auto;
+  max-width: 220px;
 }
 
 .login-title {
@@ -4290,8 +4327,9 @@ main {
 }
 
 .register-logo {
-  width: 64px;
+  width: min(220px, 100%);
   height: auto;
+  max-width: 220px;
 }
 
 .register-heading h1 {

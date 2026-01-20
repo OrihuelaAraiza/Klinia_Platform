@@ -1,3 +1,4 @@
+import { useTheme } from "../../hooks/useTheme";
 import logoHorizontal from "../../assets/brand/logo-brevemente-horizontal.png";
 import logoVertical from "../../assets/brand/logo-brevemente-vertical.png";
 import logoHorizontalOnBlue from "../../assets/brand/logo-brevemente-horizontal-on-blue.png";
@@ -23,11 +24,13 @@ const SIZE_WIDTH = {
 export default function Logo({
   variant = "horizontal",
   size = "md",
-  theme = "light",
+  theme = "auto",
   alt = "BreveMente",
   className = "",
 }) {
-  const asset = VARIANT_ASSET[variant]?.[theme] || logoHorizontal;
+  const { theme: systemTheme } = useTheme();
+  const resolvedTheme = theme === "auto" ? systemTheme : theme;
+  const asset = VARIANT_ASSET[variant]?.[resolvedTheme] || logoHorizontal;
   const width = SIZE_WIDTH[size] ?? SIZE_WIDTH.md;
 
   return (

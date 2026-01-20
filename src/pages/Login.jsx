@@ -215,7 +215,7 @@ export default function Login() {
             <Logo
               variant="horizontal"
               size="lg"
-              theme="light"
+              theme="auto"
               alt="BreveMente"
               className="login-logo"
             />

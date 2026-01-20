@@ -488,7 +488,7 @@ export default function Sessions() {
             </div>
 
             <Motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-                <Table density="compact">
+                <Table density="compact" className="table--responsive">
                     <thead>
                         <tr>
                             <th>Fecha y hora</th>

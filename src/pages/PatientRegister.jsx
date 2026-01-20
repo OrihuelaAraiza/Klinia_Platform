@@ -180,7 +180,7 @@ export default function PatientRegister() {
           <Logo
             variant="horizontal"
             size="lg"
-            theme="light"
+            theme="auto"
             alt="BreveMente"
             className="register-logo"
           />
