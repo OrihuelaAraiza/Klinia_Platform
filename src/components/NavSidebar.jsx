@@ -80,7 +80,7 @@ export default function NavSidebar({
       <div className="sidebar__brand">
         <Logo
           variant="horizontal"
-          size="sm"
+          size="md"
           theme="dark"
           alt="BreveMente"
           className="sidebar__logo"

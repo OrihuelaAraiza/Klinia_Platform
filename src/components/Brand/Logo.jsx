@@ -16,9 +16,9 @@ const VARIANT_ASSET = {
 };
 
 const SIZE_WIDTH = {
-    sm: 120,
-    md: 160,
-    lg: 200,
+    sm: 140,
+    md: 180,
+    lg: 220,
 };
 
 export default function Logo({

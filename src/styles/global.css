@@ -816,7 +816,8 @@ main {
   align-items: center;
   justify-content: center;
   width: 100%;
-  margin-bottom: 2.5rem;
+  padding: 0.75rem 1rem;
+  margin-bottom: 2rem;
   transition: opacity 0.3s ease;
 }
 
@@ -827,9 +828,9 @@ main {
 }
 
 .sidebar__logo {
-  width: min(150px, 100%);
+  width: min(180px, 100%);
   height: auto;
-  max-height: 32px;
+  max-height: 50px;
   object-fit: contain;
   display: block;
 }
