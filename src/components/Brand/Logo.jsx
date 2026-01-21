@@ -1,7 +1,6 @@
 import { useTheme } from "../../hooks/useTheme";
 import logoHorizontal from "../../assets/brand/logo-brevemente-horizontal.png";
 import logoVertical from "../../assets/brand/logo-brevemente-vertical.png";
-import logoHorizontalOnBlue from "../../assets/brand/logo-brevemente-horizontal-on-blue.png";
 import logoHorizontalDark from "../../assets/brand/logo-brevemente-horizontal-dark.png";
 import logoVerticalOnBlue from "../../assets/brand/logo-brevemente-vertical-on-blue.png";
 
