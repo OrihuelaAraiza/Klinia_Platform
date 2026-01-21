@@ -81,7 +81,7 @@ export default function NavSidebar({
         <Logo
           variant="horizontal"
           size="sm"
-          theme="light"
+          theme="dark"
           alt="BreveMente"
           className="sidebar__logo"
         />
