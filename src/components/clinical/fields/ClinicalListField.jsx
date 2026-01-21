@@ -4,6 +4,17 @@ import Button from "../../UI/Button";
 import ClinicalFieldRenderer from "./ClinicalFieldRenderer";
 import { Plus, X } from "lucide-react";
 
+/**
+ * Extrae el mensaje de error de un objeto de error de React Hook Form.
+ */
+function extractErrorMessage(error) {
+  if (!error) return undefined;
+  if (typeof error === "string") return error;
+  if (typeof error === "object" && error.message) return error.message;
+  if (Array.isArray(error)) return undefined;
+  return undefined;
+}
+
 export default function ClinicalListField({
   field,
   value = [],
@@ -14,6 +25,8 @@ export default function ClinicalListField({
   context = {},
 }) {
   const [localErrors, setLocalErrors] = useState({});
+  // Aseguramos que el error sea un string, no un objeto
+  const errorMessage = extractErrorMessage(error);
 
   const handleAdd = () => {
     const newItem = {};
@@ -57,7 +70,7 @@ export default function ClinicalListField({
   };
 
   return (
-    <Field label={field.label} required={field.required} error={error} hint={field.helperText}>
+    <Field label={field.label} required={field.required} error={errorMessage} hint={field.helperText}>
       <div className="clinical-list-field">
         {value.length === 0 ? (
           <p className="helper-text" style={{ fontStyle: "italic" }}>
