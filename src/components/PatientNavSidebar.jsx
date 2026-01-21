@@ -78,7 +78,7 @@ export default function PatientNavSidebar({
         <Logo
           variant="horizontal"
           size="sm"
-          theme="auto"
+          theme="dark"
           alt="BreveMente"
           className="sidebar__logo"
         />

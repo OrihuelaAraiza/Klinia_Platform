@@ -827,8 +827,11 @@ main {
 }
 
 .sidebar__logo {
-  width: min(160px, 100%);
+  width: min(170px, 100%);
   height: auto;
+  max-height: 40px;
+  object-fit: contain;
+  display: block;
 }
 
 .sidebar__title {
@@ -3586,6 +3589,8 @@ main {
   width: min(220px, 100%);
   height: auto;
   max-width: 220px;
+  object-fit: contain;
+  display: block;
 }
 
 .login-title {
@@ -4330,6 +4335,8 @@ main {
   width: min(220px, 100%);
   height: auto;
   max-width: 220px;
+  object-fit: contain;
+  display: block;
 }
 
 .register-heading h1 {
