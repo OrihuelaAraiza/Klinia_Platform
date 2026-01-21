@@ -827,9 +827,9 @@ main {
 }
 
 .sidebar__logo {
-  width: min(170px, 100%);
+  width: min(150px, 100%);
   height: auto;
-  max-height: 40px;
+  max-height: 32px;
   object-fit: contain;
   display: block;
 }
