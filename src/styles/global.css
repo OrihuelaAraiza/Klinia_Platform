@@ -92,11 +92,11 @@
   --line-tight: 1.25;
   --line-normal: 1.5;
 
-  /* Sidebar usando Azul Neural como base */
+  /* Sidebar usando Azul Neural claro para resaltar logo */
   --sidebar-bg: linear-gradient(
     180deg,
-    var(--bm-blue-neural) 0%,
-    color-mix(in srgb, var(--bm-blue-neural) 92%, #000000 8%) 100%
+    color-mix(in srgb, var(--bm-blue-neural) 85%, #ffffff 15%) 0%,
+    color-mix(in srgb, var(--bm-blue-neural) 75%, #ffffff 25%) 100%
   );
   --sidebar-text: #f8fafc;
   --sidebar-active-bg: color-mix(in srgb, var(--bm-blue-conciencia) 28%, transparent);
@@ -169,8 +169,8 @@
   /* Dark sidebar */
   --sidebar-bg: linear-gradient(
     180deg,
-    #1a2a3f 0%,
-    color-mix(in srgb, var(--bm-blue-neural) 85%, #000000 15%) 100%
+    color-mix(in srgb, var(--bm-blue-neural) 92%, #000000 8%) 0%,
+    color-mix(in srgb, var(--bm-blue-neural) 80%, #000000 20%) 100%
   );
   --sidebar-text: #e8ecef;
   --sidebar-active-bg: color-mix(in srgb, var(--bm-blue-conciencia) 32%, transparent);
