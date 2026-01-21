@@ -1,7 +1,7 @@
 import { useTheme } from "../../hooks/useTheme";
 import logoHorizontal from "../../assets/brand/logo-brevemente-horizontal.png";
 import logoVertical from "../../assets/brand/logo-brevemente-vertical.png";
-import logoHorizontalDark from "../../assets/brand/Logotipo-BreveMente_Fondo-Azul-horizontal-Transparente";
+import logoHorizontalDark from "../../assets/brand/Logotipo-BreveMente_Fondo-Azul-horizontal-Transparente.png";
 import logoVerticalOnBlue from "../../assets/brand/logo-brevemente-vertical-on-blue.png";
 
 const VARIANT_ASSET = {
