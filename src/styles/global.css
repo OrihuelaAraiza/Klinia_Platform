@@ -166,11 +166,11 @@
   --dashboard-module-icon: var(--bm-blue-conciencia);
   --dashboard-metric-icon: var(--bm-blue-conciencia);
   
-  /* Dark sidebar */
+  /* Dark sidebar (aclarado para contraste de logo) */
   --sidebar-bg: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--bm-blue-neural) 92%, #000000 8%) 0%,
-    color-mix(in srgb, var(--bm-blue-neural) 80%, #000000 20%) 100%
+    color-mix(in srgb, var(--bm-blue-neural) 70%, #000000 30%) 0%,
+    color-mix(in srgb, var(--bm-blue-neural) 60%, #000000 40%) 100%
   );
   --sidebar-text: #e8ecef;
   --sidebar-active-bg: color-mix(in srgb, var(--bm-blue-conciencia) 32%, transparent);
