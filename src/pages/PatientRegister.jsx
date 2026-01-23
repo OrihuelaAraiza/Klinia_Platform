@@ -15,7 +15,6 @@ import { isValidEmail, isValidPassword, minLength, required, isValidMXPhone, isA
 const STEP_FLOW = [
   { id: "access", label: "Cuenta y Acceso", component: StepAccess },
   { id: "identity", label: "Datos Personales", component: StepIdentity },
-  { id: "address", label: "Domicilio", component: StepAddress }, // <-- AGREGADO
   { id: "source", label: "Motivo y Fuente", component: StepPatientSource }, 
   { id: "contact", label: "Contacto", component: StepContact },
 ];
@@ -31,13 +30,6 @@ function createInitialForm() {
       emergencyPhone: "",
       phoneIsVerified: false,
       emergencyPhoneIsVerified: false,
-    },
-    address: {
-      street: "",
-      neighborhood: "",
-      postalCode: "",
-      city: "",
-      state: "",
     },
   };
 }

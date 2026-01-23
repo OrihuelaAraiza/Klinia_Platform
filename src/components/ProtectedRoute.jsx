@@ -141,11 +141,11 @@ export default function ProtectedRoute({ allow, children }) {
           id={sidebarId}
         />
       ) : (
-        <NavSidebar
-          role={role}
-          collapsed={sidebarCollapsed}
-          id={sidebarId}
-        />
+      <NavSidebar
+        role={role}
+        collapsed={sidebarCollapsed}
+        id={sidebarId}
+      />
       )}
       {shouldShowOverlay ? (
         <button

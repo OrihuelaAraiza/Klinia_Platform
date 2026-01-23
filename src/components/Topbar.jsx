@@ -93,7 +93,7 @@ export default function Topbar({
         if (role === ROLES.PATIENT) {
             navigate("/patient/profile");
         } else {
-            navigate("/ProfileProfessional"); 
+        navigate("/ProfileProfessional"); 
         }
     };
 

@@ -14,19 +14,6 @@ import ClinicalReadonlyField from "./ClinicalReadonlyField";
 import ClinicalListField from "./ClinicalListField";
 import ClinicalFileField from "./ClinicalFileField";
 
-/**
- * Extrae el mensaje de error de un objeto de error de React Hook Form.
- * Maneja tanto strings simples como objetos con propiedad `message`.
- */
-function extractErrorMessage(error) {
-  if (!error) return undefined;
-  if (typeof error === "string") return error;
-  if (typeof error === "object" && error.message) return error.message;
-  // Para errores de arrays/listas, no mostramos el error en el nivel superior
-  if (Array.isArray(error)) return undefined;
-  return undefined;
-}
-
 export default function ClinicalFieldRenderer({
   field,
   value,
@@ -36,8 +23,7 @@ export default function ClinicalFieldRenderer({
   context = {},
   formData = {},
 }) {
-  const rawError = errors[field.id];
-  const fieldError = extractErrorMessage(rawError);
+  const fieldError = errors[field.id];
   const isReadonly = readOnly || field.type === "readonly";
   const shouldShow = useMemo(() => {
     if (!field.conditional) return true;

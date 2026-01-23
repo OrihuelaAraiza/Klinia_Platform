@@ -14,11 +14,8 @@
     }
   ],
   "rewrites": [
-  {
-    "source": "/((?!api/|assets/|favicon.ico|logo192.png).*).*",
-    "destination": "/index.html"
-  }
-],
+    { "source": "/(.*)", "destination": "/index.html" }
+  ],
   "headers": [
     {
       "source": "/(.*)",

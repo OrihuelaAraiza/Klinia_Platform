@@ -160,43 +160,29 @@ export default function Patients() {
   };
 
   const handleCreateOrUpdate = async (payload) => {
-    // Mapeo exhaustivo para coincidir con el esquema de la base de datos y Zod
     const basePayload = {
-      // Datos Personales
       firstName: payload.firstName,
       lastName: payload.lastName,
       curp: payload.curp?.toUpperCase() || undefined,
       birthDate: payload.birthDate,
+      
       gender: payload.gender, 
+      
       phone: payload.phone,
       email: payload.email,
-      
-      // Domicilio (Campos críticos para evitar el Error 500)
-      postalCode: payload.postalCode || "",
-      state: payload.state || "",
-      municipality: payload.city || payload.municipality || "", // Soporta ambos nombres del form
-      neighborhood: payload.neighborhood || "",
-      street: payload.street || "",
+      attachments: payload.attachments,
 
-      // Datos Demográficos y Clínicos
-      nationality: payload.nationality || "Mexicana",
-      occupation: payload.occupation || "",
-      civilStatus: payload.civilStatus || "",
-      religion: payload.religion || "",
-      education: payload.education || "",
-      genderIdentity: payload.genderIdentity || "",
-      
-      // Referencia y Motivo
       referral: payload.referral,
       purpose: payload.purpose,
       emergencyName: payload.emergencyName,
       emergencyPhone: payload.emergencyPhone,
+
+      
     };
-
-    console.log("PAYLOAD COMPLETO ENVIADO:", basePayload);
-
+    console.log("PAYLOAD ENVIADO AL BACKEND:", basePayload);
     try {
       if (editingPatient) {
+        // En el caso de UPDATE, Zod permite campos opcionales, por lo que este payload es correcto.
         await updatePatient(editingPatient.id, basePayload);
         auditService.logAudit("patient_update", {
           id: editingPatient.id,
@@ -204,23 +190,24 @@ export default function Patients() {
         });
         toast.success("Paciente actualizado correctamente");
       } else {
+        // En el caso de CREATE, el backend espera TODOS los campos
         const created = await createPatient(basePayload);
         auditService.logAudit("patient_create", {
           id: created?.id,
           curp: basePayload.curp,
         });
-        toast.success("Paciente registrado con éxito");
+        toast.success("Paciente creado");
       }
 
       await refreshList();
       handleCloseDrawer();
     } catch (err) {
-      // Manejo de errores detallado
+      // Intenta obtener un mensaje de error detallado del backend
       let message = "No pudimos guardar el paciente.";
-      if (err.status === 409) {
-          message = "El CURP o correo electrónico ya existen.";
-      } else if (err.data?.message) {
-          message = err.data.message;
+      if (err.response && err.response.data && err.response.data.message) {
+          message = err.response.data.message;
+      } else if (err.message) {
+          message = err.message;
       }
       
       setError(message);
