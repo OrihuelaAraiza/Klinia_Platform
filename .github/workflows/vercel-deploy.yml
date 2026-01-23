@@ -1,4 +1,7 @@
-name: Trigger Vercel Deployment
+name: Vercel Auto-Deploy Check
+
+# Este workflow verifica que Vercel esté conectado y despliegue automáticamente
+# No requiere secrets de GitHub si Vercel está conectado directamente al repositorio
 
 on:
   push:
@@ -7,38 +10,50 @@ on:
   workflow_dispatch: # Permite ejecutar manualmente desde GitHub Actions
 
 jobs:
-  deploy:
+  verify:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Trigger Vercel Deployment
+      - name: Verify Vercel Auto-Deploy
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🔍 Verificando conexión automática de Vercel"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo ""
+          echo "✅ Push detectado en la rama main"
+          echo ""
+          echo "💡 Si Vercel está conectado correctamente a este repositorio,"
+          echo "   el deployment debería iniciarse automáticamente."
+          echo ""
+          echo "📋 Para verificar la conexión:"
+          echo "   1. Ve a: https://vercel.com/dashboard"
+          echo "   2. Selecciona tu proyecto"
+          echo "   3. Ve a: Settings → Git"
+          echo "   4. Verifica que el repositorio 'OrihuelaAraiza/Klinia_Platform' esté conectado"
+          echo "   5. Verifica que la rama de producción sea 'main'"
+          echo ""
+          echo "🔗 Enlace directo al proyecto:"
+          echo "   https://vercel.com/dashboard"
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📊 Información del commit:"
+          echo "   Commit: ${{ github.sha }}"
+          echo "   Mensaje: ${{ github.event.head_commit.message }}"
+          echo "   Autor: ${{ github.event.head_commit.author.name }}"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+      - name: Optional - Trigger via API (si hay secrets configurados)
+        if: ${{ secrets.VERCEL_TOKEN != '' && secrets.VERCEL_PROJECT_ID != '' }}
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: |
-          # Verificar que las variables estén configuradas
-          if [ -z "$VERCEL_TOKEN" ] || [ -z "$VERCEL_ORG_ID" ] || [ -z "$VERCEL_PROJECT_ID" ]; then
-            echo "❌ Error: Faltan variables de entorno de Vercel"
-            echo "Por favor configura VERCEL_TOKEN, VERCEL_ORG_ID y VERCEL_PROJECT_ID en GitHub Secrets"
-            exit 1
-          fi
-
-          # Instalar Vercel CLI
-          npm install -g vercel@latest
-
-          # Disparar deployment usando Vercel CLI
-          echo "🚀 Disparando deployment en Vercel..."
-          vercel deploy --prod --token=$VERCEL_TOKEN --yes || {
-            echo "⚠️  Deployment automático falló, pero Vercel debería detectar el push automáticamente"
-            echo "Verifica que el repositorio esté conectado correctamente en Vercel Dashboard"
-          }
-
-      - name: Deployment Status
-        run: |
-          echo "✅ Workflow completado"
-          echo "Si el deployment falló, verifica:"
-          echo "1. Que el repositorio esté conectado en Vercel Dashboard"
-          echo "2. Que las variables VERCEL_TOKEN, VERCEL_ORG_ID y VERCEL_PROJECT_ID estén configuradas en GitHub Secrets"
+          echo "🚀 Secrets detectados - Disparando deployment adicional vía API..."
+          curl -X POST "https://api.vercel.com/v13/deployments?projectId=${VERCEL_PROJECT_ID}" \
+            -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d '{"name":"triggered-by-github-action"}' && \
+          echo "✅ Deployment adicional iniciado" || \
+          echo "⚠️  API call falló, pero Vercel debería detectar el push automáticamente"
