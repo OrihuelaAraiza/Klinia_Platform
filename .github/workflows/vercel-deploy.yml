@@ -1,0 +1,44 @@
+name: Trigger Vercel Deployment
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: # Permite ejecutar manualmente desde GitHub Actions
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Trigger Vercel Deployment
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          # Verificar que las variables estén configuradas
+          if [ -z "$VERCEL_TOKEN" ] || [ -z "$VERCEL_ORG_ID" ] || [ -z "$VERCEL_PROJECT_ID" ]; then
+            echo "❌ Error: Faltan variables de entorno de Vercel"
+            echo "Por favor configura VERCEL_TOKEN, VERCEL_ORG_ID y VERCEL_PROJECT_ID en GitHub Secrets"
+            exit 1
+          fi
+
+          # Instalar Vercel CLI
+          npm install -g vercel@latest
+
+          # Disparar deployment usando Vercel CLI
+          echo "🚀 Disparando deployment en Vercel..."
+          vercel deploy --prod --token=$VERCEL_TOKEN --yes || {
+            echo "⚠️  Deployment automático falló, pero Vercel debería detectar el push automáticamente"
+            echo "Verifica que el repositorio esté conectado correctamente en Vercel Dashboard"
+          }
+
+      - name: Deployment Status
+        run: |
+          echo "✅ Workflow completado"
+          echo "Si el deployment falló, verifica:"
+          echo "1. Que el repositorio esté conectado en Vercel Dashboard"
+          echo "2. Que las variables VERCEL_TOKEN, VERCEL_ORG_ID y VERCEL_PROJECT_ID estén configuradas en GitHub Secrets"

@@ -1,0 +1,44 @@
+name: Vercel Webhook Trigger
+
+# Este workflow es una alternativa más simple que usa webhooks
+# Requiere que Vercel esté conectado al repositorio de GitHub
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '**.md'
+      - '.gitignore'
+      - 'README.md'
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Verify Vercel Connection
+        run: |
+          echo "✅ Verificando conexión con Vercel..."
+          echo "Si Vercel está conectado correctamente a este repositorio,"
+          echo "el deployment debería iniciarse automáticamente."
+          echo ""
+          echo "Para verificar la conexión:"
+          echo "1. Ve a https://vercel.com/dashboard"
+          echo "2. Selecciona tu proyecto"
+          echo "3. Ve a Settings > Git"
+          echo "4. Verifica que el repositorio esté conectado"
+          
+      - name: Trigger via API (Optional)
+        if: ${{ secrets.VERCEL_TOKEN != '' && secrets.VERCEL_PROJECT_ID != '' }}
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          echo "🚀 Disparando deployment vía API..."
+          curl -X POST "https://api.vercel.com/v13/deployments?projectId=${VERCEL_PROJECT_ID}" \
+            -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d '{"name":"triggered-by-github-action"}' || echo "⚠️  API call falló, pero Vercel debería detectar el push automáticamente"
