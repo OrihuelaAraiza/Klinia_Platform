@@ -294,7 +294,7 @@ function buildPayload(form) {
             street: sanitize(form.address.street),
             neighborhood: sanitize(form.address.neighborhood),
             postalCode: sanitize(form.address.postalCode),
-            city: sanitize(form.address.city),
+            municipality: sanitize(form.address.city), // Mapeo para el backend
             state: form.address.state,
         },
         contact: {

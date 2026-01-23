@@ -32,6 +32,11 @@ export default defineConfig({
         secure: false,
         ws: true,
       },
+      '/api-dipomex': {
+        target: 'https://api.tau.com.mx/dipomex/v1',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api-dipomex/, ''),
+      },
     },
   },
 });
