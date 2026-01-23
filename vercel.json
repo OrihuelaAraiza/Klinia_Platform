@@ -1,36 +1,17 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "version": 2,
+  "framework": "vite",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "trailingSlash": false,
-  "cleanUrls": true,
-  "redirects": [
-    {
-      "source": "/(.*)",
-      "has": [{ "type": "host", "value": "brevemente.ai" }],
-      "destination": "https://www.brevemente.ai/$1",
-      "statusCode": 308
-    }
-  ],
   "rewrites": [
-    { "source": "/assets/:path*", "destination": "/assets/:path*" },
-    { "source": "/:path*", "destination": "/index.html" }
+    { "source": "/((?!assets/).*)", "destination": "/index.html" }
   ],
   "headers": [
     {
       "source": "/(.*)",
       "headers": [
         { "key": "X-Content-Type-Options", "value": "nosniff" },
-        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
-        { "key": "X-Frame-Options", "value": "DENY" },
-        { "key": "Permissions-Policy", "value": "camera=(), geolocation=(), microphone=()" }
-      ]
-    },
-    {
-      "source": "/index.html",
-      "headers": [
-        { "key": "Cache-Control", "value": "no-store" }
+        { "key": "X-Frame-Options", "value": "DENY" }
       ]
     },
     {
