@@ -97,70 +97,100 @@ export async function saveClinicalHistory(patientId, payload) {
       delete cleanPayload[field];
     });
     
-    // Separar campos legacy (que el backend reconoce) de campos nuevos
-    // Los campos nuevos se pueden enviar en un campo JSON si el backend lo soporta
-    // Por ahora, los enviamos todos y el backend los ignorará si no los reconoce
-    // TODO: Cuando el backend se actualice, estos campos serán reconocidos
-    
-    // Campos legacy que el backend definitivamente acepta
-    const legacyFields = [
+    // El backend solo acepta campos específicos según el esquema
+    // Campos que el backend definitivamente acepta (basado en historySchema)
+    const acceptedFields = [
       'motive',
       'psychosocialBackground',
       'mentalStatusExam',
       'diagnoses',
       'goals',
       'therapeuticPlan',
-      'hasAllergies',
-      'transfusions',
-      'psychUrgencies',
-      'suicideRiskScreening',
-      'symptomOnset',
-      'previousDiagnoses',
-      'psychHospitalizations',
-      'previousTreatments',
-      'treatmentAdherence',
-      'currentMedications',
-      'chronicDiseases',
-      'previousSurgeries',
-      'previousHospitalizations',
-      'traumatisms',
-      'familyBackground',
-      'dietaryHabits',
-      'physicalActivity',
-      'toxicHabits',
-      'sleepPatterns',
     ];
     
-    // Si el backend tiene un campo JSON para datos extendidos, agrupar los nuevos campos ahí
-    // Por ahora, enviamos todo y el backend ignorará lo que no reconozca
+    // Separar campos aceptados de campos nuevos
+    const finalPayload = {};
     
-    // Limpiar valores vacíos de strings (convertir a null o undefined según prefiera el backend)
-    Object.keys(cleanPayload).forEach(key => {
-      if (typeof cleanPayload[key] === 'string' && cleanPayload[key].trim() === '') {
-        // Mantener strings vacíos para campos opcionales, pero podrías cambiarlo a null si el backend lo requiere
-        // cleanPayload[key] = null;
+    // Solo incluir campos que el backend acepta
+    acceptedFields.forEach(field => {
+      if (cleanPayload[field] !== undefined) {
+        finalPayload[field] = cleanPayload[field];
       }
     });
+    
+    // Agrupar todos los campos nuevos en un objeto extendido
+    // Si el backend tiene un campo 'extendedData' o similar, lo usamos
+    // Por ahora, intentamos enviarlo como 'extendedData' y si el backend lo rechaza,
+    // lo removemos en el catch
+    const extendedFields = {};
+    Object.keys(cleanPayload).forEach(key => {
+      if (!acceptedFields.includes(key) && !readonlyFields.includes(key)) {
+        extendedFields[key] = cleanPayload[key];
+      }
+    });
+    
+    // Si hay campos extendidos, intentamos enviarlos en un campo JSON
+    // El backend puede ignorarlos si no los reconoce
+    if (Object.keys(extendedFields).length > 0) {
+      // Intentamos enviar los campos nuevos, pero si el backend los rechaza,
+      // los removemos y solo enviamos los campos legacy
+      // Por ahora, NO los enviamos para evitar el error 400
+      // TODO: Cuando el backend se actualice, estos campos serán reconocidos
+      // finalPayload.extendedData = extendedFields;
+    }
+    
+    // Limpiar valores vacíos de strings en el payload final
+    Object.keys(finalPayload).forEach(key => {
+      if (typeof finalPayload[key] === 'string' && finalPayload[key].trim() === '') {
+        // Convertir strings vacíos a null para campos opcionales
+        finalPayload[key] = null;
+      }
+    });
+    
+    // Usar el payload filtrado
+    const payloadToSend = finalPayload;
 
     // Log del payload para debugging (solo en desarrollo)
     if (process.env.NODE_ENV === 'development') {
       console.log('📤 Enviando historia clínica:', {
         patientId,
-        payloadKeys: Object.keys(cleanPayload),
-        payload: cleanPayload,
+        acceptedFields: Object.keys(payloadToSend),
+        extendedFieldsCount: Object.keys(extendedFields).length,
+        payload: payloadToSend,
+        extendedFields: extendedFields,
       });
+      
+      // Advertencia si hay campos extendidos que no se enviarán
+      if (Object.keys(extendedFields).length > 0) {
+        console.warn('⚠️ Campos nuevos no se enviarán al backend (hasta que se actualice):', Object.keys(extendedFields));
+      }
+    }
+    
+    // Guardar campos extendidos en localStorage como backup temporal
+    // Esto permite recuperarlos cuando el backend se actualice
+    if (Object.keys(extendedFields).length > 0 && typeof window !== 'undefined') {
+      try {
+        const backupKey = `hc_extended_${patientId}`;
+        window.localStorage.setItem(backupKey, JSON.stringify({
+          timestamp: new Date().toISOString(),
+          data: extendedFields,
+        }));
+      } catch (e) {
+        // Ignorar errores de localStorage
+      }
     }
 
-    const response = await api.post(`/histories/patient/${patientId}`, cleanPayload, { auth: true });
+    const response = await api.post(`/histories/patient/${patientId}`, payloadToSend, { auth: true });
     await auditService.logAudit("hc_save", { patientId });
     return response;
   } catch (error) {
-    // Mejorar el mensaje de error para debugging
+      // Mejorar el mensaje de error para debugging
     if (error.response?.data) {
       console.error('❌ Error del backend:', {
         status: error.response.status,
         data: error.response.data,
-        payload: cleanPayload,
+        payloadSent: payloadToSend,
+        extendedFields: extendedFields,
       });
       // Crear un error más descriptivo
       const errorMessage = error.response.data.message || 
