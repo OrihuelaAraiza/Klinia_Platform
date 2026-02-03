@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch: # Permite trigger manual
 
 concurrency:
   group: vercel-deploy-main
@@ -13,17 +14,35 @@ jobs:
   trigger:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Call Vercel Deploy Hook
         env:
           HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
         run: |
           if [ -z "$HOOK_URL" ]; then
-            echo "Missing secret VERCEL_DEPLOY_HOOK_URL"
+            echo "❌ Error: Missing secret VERCEL_DEPLOY_HOOK_URL"
+            echo "Please configure the secret in: Settings > Secrets and variables > Actions"
             exit 1
           fi
 
-          echo "Triggering Vercel deploy hook..."
-          curl -sS -X POST "$HOOK_URL"
-          echo ""
+          echo "🚀 Triggering Vercel deploy hook..."
+          echo "Hook URL: ${HOOK_URL:0:50}..." # Muestra solo los primeros 50 caracteres por seguridad
+          
+          RESPONSE=$(curl -sS -w "\n%{http_code}" -X POST "$HOOK_URL")
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          
+          echo "Response HTTP Code: $HTTP_CODE"
+          echo "Response Body: $BODY"
+          
+          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
+            echo "✅ Deploy hook triggered successfully!"
+          else
+            echo "❌ Deploy hook failed with HTTP code: $HTTP_CODE"
+            exit 1
+          fi
+          
           echo "Done."
 
