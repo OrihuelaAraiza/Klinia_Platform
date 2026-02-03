@@ -3,7 +3,7 @@ import { Navigate, useNavigate, useOutletContext, useParams } from "react-router
 import Card, { CardBody, CardHeader } from "../components/UI/Card";
 import Button from "../components/UI/Button";
 import Breadcrumbs from "../components/UI/Breadcrumbs";
-import DynamicClinicalForm from "../components/clinical/DynamicClinicalForm";
+import ClinicalHistoryWizard from "../components/clinical/ClinicalHistoryWizard";
 import HC_SCHEMA from "../config/clinicalSchemas/hc.schema";
 import { getClinicalHistory, saveClinicalHistory } from "../services/clinicalHistoryService";
 import { getPatient } from "../services/patientsService";
@@ -158,7 +158,7 @@ export default function History() {
         </CardHeader>
 
         <CardBody>
-          <DynamicClinicalForm
+          <ClinicalHistoryWizard
             schema={HC_SCHEMA}
             initialData={mapHistoryToForm(history)}
             onSubmit={async (data) => {
@@ -169,6 +169,7 @@ export default function History() {
             readOnly={false}
             context={context}
             submitLabel="Guardar historia clínica"
+            draftLabel="Guardar borrador"
           />
         </CardBody>
       </Card>

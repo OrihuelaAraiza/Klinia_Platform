@@ -29,7 +29,12 @@ export default function ClinicalFieldRenderer({
     if (!field.conditional) return true;
     const conditionalField = field.conditional.field;
     const conditionalValue = field.conditional.value;
+    const operator = field.conditional.operator || "==";
     const currentValue = formData[conditionalField];
+    
+    if (operator === "!=") {
+      return currentValue !== "" && currentValue !== conditionalValue;
+    }
     return currentValue === conditionalValue;
   }, [field.conditional, formData]);
 

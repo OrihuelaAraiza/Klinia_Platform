@@ -70,6 +70,66 @@ const YES_NO_OPTIONS = [
   { value: "NO", label: "No" },
 ];
 
+const ALIMENTATION_OPTIONS = [
+  { value: "BUENA", label: "Buena" },
+  { value: "REGULAR", label: "Regular" },
+  { value: "MALA", label: "Mala" },
+];
+
+const ALCOHOL_FREQUENCY_OPTIONS = [
+  { value: "DIARIO", label: "Diario" },
+  { value: "SEMANAL", label: "Semanal" },
+  { value: "QUINCENAL", label: "Quincenal" },
+  { value: "MENSUAL", label: "Mensual" },
+  { value: "OCASIONAL", label: "Ocasional" },
+  { value: "DESCONOCE", label: "Desconoce" },
+  { value: "OTRO", label: "Otro" },
+];
+
+const TOXICOMANIA_FREQUENCY_OPTIONS = [
+  { value: "DIARIO", label: "Diario" },
+  { value: "SEMANAL", label: "Semanal" },
+  { value: "QUINCENAL", label: "Quincenal" },
+  { value: "MENSUAL", label: "Mensual" },
+  { value: "OCASIONAL", label: "Ocasional" },
+  { value: "EN_REMISION", label: "En remisión" },
+  { value: "DESCONOCE", label: "Desconoce" },
+  { value: "OTRO", label: "Otro" },
+];
+
+const RISK_LEVEL_OPTIONS = [
+  { value: "AUSENTE", label: "Ausente" },
+  { value: "BAJO", label: "Bajo" },
+  { value: "MODERADO", label: "Moderado" },
+  { value: "ALTO", label: "Alto" },
+  { value: "INMINENTE", label: "Inminente" },
+];
+
+const HETEROAGGRESSIVE_RISK_OPTIONS = [
+  { value: "AUSENTE", label: "Ausente" },
+  { value: "BAJO", label: "Bajo" },
+  { value: "MODERADO", label: "Moderado" },
+  { value: "ALTO", label: "Alto" },
+];
+
+const REFERRAL_SOURCE_OPTIONS = [
+  { value: "INICIATIVA_PROPIA", label: "Iniciativa propia" },
+  { value: "MEDICO", label: "Médico" },
+  { value: "PSIQUIATRA", label: "Psiquiatra" },
+  { value: "PSICOTERAPEUTA", label: "Psicoterapeuta" },
+  { value: "FAMILIAR", label: "Familiar" },
+  { value: "AMIGO", label: "Amigo" },
+  { value: "OTRO", label: "Otro" },
+];
+
+const TREATMENT_RESULT_OPTIONS = [
+  { value: "RESUELTO", label: "Resuelto" },
+  { value: "MEJORADO", label: "Mejorado" },
+  { value: "INVARIABLE", label: "Invariable" },
+  { value: "DROP_OUT", label: "Drop out" },
+  { value: "OTRO", label: "Otro" },
+];
+
 // Helper to compute age from birthDate
 const computeAge = (birthDate) => {
   if (!birthDate) return null;
@@ -164,18 +224,10 @@ export const HC_SCHEMA = {
       title: "Antecedentes Heredofamiliares (AHF)",
       description: "Historial médico familiar",
       fields: [
-        {
-          id: "familyBackground",
-          label: "Antecedentes familiares",
-          type: "list",
-          repeatable: true,
-          subfields: [
-            { id: "enfermedad", label: "Enfermedad", type: "text", required: true },
-            { id: "parentesco", label: "Parentesco", type: "text" },
-            { id: "edadDiagnostico", label: "Edad al diagnóstico", type: "number" },
-            { id: "estadoVital", label: "Estado vital", type: "text" },
-          ],
-        },
+        { id: "ahfEnfermedadesMentales", label: "Enfermedades mentales", type: "textarea", placeholder: "Antecedentes heredo-familiares de enfermedades mentales" },
+        { id: "ahfEnfermedadesCronicas", label: "Enfermedades crónicas", type: "textarea", placeholder: "Antecedentes heredo-familiares de enfermedades crónicas" },
+        { id: "ahfSuicidiosIntentos", label: "Suicidios/Intentos", type: "textarea", placeholder: "Antecedentes familiares de suicidios o intentos" },
+        { id: "ahfAdicciones", label: "Adicciones", type: "textarea", placeholder: "Antecedentes familiares de adicciones" },
       ],
     },
 
@@ -187,10 +239,107 @@ export const HC_SCHEMA = {
       title: "Antecedentes Personales No Patológicos (APNP)",
       description: "Datos sociales y demográficos",
       fields: [
-        { id: "dietaryHabits", label: "Hábitos alimenticios", type: "textarea", placeholder: "Alimentación habitual, preferencias, etc." },
-        { id: "physicalActivity", label: "Actividad física", type: "textarea", placeholder: "Tipo, frecuencia, duración de la actividad física" },
-        { id: "toxicHabits", label: "Hábitos tóxicos", type: "textarea", placeholder: "Alcohol, tabaco, drogas, etc." },
-        { id: "sleepPatterns", label: "Patrón de sueño", type: "textarea", placeholder: "Horas de sueño, calidad, etc." },
+        { id: "lugarNacimiento", label: "Lugar de nacimiento", type: "text", placeholder: "Ciudad, estado, país" },
+        { id: "estadoCivil", label: "Estado civil", type: "select", options: MARITAL_STATUS_OPTIONS },
+        { id: "escolaridad", label: "Escolaridad", type: "select", options: EDUCATION_OPTIONS },
+        { id: "ocupacion", label: "Ocupación", type: "text", placeholder: "Ocupación principal" },
+        { id: "religion", label: "Religión", type: "text", placeholder: "Religión o afiliación religiosa" },
+        { id: "calleNumero", label: "Calle y número", type: "text", placeholder: "Domicilio completo" },
+        { id: "colonia", label: "Colonia", type: "text" },
+        { id: "codigoPostal", label: "C.P.", type: "text", placeholder: "Código postal" },
+        { id: "municipioDelegacion", label: "Municipio/Delegación", type: "text" },
+        { id: "estadoDomicilio", label: "Estado", type: "select", options: MEXICAN_STATES },
+        { 
+          id: "tabaquismo", 
+          label: "Tabaquismo (Sí/No)", 
+          type: "yesno",
+          helperText: "Si selecciona Sí, se habilitan campos de cantidad/tiempo"
+        },
+        { 
+          id: "tabaquismoCantidad", 
+          label: "Tabaquismo (Cantidad)", 
+          type: "number",
+          placeholder: "Cigarrillos/día",
+          conditional: { field: "tabaquismo", value: "SI" }
+        },
+        { 
+          id: "tabaquismoTiempo", 
+          label: "Tabaquismo (Tiempo)", 
+          type: "number",
+          placeholder: "Años",
+          conditional: { field: "tabaquismo", value: "SI" }
+        },
+        { 
+          id: "indiceTabaquico", 
+          label: "Índice tabáquico", 
+          type: "readonly",
+          computed: (formData) => {
+            const cantidad = parseFloat(formData.tabaquismoCantidad) || 0;
+            const tiempo = parseFloat(formData.tabaquismoTiempo) || 0;
+            if (cantidad && tiempo) {
+              return ((cantidad / 20) * tiempo).toFixed(2);
+            }
+            return "";
+          }
+        },
+        { 
+          id: "alcoholismo", 
+          label: "Alcoholismo (Sí/No)", 
+          type: "yesno",
+          helperText: "Si selecciona Sí, se habilitan tipo de bebida y frecuencia"
+        },
+        { 
+          id: "alcoholismoTipo", 
+          label: "Alcoholismo (Tipo de bebida)", 
+          type: "text",
+          placeholder: "Ej. cerveza, vino, destilados, mixto",
+          conditional: { field: "alcoholismo", value: "SI" }
+        },
+        { 
+          id: "alcoholismoFrecuencia", 
+          label: "Alcoholismo (Frecuencia)", 
+          type: "select",
+          options: ALCOHOL_FREQUENCY_OPTIONS,
+          conditional: { field: "alcoholismo", value: "SI" }
+        },
+        { 
+          id: "toxicomanias", 
+          label: "Toxicomanías (Sí/No)", 
+          type: "yesno",
+          helperText: "Uso de sustancias distintas a tabaco/alcohol"
+        },
+        { 
+          id: "toxicomaniasTipo", 
+          label: "Toxicomanías (Tipo)", 
+          type: "text",
+          placeholder: "Tipo(s) de sustancia(s)",
+          conditional: { field: "toxicomanias", value: "SI" }
+        },
+        { 
+          id: "toxicomaniasFrecuencia", 
+          label: "Toxicomanías (Frecuencia)", 
+          type: "select",
+          options: TOXICOMANIA_FREQUENCY_OPTIONS,
+          conditional: { field: "toxicomanias", value: "SI" }
+        },
+        { 
+          id: "actividadFisica", 
+          label: "Actividad física (Sí/No)", 
+          type: "yesno"
+        },
+        { 
+          id: "tipoActividad", 
+          label: "Tipo de actividad", 
+          type: "text",
+          placeholder: "Tipo de actividad física realizada",
+          conditional: { field: "actividadFisica", value: "SI" }
+        },
+        { 
+          id: "alimentacion", 
+          label: "Alimentación", 
+          type: "select",
+          options: ALIMENTATION_OPTIONS
+        },
       ],
     },
 
@@ -202,54 +351,12 @@ export const HC_SCHEMA = {
       title: "Antecedentes Personales Patológicos (APP)",
       description: "Historial médico personal",
       fields: [
-        { id: "hasAllergies", label: "¿Tiene alergias?", type: "yesno", required: true },
-        {
-          id: "currentMedications",
-          label: "Medicación actual",
-          type: "list",
-          repeatable: true,
-          addLabel: "Agregar medicamento",
-          subfields: [
-            { id: "medicamento", label: "Medicamento", type: "text", required: true, placeholder: "Nombre del medicamento" },
-            { id: "dosis", label: "Dosis", type: "text" },
-            { id: "indicacion", label: "Indicación", type: "text" },
-          ],
-        },
-        {
-          id: "chronicDiseases",
-          label: "Enfermedades crónicas",
-          type: "list",
-          repeatable: true,
-          subfields: [
-            { id: "enfermedad", label: "Enfermedad", type: "text" },
-            { id: "fechaDiagnostico", label: "Fecha diagnóstico", type: "date" },
-            { id: "tratamiento", label: "Tratamiento", type: "text" },
-          ],
-        },
-        {
-          id: "previousSurgeries",
-          label: "Cirugías previas",
-          type: "list",
-          repeatable: true,
-          subfields: [
-            { id: "procedimiento", label: "Procedimiento", type: "text" },
-            { id: "fecha", label: "Fecha", type: "date" },
-            { id: "complicaciones", label: "Complicaciones", type: "text" },
-          ],
-        },
-        {
-          id: "previousHospitalizations",
-          label: "Hospitalizaciones previas",
-          type: "list",
-          repeatable: true,
-          subfields: [
-            { id: "motivo", label: "Motivo", type: "text" },
-            { id: "fecha", label: "Fecha", type: "date" },
-            { id: "duracion", label: "Duración", type: "number" },
-          ],
-        },
-        { id: "traumatisms", label: "Traumatismos", type: "textarea", placeholder: "Traumatismos importantes" },
-        { id: "transfusions", label: "Transfusiones", type: "yesno" },
+        { id: "appMedicos", label: "Médicos", type: "textarea", placeholder: "Antecedentes personales patológicos médicos relevantes" },
+        { id: "appQuirurgicos", label: "Quirúrgicos", type: "textarea", placeholder: "Antecedentes quirúrgicos relevantes" },
+        { id: "appTraumaticos", label: "Traumáticos", type: "textarea", placeholder: "Antecedentes traumáticos relevantes" },
+        { id: "appAlergicos", label: "Alérgicos", type: "textarea", placeholder: "Alergias reportadas" },
+        { id: "appTransfusionales", label: "Transfusionales", type: "textarea", placeholder: "Antecedentes de transfusiones" },
+        { id: "appHospitalizaciones", label: "Hospitalizaciones", type: "textarea", placeholder: "Hospitalizaciones previas" },
       ],
     },
 
@@ -260,30 +367,118 @@ export const HC_SCHEMA = {
       sectionId: "apsic",
       title: "Antecedentes Psiquiátricos",
       fields: [
-        { id: "motive", label: "Motivo de consulta", type: "textarea", required: true, placeholder: "Razón principal de consulta" },
-        { id: "symptomOnset", label: "Inicio de síntomas", type: "textarea", placeholder: "Cuándo y cómo comenzaron los síntomas" },
+        { 
+          id: "apsicFechaInicio", 
+          label: "Fecha inicio", 
+          type: "date", 
+          required: true,
+          helperText: "Fecha de inicio del proceso terapéutico. Se autocompleta con la fecha de creación/apertura del expediente, pero permite edición."
+        },
+        { 
+          id: "apsicFuenteReferencia", 
+          label: "Fuente de referencia", 
+          type: "select",
+          options: REFERRAL_SOURCE_OPTIONS
+        },
+        { 
+          id: "apsicTratamientosPrevios", 
+          label: "Tratamientos previos psicoterapéuticos (Sí/No)", 
+          type: "yesno",
+          helperText: "Si selecciona Sí, se habilita módulo repetible de tratamientos previos"
+        },
         {
-          id: "previousDiagnoses",
-          label: "Diagnósticos previos",
+          id: "apsicTratamientosPreviosDetalle",
+          label: "Tratamientos previos (detalle)",
           type: "list",
           repeatable: true,
-          addLabel: "Agregar diagnóstico previo",
+          addLabel: "Agregar tratamiento previo",
+          emptyMessage: "No hay tratamientos previos registrados",
+          conditional: { field: "apsicTratamientosPrevios", value: "SI" },
           subfields: [
-            { id: "diagnostico", label: "Diagnóstico", type: "text", required: true, placeholder: "Código o nombre del diagnóstico" },
-            { id: "fecha", label: "Fecha", type: "date" },
-            { id: "profesional", label: "Profesional", type: "text", placeholder: "Nombre del profesional" },
+            { id: "enfoque", label: "Enfoque", type: "text", placeholder: "Enfoque del tratamiento" },
+            { id: "duracion", label: "Duración", type: "text", placeholder: "Ej. 6 meses, 10 sesiones" },
+            { id: "resultados", label: "Resultados", type: "select", options: TREATMENT_RESULT_OPTIONS },
           ],
         },
-        {
-          id: "psychHospitalizations",
-          label: "Hospitalizaciones psiquiátricas",
-          type: "list",
-          repeatable: true,
+        { 
+          id: "apsicFarmacosActuales", 
+          label: "Fármacos actuales (Sí/No)", 
+          type: "yesno",
+          helperText: "Indica si actualmente toma cualquier fármaco (incluye psicofármacos)"
         },
-        { id: "psychUrgencies", label: "Urgencias psiquiátricas", type: "yesno" },
-        { id: "suicideRiskScreening", label: "Tamizaje riesgo suicida", type: "yesno" },
-        { id: "previousTreatments", label: "Tratamientos previos", type: "textarea", placeholder: "Psicoterapias, medicamentos, otros tratamientos" },
-        { id: "treatmentAdherence", label: "Adherencia a tratamientos", type: "textarea", placeholder: "Nivel de adherencia y razones" },
+        { 
+          id: "apsicFarmacosActualesEspecificar", 
+          label: "Fármacos actuales (Especificar)", 
+          type: "textarea",
+          placeholder: "Nombre, dosis, frecuencia, duración/desde cuándo",
+          conditional: { field: "apsicFarmacosActuales", value: "SI" }
+        },
+      ],
+    },
+
+    /* =====================================================
+     * EXAMEN MENTAL
+     * ===================================================== */
+    {
+      sectionId: "examenMental",
+      title: "Examen Mental",
+      description: "Hallazgos del examen del estado mental",
+      fields: [
+        { id: "examenMentalAparienciaActitud", label: "Apariencia y actitud", type: "textarea", placeholder: "Hallazgos en apariencia y actitud" },
+        { id: "examenMentalConciencia", label: "Conciencia", type: "textarea", placeholder: "Hallazgos en nivel de conciencia" },
+        { id: "examenMentalOrientacion", label: "Orientación", type: "textarea", placeholder: "Hallazgos en orientación" },
+        { id: "examenMentalAtencionConcentracion", label: "Atención y concentración", type: "textarea", placeholder: "Hallazgos en atención y concentración" },
+        { id: "examenMentalMemoria", label: "Memoria", type: "textarea", placeholder: "Hallazgos en memoria" },
+        { id: "examenMentalLenguaje", label: "Lenguaje", type: "textarea", placeholder: "Hallazgos en lenguaje" },
+        { id: "examenMentalPensamiento", label: "Pensamiento", type: "textarea", placeholder: "Hallazgos en pensamiento" },
+        { id: "examenMentalPercepcion", label: "Percepción", type: "textarea", placeholder: "Hallazgos en percepción" },
+        { id: "examenMentalAfecto", label: "Afecto", type: "textarea", placeholder: "Hallazgos en afecto" },
+        { id: "examenMentalJuicio", label: "Juicio", type: "textarea", placeholder: "Hallazgos en juicio" },
+        { id: "examenMentalInsight", label: "Insight", type: "textarea", placeholder: "Hallazgos en insight" },
+        { id: "examenMentalOtro", label: "Otro", type: "textarea", placeholder: "Otros hallazgos del examen mental" },
+      ],
+    },
+
+    /* =====================================================
+     * EVALUACIÓN DE RIESGO
+     * ===================================================== */
+    {
+      sectionId: "evaluacionRiesgo",
+      title: "Evaluación de Riesgo",
+      description: "Evaluación de riesgos clínicos",
+      fields: [
+        { 
+          id: "riesgoSuicida", 
+          label: "Riesgo suicida", 
+          type: "select",
+          options: RISK_LEVEL_OPTIONS
+        },
+        { 
+          id: "riesgoSuicidaEspecificar", 
+          label: "Riesgo suicida (Especificar)", 
+          type: "textarea",
+          placeholder: "Detalle del riesgo suicida",
+          conditional: { field: "riesgoSuicida", value: "AUSENTE", operator: "!=" }
+        },
+        { 
+          id: "riesgoHeteroagresivo", 
+          label: "Riesgo heteroagresivo", 
+          type: "select",
+          options: HETEROAGGRESSIVE_RISK_OPTIONS
+        },
+        { 
+          id: "riesgoHeteroagresivoEspecificar", 
+          label: "Riesgo heteroagresivo (Especificar)", 
+          type: "textarea",
+          placeholder: "Detalle del riesgo heteroagresivo",
+          conditional: { field: "riesgoHeteroagresivo", value: "AUSENTE", operator: "!=" }
+        },
+        { 
+          id: "otrosRiesgos", 
+          label: "Otros riesgos", 
+          type: "textarea",
+          placeholder: "Otros riesgos identificados (ej. autoagresivo no suicida, vulnerabilidad, violencia, negligencia, etc.)"
+        },
       ],
     },
   ],

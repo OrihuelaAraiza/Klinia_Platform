@@ -4546,6 +4546,27 @@ main {
   color: var(--text-muted);
 }
 
+/* Clinical History Wizard */
+.clinical-history-wizard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+}
+
+.wizard-stepper {
+  margin-bottom: var(--s-4);
+}
+
+.wizard-form {
+  width: 100%;
+}
+
+.wizard-actions {
+  margin-top: var(--s-5);
+  padding-top: var(--s-4);
+  border-top: 1px solid var(--border);
+}
+
 .register-step {
   display: flex;
   flex-direction: column;
