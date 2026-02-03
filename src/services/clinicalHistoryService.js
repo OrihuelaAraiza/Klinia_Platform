@@ -57,7 +57,23 @@ function normalizeYesNo(value) {
  * Crea o actualiza la historia clínica.
  */
 export async function saveClinicalHistory(patientId, payload) {
+  let payloadToSend = {}; // Declarar fuera del try para que esté disponible en el catch
+  
   try {
+    // Validar que el payload no esté vacío o undefined
+    if (!payload || (typeof payload === 'object' && Object.keys(payload).length === 0)) {
+      console.warn('⚠️ Payload vacío recibido, esto puede indicar un problema en el formulario');
+      // Si el payload está vacío, crear uno mínimo con los campos aceptados
+      payload = {
+        motive: '',
+        psychosocialBackground: '',
+        mentalStatusExam: '',
+        diagnoses: [],
+        goals: '',
+        therapeuticPlan: '',
+      };
+    }
+    
     const cleanPayload = { ...payload };
     
     // Lista de todos los campos yesno que necesitan normalización
@@ -202,10 +218,12 @@ export async function saveClinicalHistory(patientId, payload) {
     if (shouldLog) {
       console.log('📤 Enviando historia clínica:', {
         patientId,
+        originalPayloadKeys: Object.keys(payload || {}),
         acceptedFields: Object.keys(payloadToSend),
         extendedFieldsCount: Object.keys(extendedFields).length,
         payload: JSON.parse(JSON.stringify(payloadToSend)), // Deep clone para logging
         hasContent,
+        rawPayload: payload, // Mostrar payload original para debugging
       });
       
       // Advertencia si hay campos extendidos que no se enviarán

@@ -229,9 +229,24 @@ export default function ClinicalHistoryWizard({
 
   const handleFormSubmit = async (data) => {
     try {
-      await onSubmit?.(data);
+      // Asegurar que se envíen todos los datos del formulario, no solo los del paso actual
+      const allFormData = watch();
+      const dataToSubmit = { ...allFormData, ...data };
+      
+      // Log para debugging
+      if (import.meta.env.DEV) {
+        console.log('📝 Datos del formulario al enviar:', {
+          stepData: data,
+          allFormData: allFormData,
+          mergedData: dataToSubmit,
+          dataKeys: Object.keys(dataToSubmit),
+        });
+      }
+      
+      await onSubmit?.(dataToSubmit);
     } catch (error) {
       console.error("Error al enviar el formulario:", error);
+      throw error; // Re-lanzar para que el componente padre pueda manejarlo
     }
   };
 
