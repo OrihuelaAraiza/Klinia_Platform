@@ -231,19 +231,39 @@ export default function ClinicalHistoryWizard({
     try {
       // Asegurar que se envíen todos los datos del formulario, no solo los del paso actual
       const allFormData = watch();
+      
+      // Combinar datos: los datos del submit pueden tener valores más actualizados
+      // pero también necesitamos todos los datos de otros pasos
       const dataToSubmit = { ...allFormData, ...data };
       
-      // Log para debugging
-      if (import.meta.env.DEV) {
-        console.log('📝 Datos del formulario al enviar:', {
-          stepData: data,
-          allFormData: allFormData,
-          mergedData: dataToSubmit,
-          dataKeys: Object.keys(dataToSubmit),
-        });
+      // Filtrar valores undefined pero mantener null y strings vacíos
+      const cleanedData = {};
+      Object.keys(dataToSubmit).forEach(key => {
+        if (dataToSubmit[key] !== undefined) {
+          cleanedData[key] = dataToSubmit[key];
+        }
+      });
+      
+      // Log para debugging (siempre mostrar para diagnosticar)
+      console.log('📝 Datos del formulario al enviar:', {
+        stepDataKeys: Object.keys(data || {}),
+        allFormDataKeys: Object.keys(allFormData || {}),
+        mergedDataKeys: Object.keys(cleanedData),
+        mergedData: cleanedData,
+        hasData: Object.keys(cleanedData).length > 0,
+        sampleValues: Object.keys(cleanedData).slice(0, 5).reduce((acc, key) => {
+          acc[key] = cleanedData[key];
+          return acc;
+        }, {}),
+      });
+      
+      // Validar que haya datos antes de enviar
+      if (Object.keys(cleanedData).length === 0) {
+        console.error('❌ No hay datos para enviar. El formulario está vacío.');
+        throw new Error('El formulario está vacío. Por favor, completa al menos un campo.');
       }
       
-      await onSubmit?.(dataToSubmit);
+      await onSubmit?.(cleanedData);
     } catch (error) {
       console.error("Error al enviar el formulario:", error);
       throw error; // Re-lanzar para que el componente padre pueda manejarlo

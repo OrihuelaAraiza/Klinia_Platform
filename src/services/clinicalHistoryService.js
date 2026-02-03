@@ -57,7 +57,9 @@ function normalizeYesNo(value) {
  * Crea o actualiza la historia clínica.
  */
 export async function saveClinicalHistory(patientId, payload) {
-  let payloadToSend = {}; // Declarar fuera del try para que esté disponible en el catch
+  // Declarar variables fuera del try para que estén disponibles en el catch
+  let payloadToSend = {};
+  let extendedFields = {};
   
   try {
     // Validar que el payload no esté vacío o undefined
@@ -138,7 +140,7 @@ export async function saveClinicalHistory(patientId, payload) {
     // Si el backend tiene un campo 'extendedData' o similar, lo usamos
     // Por ahora, intentamos enviarlo como 'extendedData' y si el backend lo rechaza,
     // lo removemos en el catch
-    const extendedFields = {};
+    extendedFields = {}; // Usar la variable declarada fuera del try
     Object.keys(cleanPayload).forEach(key => {
       if (!acceptedFields.includes(key) && !readonlyFields.includes(key)) {
         extendedFields[key] = cleanPayload[key];
@@ -197,7 +199,7 @@ export async function saveClinicalHistory(patientId, payload) {
     });
     
     // Usar el payload filtrado
-    const payloadToSend = finalPayload;
+    payloadToSend = finalPayload; // Asignar a la variable declarada fuera del try
 
     // Validar que al menos haya algún contenido antes de enviar
     const hasContent = Object.values(payloadToSend).some(value => {
