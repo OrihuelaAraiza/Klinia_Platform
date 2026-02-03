@@ -168,14 +168,55 @@ export function isClinicalHistoryIncomplete(historyData = {}) {
 export function mapHistoryToForm(history) {
   if (!history) return {};
   return {
+    // --- FICHA DE IDENTIFICACIÓN ---
+    municipio: history.municipio ?? "",
+    genderIdentity: history.genderIdentity ?? "",
+    
     // --- AHF ---
     familyBackground: history.familyBackground ?? [],
+    ahfEnfermedadesMentales: history.ahfEnfermedadesMentales ?? "",
+    ahfEnfermedadesCronicas: history.ahfEnfermedadesCronicas ?? "",
+    ahfSuicidiosIntentos: history.ahfSuicidiosIntentos ?? "",
+    ahfAdicciones: history.ahfAdicciones ?? "",
+    
     // --- APNP ---
+    lugarNacimiento: history.lugarNacimiento ?? "",
+    estadoCivil: history.estadoCivil ?? "",
+    escolaridad: history.escolaridad ?? "",
+    ocupacion: history.ocupacion ?? "",
+    religion: history.religion ?? "",
+    calleNumero: history.calleNumero ?? "",
+    colonia: history.colonia ?? "",
+    codigoPostal: history.codigoPostal ?? "",
+    municipioDelegacion: history.municipioDelegacion ?? "",
+    estadoDomicilio: history.estadoDomicilio ?? "",
+    tabaquismo: history.tabaquismo ?? false,
+    tabaquismoCantidad: history.tabaquismoCantidad ?? null,
+    tabaquismoTiempo: history.tabaquismoTiempo ?? null,
+    indiceTabaquico: history.indiceTabaquico ?? "",
+    alcoholismo: history.alcoholismo ?? false,
+    alcoholismoTipo: history.alcoholismoTipo ?? "",
+    alcoholismoFrecuencia: history.alcoholismoFrecuencia ?? "",
+    toxicomanias: history.toxicomanias ?? false,
+    toxicomaniasTipo: history.toxicomaniasTipo ?? "",
+    toxicomaniasFrecuencia: history.toxicomaniasFrecuencia ?? "",
+    actividadFisica: history.actividadFisica ?? false,
+    tipoActividad: history.tipoActividad ?? "",
+    alimentacion: history.alimentacion ?? "",
+    // Campos legacy (mantener compatibilidad)
     dietaryHabits: history.dietaryHabits ?? "",
     physicalActivity: history.physicalActivity ?? "",
     toxicHabits: history.toxicHabits ?? "",
     sleepPatterns: history.sleepPatterns ?? "",
+    
     // --- APP ---
+    appMedicos: history.appMedicos ?? "",
+    appQuirurgicos: history.appQuirurgicos ?? "",
+    appTraumaticos: history.appTraumaticos ?? "",
+    appAlergicos: history.appAlergicos ?? "",
+    appTransfusionales: history.appTransfusionales ?? "",
+    appHospitalizaciones: history.appHospitalizaciones ?? "",
+    // Campos legacy
     hasAllergies: history.hasAllergies ?? false,
     currentMedications: history.currentMedications ?? [],
     chronicDiseases: history.chronicDiseases ?? [],
@@ -183,7 +224,15 @@ export function mapHistoryToForm(history) {
     previousHospitalizations: history.previousHospitalizations ?? [],
     traumatisms: history.traumatisms ?? "",
     transfusions: history.transfusions ?? false,
+    
     // --- APSIC ---
+    apsicFechaInicio: history.apsicFechaInicio ?? "",
+    apsicFuenteReferencia: history.apsicFuenteReferencia ?? "",
+    apsicTratamientosPrevios: history.apsicTratamientosPrevios ?? false,
+    apsicTratamientosPreviosDetalle: history.apsicTratamientosPreviosDetalle ?? [],
+    apsicFarmacosActuales: history.apsicFarmacosActuales ?? false,
+    apsicFarmacosActualesEspecificar: history.apsicFarmacosActualesEspecificar ?? "",
+    // Campos legacy
     motive: history.motive ?? "",
     symptomOnset: history.symptomOnset ?? "",
     previousDiagnoses: history.previousDiagnoses ?? [],
@@ -192,8 +241,31 @@ export function mapHistoryToForm(history) {
     suicideRiskScreening: history.suicideRiskScreening ?? false,
     previousTreatments: history.previousTreatments ?? "",
     treatmentAdherence: history.treatmentAdherence ?? "",
-    // --- NOTA CLÍNICA ---
+    
+    // --- EXAMEN MENTAL ---
+    examenMentalAparienciaActitud: history.examenMentalAparienciaActitud ?? "",
+    examenMentalConciencia: history.examenMentalConciencia ?? "",
+    examenMentalOrientacion: history.examenMentalOrientacion ?? "",
+    examenMentalAtencionConcentracion: history.examenMentalAtencionConcentracion ?? "",
+    examenMentalMemoria: history.examenMentalMemoria ?? "",
+    examenMentalLenguaje: history.examenMentalLenguaje ?? "",
+    examenMentalPensamiento: history.examenMentalPensamiento ?? "",
+    examenMentalPercepcion: history.examenMentalPercepcion ?? "",
+    examenMentalAfecto: history.examenMentalAfecto ?? "",
+    examenMentalJuicio: history.examenMentalJuicio ?? "",
+    examenMentalInsight: history.examenMentalInsight ?? "",
+    examenMentalOtro: history.examenMentalOtro ?? "",
+    // Campo legacy
     mentalStatusExam: history.mentalStatusExam ?? "",
+    
+    // --- EVALUACIÓN DE RIESGO ---
+    riesgoSuicida: history.riesgoSuicida ?? "",
+    riesgoSuicidaEspecificar: history.riesgoSuicidaEspecificar ?? "",
+    riesgoHeteroagresivo: history.riesgoHeteroagresivo ?? "",
+    riesgoHeteroagresivoEspecificar: history.riesgoHeteroagresivoEspecificar ?? "",
+    otrosRiesgos: history.otrosRiesgos ?? "",
+    
+    // --- NOTA CLÍNICA (legacy) ---
     diagnoses: history.diagnoses ?? [],
     goals: history.goals ?? "",
     therapeuticPlan: history.therapeuticPlan ?? "",
