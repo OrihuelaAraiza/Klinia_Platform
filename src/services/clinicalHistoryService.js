@@ -139,25 +139,73 @@ export async function saveClinicalHistory(patientId, payload) {
       // finalPayload.extendedData = extendedFields;
     }
     
-    // Limpiar valores vacíos de strings en el payload final
+    // Limpiar y normalizar valores
     Object.keys(finalPayload).forEach(key => {
-      if (typeof finalPayload[key] === 'string' && finalPayload[key].trim() === '') {
-        // Convertir strings vacíos a null para campos opcionales
-        finalPayload[key] = null;
+      const value = finalPayload[key];
+      
+      // Para strings: mantener vacíos como string vacío (no null) a menos que el backend requiera null
+      if (typeof value === 'string') {
+        // Mantener string vacío, el backend puede manejarlo
+        // Si el backend requiere null, cambiar esto
+      }
+      
+      // Asegurar que arrays estén en formato correcto
+      if (key === 'diagnoses') {
+        if (!Array.isArray(value)) {
+          finalPayload[key] = value ? [value] : [];
+        } else {
+          // Limpiar array de diagnósticos: asegurar que cada item tenga code y label
+          finalPayload[key] = value
+            .filter(item => item !== null && item !== undefined)
+            .map(item => {
+              // Si es string, convertir a objeto
+              if (typeof item === 'string') {
+                return { code: item, label: item };
+              }
+              // Si es objeto, asegurar que tenga code y label
+              if (typeof item === 'object') {
+                return {
+                  code: item.code || item.value || '',
+                  label: item.label || item.name || item.code || item.value || '',
+                };
+              }
+              return item;
+            });
+        }
+      }
+      
+      // Remover null/undefined de otros arrays
+      if (Array.isArray(value) && key !== 'diagnoses') {
+        finalPayload[key] = value.filter(item => item !== null && item !== undefined);
       }
     });
     
     // Usar el payload filtrado
     const payloadToSend = finalPayload;
 
-    // Log del payload para debugging (solo en desarrollo)
-    if (process.env.NODE_ENV === 'development') {
+    // Validar que al menos haya algún contenido antes de enviar
+    const hasContent = Object.values(payloadToSend).some(value => {
+      if (Array.isArray(value)) return value.length > 0;
+      if (typeof value === 'string') return value.trim().length > 0;
+      return value !== null && value !== undefined;
+    });
+    
+    if (!hasContent) {
+      console.warn('⚠️ El payload está vacío, enviando estructura mínima');
+      // Enviar estructura mínima para que el backend pueda crear el registro
+      payloadToSend.motive = payloadToSend.motive || '';
+      payloadToSend.diagnoses = payloadToSend.diagnoses || [];
+    }
+    
+    // Log del payload para debugging (siempre en desarrollo, también en producción si hay error)
+    const shouldLog = process.env.NODE_ENV === 'development' || import.meta.env.DEV;
+    if (shouldLog) {
       console.log('📤 Enviando historia clínica:', {
         patientId,
         acceptedFields: Object.keys(payloadToSend),
         extendedFieldsCount: Object.keys(extendedFields).length,
-        payload: payloadToSend,
-        extendedFields: extendedFields,
+        payload: JSON.parse(JSON.stringify(payloadToSend)), // Deep clone para logging
+        hasContent,
       });
       
       // Advertencia si hay campos extendidos que no se enviarán
@@ -184,24 +232,40 @@ export async function saveClinicalHistory(patientId, payload) {
     await auditService.logAudit("hc_save", { patientId });
     return response;
   } catch (error) {
-      // Mejorar el mensaje de error para debugging
+    // El apiClient puede lanzar errores de diferentes formas
+    // Intentar extraer el mensaje de error del backend
+    let errorMessage = "No pudimos guardar la historia clínica.";
+    let errorDetails = null;
+    
+    // Intentar obtener detalles del error
     if (error.response?.data) {
-      console.error('❌ Error del backend:', {
-        status: error.response.status,
-        data: error.response.data,
-        payloadSent: payloadToSend,
-        extendedFields: extendedFields,
-      });
-      // Crear un error más descriptivo
-      const errorMessage = error.response.data.message || 
-                          error.response.data.error || 
-                          `Error ${error.response.status}: ${JSON.stringify(error.response.data)}`;
-      const enhancedError = new Error(errorMessage);
-      enhancedError.status = error.response.status;
-      enhancedError.data = error.response.data;
-      throw enhancedError;
+      errorDetails = error.response.data;
+      errorMessage = error.response.data.message || 
+                    error.response.data.error || 
+                    error.response.data.details ||
+                    `Error ${error.response.status}: ${JSON.stringify(error.response.data)}`;
+    } else if (error.data) {
+      errorDetails = error.data;
+      errorMessage = error.data.message || error.data.error || errorMessage;
+    } else if (error.message) {
+      errorMessage = error.message;
     }
-    throw error;
+    
+    // Log detallado del error
+    console.error('❌ Error al guardar historia clínica:', {
+      status: error.status || error.response?.status,
+      message: errorMessage,
+      errorDetails: errorDetails,
+      payloadSent: payloadToSend,
+      extendedFieldsCount: Object.keys(extendedFields).length,
+    });
+    
+    // Crear un error mejorado con toda la información
+    const enhancedError = new Error(errorMessage);
+    enhancedError.status = error.status || error.response?.status;
+    enhancedError.data = errorDetails || error.data || error.response?.data;
+    enhancedError.originalError = error;
+    throw enhancedError;
   }
 }
 
