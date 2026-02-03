@@ -117,6 +117,7 @@ export async function saveClinicalHistory(patientId, payload) {
     
     // El backend solo acepta campos específicos según el esquema
     // Campos que el backend definitivamente acepta (basado en historySchema)
+    // Expandimos la lista para incluir campos que podrían estar en el backend
     const acceptedFields = [
       'motive',
       'psychosocialBackground',
@@ -124,6 +125,26 @@ export async function saveClinicalHistory(patientId, payload) {
       'diagnoses',
       'goals',
       'therapeuticPlan',
+      // Campos adicionales que el backend podría aceptar
+      'symptomOnset',
+      'previousDiagnoses',
+      'psychHospitalizations',
+      'psychUrgencies',
+      'suicideRiskScreening',
+      'previousTreatments',
+      'treatmentAdherence',
+      'hasAllergies',
+      'currentMedications',
+      'chronicDiseases',
+      'previousSurgeries',
+      'previousHospitalizations',
+      'traumatisms',
+      'transfusions',
+      'familyBackground',
+      'dietaryHabits',
+      'physicalActivity',
+      'toxicHabits',
+      'sleepPatterns',
     ];
     
     // Separar campos aceptados de campos nuevos
@@ -208,30 +229,59 @@ export async function saveClinicalHistory(patientId, payload) {
       return value !== null && value !== undefined;
     });
     
-    if (!hasContent) {
-      console.warn('⚠️ El payload está vacío, enviando estructura mínima');
-      // Enviar estructura mínima para que el backend pueda crear el registro
-      payloadToSend.motive = payloadToSend.motive || '';
-      payloadToSend.diagnoses = payloadToSend.diagnoses || [];
+    // Si el payload está vacío después del filtrado, intentar mapear campos nuevos a campos legacy
+    if (!hasContent || Object.keys(payloadToSend).length === 0) {
+      console.warn('⚠️ El payload está vacío después del filtrado, intentando mapear campos nuevos...');
+      
+      // Mapear campos nuevos a campos legacy si existen
+      // Por ejemplo, si hay datos en campos nuevos, intentar mapearlos
+      if (cleanPayload.apsicFechaInicio || cleanPayload.motive || cleanPayload.apsicFuenteReferencia) {
+        // Si hay datos en campos nuevos relacionados con motivo, intentar mapearlos
+        payloadToSend.motive = cleanPayload.motive || cleanPayload.apsicFechaInicio ? 'Consulta inicial' : '';
+      }
+      
+      // Si aún está vacío, enviar estructura mínima
+      if (Object.keys(payloadToSend).length === 0) {
+        console.warn('⚠️ Enviando estructura mínima para crear el registro');
+        payloadToSend.motive = '';
+        payloadToSend.psychosocialBackground = '';
+        payloadToSend.mentalStatusExam = '';
+        payloadToSend.diagnoses = [];
+        payloadToSend.goals = '';
+        payloadToSend.therapeuticPlan = '';
+      }
     }
     
-    // Log del payload para debugging (siempre en desarrollo, también en producción si hay error)
-    const shouldLog = process.env.NODE_ENV === 'development' || import.meta.env.DEV;
-    if (shouldLog) {
-      console.log('📤 Enviando historia clínica:', {
-        patientId,
-        originalPayloadKeys: Object.keys(payload || {}),
-        acceptedFields: Object.keys(payloadToSend),
-        extendedFieldsCount: Object.keys(extendedFields).length,
-        payload: JSON.parse(JSON.stringify(payloadToSend)), // Deep clone para logging
-        hasContent,
-        rawPayload: payload, // Mostrar payload original para debugging
-      });
-      
-      // Advertencia si hay campos extendidos que no se enviarán
-      if (Object.keys(extendedFields).length > 0) {
-        console.warn('⚠️ Campos nuevos no se enviarán al backend (hasta que se actualice):', Object.keys(extendedFields));
-      }
+    // Log del payload para debugging (SIEMPRE mostrar para diagnosticar)
+    console.log('📤 Enviando historia clínica:', {
+      patientId,
+      originalPayloadKeys: Object.keys(payload || {}),
+      originalPayloadSample: Object.keys(payload || {}).slice(0, 10).reduce((acc, key) => {
+        const val = payload[key];
+        acc[key] = Array.isArray(val) ? `[Array(${val.length})]` : 
+                   typeof val === 'string' ? val.substring(0, 50) : 
+                   typeof val === 'object' ? '[Object]' : val;
+        return acc;
+      }, {}),
+      acceptedFieldsList: acceptedFields,
+      acceptedFieldsFound: Object.keys(payloadToSend),
+      extendedFieldsCount: Object.keys(extendedFields).length,
+      extendedFieldsKeys: Object.keys(extendedFields),
+      payloadToSend: JSON.parse(JSON.stringify(payloadToSend)), // Deep clone para logging
+      hasContent,
+    });
+    
+    // Advertencia si hay campos extendidos que no se enviarán
+    if (Object.keys(extendedFields).length > 0) {
+      console.warn('⚠️ Campos nuevos no se enviarán al backend (hasta que se actualice):', Object.keys(extendedFields));
+      console.warn('⚠️ Estos campos se guardarán en localStorage como backup');
+    }
+    
+    // Advertencia si el payload final está vacío
+    if (Object.keys(payloadToSend).length === 0) {
+      console.error('❌ ERROR: El payload final está vacío después del filtrado');
+      console.error('❌ Payload original tenía:', Object.keys(payload || {}));
+      console.error('❌ Campos aceptados por el backend:', acceptedFields);
     }
     
     // Guardar campos extendidos en localStorage como backup temporal
