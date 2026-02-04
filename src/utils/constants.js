@@ -12,6 +12,22 @@ export const ROLES_LABEL = {
   [ROLES.PATIENT]: "Paciente",
 };
 
+export const EVOLUCION_TEMPORAL = ["Progresivo", "Agudo", "Crónico", "Episódico"];
+export const PRONOSTICO = ["Excelente", "Bueno", "Reservado", "Malo"];
+export const TIPO_INDICACION = ["Paradójico", "Contradictorio", "Informativo"];
+export const CRITERIO_EVALUACION = [
+    "Mejoría significativa", 
+    "Mejoría leve", 
+    "Sin cambios", 
+    "Empeoramiento", 
+    "Nuevo patrón", 
+    "Recaída"
+];
+export const DIMENSIONES_SPR = ["Percepción", "Pensamientos", "Sensaciones", "Reacciones", "Síntomas", "Crisis"];
+export const AREAS_YO = ["Cuerpo", "Estudio", "Trabajo", "Deporte", "Situacional"];
+export const AREAS_DEMAS = ["Pareja", "Hijos", "Amigos", "Familia origen", "Familia política"];
+export const AREAS_MUNDO = ["Sociedad", "Situacional"];
+
 export const ROUTES = {
   home: "/",
   login: "/login",
@@ -152,4 +168,6 @@ export function resolveDestination(role) {
   default:
     return ROUTES.dashboard;
 }
+
+
 }

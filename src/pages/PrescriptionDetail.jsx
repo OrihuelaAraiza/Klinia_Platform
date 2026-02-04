@@ -37,7 +37,6 @@ export default function PrescriptionDetail() {
     const [loading, setLoading] = useState(true);
     const [errorState, setErrorState] = useState(""); 
     const [pdfLoading, setPdfLoading] = useState(false);
-    const [suspending, setSuspending] = useState(false);
     
     const navigate = useNavigate();
     const isAssistant = role === ROLES.ASSISTANT;
@@ -45,219 +44,119 @@ export default function PrescriptionDetail() {
     useEffect(() => {
         let active = true;
         setLoading(true);
-        setErrorState("");
-
-        prescriptionsService
-            .getOne(id)
+        prescriptionsService.getOne(id)
             .then((record) => {
                 if (!active) return;
                 setPrescription(record);
-                auditService.logAudit("prescription_view", {
-                    patientId: record.patientRecordId,
-                    prescriptionId: record.id,
-                    folio: record.folio,
-                });
             })
             .catch((err) => {
                 if (!active) return;
-                setErrorState(err?.message || "No pudimos cargar la prescripción solicitada.");
-                error(err?.message || "Error al cargar la prescripción."); 
+                setErrorState(err?.message || "Error al cargar.");
             })
-            .finally(() => {
-                if (active) {
-                    setLoading(false);
-                }
-            });
+            .finally(() => { if (active) setLoading(false); });
+        return () => { active = false; };
+    }, [id]);
 
-        return () => {
-            active = false;
-        };
-    }, [id, error]);
+    if (loading) return <section className="page"><Card><CardBody>Cargando registro clínico...</CardBody></Card></section>;
+    if (!prescription) return <section className="page"><Card><CardBody>No se encontró el registro.</CardBody></Card></section>;
 
-    const patientData = prescription?.patientRecord;
-    const professionalData = prescription?.therapist; 
-    
-    const patientFullName = patientData ? `${patientData.firstName} ${patientData.lastName}` : "Cargando...";
-
-    const handlePdf = async () => {
-        if (!prescription || !patientData || !professionalData) return;
-        setPdfLoading(true);
-        try {
-            await downloadPrescriptionPdf({
-                prescription,
-                patient: patientData, 
-                professional: professionalData, 
-            });
-            await auditService.logAudit("prescription_pdf_generated", {
-                patientId: prescription.patientRecordId,
-                prescriptionId: prescription.id,
-                folio: prescription.folio,
-            });
-            success("PDF de prescripción generado");
-        } catch (err) {
-            error(err?.message || "No pudimos generar el PDF.");
-        } finally {
-            setPdfLoading(false);
-        }
-    };
-
-    const handleSuspend = async () => {
-        if (!prescription || isAssistant || prescription.status === "SUSPENDIDA") {
-            return;
-        }
-        setSuspending(true);
-        try {
-            const updated = await prescriptionsService.suspend(prescription.id);
-            setPrescription(updated); 
-            success("Prescripción suspendida.");
-        } catch (err) {
-            error(err?.message || "No pudimos suspender la prescripción.");
-        } finally {
-            setSuspending(false);
-        }
-    };
-
-    if (loading) {
-        return (
-            <section className="page">
-                <Card hoverable={false}>
-                    <CardBody>
-                        <p>Cargando prescripción…</p>
-                    </CardBody>
-                </Card>
-            </section>
-        );
-    }
-
-    if (errorState) {
-        return (
-            <section className="page">
-                <Card hoverable={false}>
-                    <CardBody className="stack-2">
-                        <p className="form-error" role="alert">
-                            {errorState}
-                        </p>
-                        <Button onClick={() => navigate(ROUTES.prescriptions)}>Volver a prescripciones</Button>
-                    </CardBody>
-                </Card>
-            </section>
-        );
-    }
-
-    if (!prescription || !patientData || !professionalData) {
-        return <p>Error: Datos de prescripción incompletos.</p>;
-    }
-
-    const issuedAt = formatDateISOToHuman(prescription.createdAt);
-    const patientAge = formatAge(patientData.birthDate); 
-    const statusLabel = prescription.status === "SUSPENDIDA" ? "Suspendida" : "Vigente"; 
+    const { nosologico, estrategico, sessionDetail, clinimetria, patientRecord, therapist } = prescription;
 
     return (
         <section className="page stack-5">
             <header className="page__header cluster justify-between align-center wrap">
                 <div>
                     <h1>Folio {prescription.folio}</h1>
-                    <p className="helper-text">Emitida el {issuedAt}</p>
+                    <Badge variant={statusVariant(prescription.status)}>
+                        {prescription.status === "SUSPENDIDA" ? "Suspendida" : "Vigente"}
+                    </Badge>
                 </div>
-                <Button variant="ghost" onClick={() => navigate(ROUTES.prescriptions)}>
-                    Volver
-                </Button>
+                <Button variant="ghost" onClick={() => navigate(ROUTES.prescriptions)}>Volver</Button>
             </header>
 
-            <Card hoverable={false}>
-                <CardHeader className="cluster justify-between align-center wrap gap-2">
-                    <div className="cluster gap-2 align-center">
-                        <Badge variant={statusVariant(prescription.status)}>{statusLabel}</Badge>
-                        <span className="helper-text">Paciente: {patientFullName}</span>
-                    </div>
-                    <div className="cluster gap-2 wrap">
-                        <ButtonPrimary variant="secondary" onClick={handlePdf} loading={pdfLoading}>
-                            Descargar PDF
-                        </ButtonPrimary>
-                        <Button
-                            variant="ghost"
-                            onClick={() => navigate(`/patients/${prescription.patientRecordId}#prescripciones`)}
-                        >
-                            Ver expediente
-                        </Button>
-                        {!isAssistant ? (
-                            <Button
-                                variant="danger"
-                                onClick={handleSuspend}
-                                disabled={prescription.status === "SUSPENDIDA"}
-                                loading={suspending}
-                            >
-                                Suspender prescripción
-                            </Button>
-                        ) : null}
-                    </div>
-                </CardHeader>
-                <CardBody className="stack-4">
-                    <div className="detail-grid">
-                        <div className="stack-2">
-                            <h3>Datos del paciente</h3>
-                            <p>
-                                <strong>Nombre:</strong> {patientFullName}
-                            </p>
-                            <p>
-                                <strong>CURP:</strong> {patientData.curp || "—"}
-                            </p>
-                            <p>
-                                <strong>Edad:</strong> {patientAge}
-                            </p>
-                            <p>
-                                <strong>Teléfono:</strong> {patientData.phone || "—"}
-                            </p>
-                            <p>
-                                <strong>Contacto de emergencia:</strong> {patientData.emergencyName || "—"} ({patientData.emergencyPhone || "—"})
-                            </p>
+            <div className="grid-detail-clinical stack-4">
+                {/* --- 1. DATOS GENERALES --- */}
+                <Card hoverable={false}>
+                    <CardHeader><h3>Información del Paciente y Profesional</h3></CardHeader>
+                    <CardBody className="grid-2-cols">
+                        <div className="stack-1">
+                            <p><strong>Paciente:</strong> {patientRecord?.firstName} {patientRecord?.lastName}</p>
+                            <p><strong>Edad:</strong> {formatAge(patientRecord?.birthDate)}</p>
+                            <p><strong>CURP:</strong> {patientRecord?.curp}</p>
                         </div>
-
-                        <div className="stack-2">
-                            <h3>Profesional tratante</h3>
-                            <p>
-                                <strong>Nombre:</strong> {professionalData.name || "Profesional BreveMente"}
-                            </p>
-                            <p>
-                                <strong>Email:</strong> {professionalData.email || "—"}
-                            </p>
-                            <p>
-                                <strong>Rol:</strong> {professionalData.role || "—"}
-                            </p>
-                            <p>
-                                <strong>Cédula:</strong> {professionalData.kycRecord?.certificateFolio || "No registrada"}
-                            </p> 
+                        <div className="stack-1">
+                            <p><strong>Terapeuta:</strong> {therapist?.name}</p>
+                            <p><strong>Cédula:</strong> {therapist?.kycRecord?.certificateFolio || "N/A"}</p>
                         </div>
-                    </div>
+                    </CardBody>
+                </Card>
 
-                    <div className="stack-1">
-                        <h3>Detalle terapéutico</h3>
-                        <p>
-                            <strong>Principio activo:</strong> {prescription.substance}
-                        </p>
-                        <p>
-                            <strong>Forma farmacéutica:</strong> {prescription.form}
-                        </p>
-                        <p>
-                            <strong>Dosis:</strong> {prescription.dose}
-                        </p>
-                        <p>
-                            <strong>Vía de administración:</strong> {prescription.route}
-                        </p>
-                        <p>
-                            <strong>Frecuencia:</strong> {prescription.frequency}
-                        </p>
-                        <p>
-                            <strong>Duración:</strong> {prescription.duration}
-                        </p>
-                    </div>
+                {/* --- 2. DIAGNÓSTICO NOSOLÓGICO --- */}
+                <Card hoverable={false}>
+                    <CardHeader><h3>Diagnóstico Nosológico</h3></CardHeader>
+                    <CardBody className="stack-2">
+                        <p><strong>Motivo de Consulta:</strong> {nosologico?.motivoConsulta}</p>
+                        <div className="cluster gap-4">
+                            <p><strong>DSM-V:</strong> {nosologico?.dx_dsmvtr || "—"}</p>
+                            <p><strong>CIE-11:</strong> {nosologico?.dx_cie11 || "—"}</p>
+                        </div>
+                        <p><strong>Evolución:</strong> {nosologico?.dx_evolucion}</p>
+                        <p><strong>Pronóstico:</strong> {nosologico?.pronostico}</p>
+                    </CardBody>
+                </Card>
 
-                    <div className="stack-1">
-                        <h3>Indicaciones</h3>
-                        <p>{prescription.notes || "Sin indicaciones adicionales."}</p>
-                    </div>
-                </CardBody>
-            </Card>
+                {/* --- 3. REGISTRO DE SESIÓN Y TAREAS (PX) --- */}
+                <Card hoverable={false}>
+                    <CardHeader><h3>Sesión #{sessionDetail?.sesionNumero}</h3></CardHeader>
+                    <CardBody className="stack-3">
+                        <p><strong>Fecha:</strong> {formatDateISOToHuman(sessionDetail?.sesionFecha)}</p>
+                        <p><strong>Criterio de Cambio:</strong> {sessionDetail?.cambio_criterio}</p>
+                        
+                        <h4>Prescripciones / Tareas:</h4>
+                        <div className="table-wrapper">
+                            <table className="table">
+                                <thead>
+                                    <tr>
+                                        <th>Tipo</th>
+                                        <th>Indicación</th>
+                                        <th>OSS</th>
+                                        <th>ADD</th>
+                                        <th>RSS</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {sessionDetail?.px_data && Object.values(sessionDetail.px_data).map((px, idx) => (
+                                        <tr key={idx}>
+                                            <td><Badge variant="ghost">{px.tipo}</Badge></td>
+                                            <td>{px.text}</td>
+                                            <td>{px.oss ? "SI" : "—"}</td>
+                                            <td>{px.add ? "SI" : "—"}</td>
+                                            <td>{px.rss ? "SI" : "—"}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </CardBody>
+                </Card>
+
+                {/* --- 4. CLINIMETRÍA --- */}
+                <Card hoverable={false}>
+                    <CardHeader><h3>Resultados de Escalas</h3></CardHeader>
+                    <CardBody>
+                        <div className="cluster gap-4 wrap">
+                            <div className="stat-box"><strong>Beck Depresión:</strong> {clinimetria?.escala_beck_dep ?? "—"}</div>
+                            <div className="stat-box"><strong>Beck Ansiedad:</strong> {clinimetria?.escala_beck_ans ?? "—"}</div>
+                            <div className="stat-box"><strong>Escala PDSS:</strong> {clinimetria?.escala_pdss ?? "—"}</div>
+                            <div className="stat-box"><strong>Yale-Brown:</strong> {clinimetria?.escala_ybocs ?? "—"}</div>
+                        </div>
+                    </CardBody>
+                </Card>
+            </div>
+
+            <footer className="cluster justify-center py-4">
+                <ButtonPrimary onClick={() => window.print()}>Imprimir Reporte Completo</ButtonPrimary>
+            </footer>
         </section>
     );
 }
