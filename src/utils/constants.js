@@ -28,6 +28,33 @@ export const AREAS_YO = ["Cuerpo", "Estudio", "Trabajo", "Deporte", "Situacional
 export const AREAS_DEMAS = ["Pareja", "Hijos", "Amigos", "Familia origen", "Familia política"];
 export const AREAS_MUNDO = ["Sociedad", "Situacional"];
 
+export const CIVIL_STATUS_OPTIONS = [
+  { value: "SOLTERO", label: "Soltero/a" },
+  { value: "CASADO", label: "Casado/a" },
+  { value: "DIVORCIADO", label: "Divorciado/a" },
+  { value: "VIUDO", label: "Viudo/a" },
+  { value: "UNION_LIBRE", label: "Unión Libre" },
+];
+
+export const EDUCATION_OPTIONS = [
+  { value: "PRIMARIA", label: "Primaria" },
+  { value: "SECUNDARIA", label: "Secundaria" },
+  { value: "PREPARATORIA", label: "Preparatoria/Bachillerato" },
+  { value: "LICENCIATURA", label: "Licenciatura/Ingeniería" },
+  { value: "POSGRADO", label: "Posgrado (Maestría/Doctorado)" },
+  { value: "NINGUNO", label: "Sin estudios formales" },
+];
+
+export const RELIGION_OPTIONS = [
+  { value: "CATOLICA", label: "Católica" },
+  { value: "CRISTIANA", label: "Cristiana" },
+  { value: "TESTIGO_JEHOVA", label: "Testigo de Jehová" },
+  { value: "MORMON", label: "Mormón" },
+  { value: "JUDIA", label: "Judía" },
+  { value: "OTRA", label: "Otra" },
+  { value: "NINGUNA", label: "Ninguna / Ateísmo" },
+];
+
 export const ROUTES = {
   home: "/",
   login: "/login",

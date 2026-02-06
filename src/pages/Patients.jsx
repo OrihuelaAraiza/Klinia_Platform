@@ -159,59 +159,67 @@ export default function Patients() {
     }
   };
 
-  const handleCreateOrUpdate = async (payload) => {
-    const basePayload = {
+const handleCreateOrUpdate = async (payload) => {
+    const fullPayload = {
+      // 1. Identidad
       firstName: payload.firstName,
       lastName: payload.lastName,
-      curp: payload.curp?.toUpperCase() || undefined,
+      curp: payload.curp?.toUpperCase() || "", // Cambiado null por ""
       birthDate: payload.birthDate,
-      
-      gender: payload.gender, 
-      
+      gender: payload.gender,
+      genderIdentity: payload.genderIdentity || "", // Zod esperaba string
+
+      // 2. Contacto
       phone: payload.phone,
       email: payload.email,
-      attachments: payload.attachments,
+      homePhone: payload.homePhone || "",
+      workPhone: payload.workPhone || "",
 
-      referral: payload.referral,
-      purpose: payload.purpose,
+      // 3. Dirección
+      street: payload.street || "",
+      postalCode: payload.postalCode || "",
+      neighborhood: payload.neighborhood || "",
+      state: payload.state || "",
+      municipality: payload.city || payload.municipality || "",
+
+      // 4. Información adicional
+      rfc: payload.rfc?.toUpperCase() || "",
+      nationality: payload.nationality || "Mexicana",
+      occupation: payload.occupation || "",
+      civilStatus: payload.civilStatus || "",
+      religion: payload.religion || "", // Zod esperaba string
+      education: payload.education || "", // Zod esperaba string
+
+      // 5. Emergencia y Responsables
       emergencyName: payload.emergencyName,
       emergencyPhone: payload.emergencyPhone,
+      emergencyRelation: payload.emergencyRelation || "",
+      legalGuardianName: payload.legalGuardianName || "",
+      legalGuardianRelation: payload.legalGuardianRelation || "",
+      legalGuardianPhone: payload.legalGuardianPhone || "",
 
-      
+      // 6. Otros
+      referral: payload.referral,
+      purpose: payload.purpose,
+      attachments: payload.attachments || [],
     };
-    console.log("PAYLOAD ENVIADO AL BACKEND:", basePayload);
+
+    console.log("🚀 Enviando Payload Corregido:", fullPayload);
+    
+
     try {
       if (editingPatient) {
-        // En el caso de UPDATE, Zod permite campos opcionales, por lo que este payload es correcto.
-        await updatePatient(editingPatient.id, basePayload);
-        auditService.logAudit("patient_update", {
-          id: editingPatient.id,
-          curp: basePayload.curp,
-        });
-        toast.success("Paciente actualizado correctamente");
+        await updatePatient(editingPatient.id, fullPayload);
+        toast.success("Expediente actualizado");
       } else {
-        // En el caso de CREATE, el backend espera TODOS los campos
-        const created = await createPatient(basePayload);
-        auditService.logAudit("patient_create", {
-          id: created?.id,
-          curp: basePayload.curp,
-        });
-        toast.success("Paciente creado");
+        await createPatient(fullPayload);
+        toast.success("Paciente registrado con éxito");
       }
-
       await refreshList();
       handleCloseDrawer();
     } catch (err) {
-      // Intenta obtener un mensaje de error detallado del backend
-      let message = "No pudimos guardar el paciente.";
-      if (err.response && err.response.data && err.response.data.message) {
-          message = err.response.data.message;
-      } else if (err.message) {
-          message = err.message;
-      }
-      
-      setError(message);
-      toast.error(message);
+      const msg = err.response?.data?.message || "Error al procesar la solicitud";
+      toast.error(msg);
       throw err;
     }
   };
@@ -244,16 +252,7 @@ export default function Patients() {
               name="patient-search"
               assistiveText="La búsqueda se actualiza automáticamente"
             />
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => {
-                setCieModalOpen(true);
-                setCieQuery("");
-              }}
-            >
-              Ver catálogo CIE-10
-            </Button>
+            
             {!isAssistant ? (
               <Button onClick={handleOpenCreate}>Nuevo paciente</Button>
             ) : null}
