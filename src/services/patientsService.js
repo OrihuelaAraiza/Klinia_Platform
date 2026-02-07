@@ -44,6 +44,12 @@ export const getProfessionalsList = () => {
     return api.get("/profiles/list-professionals", { auth: true });
 };
 
+export const createDischargeNote = async (data) => {
+  const { patientId, ...payload } = data;
+  
+  return api.post(`/patients/${patientId}/discharge`, payload, { auth: true });
+};
+
 
 export async function getMyProfile() {
   return api.get("/patient/profile", { auth: true });
@@ -83,4 +89,5 @@ export default {
   requestPhoneVerification, 
   getMyDocuments,
   listMyTherapists,
+  createDischargeNote
 };

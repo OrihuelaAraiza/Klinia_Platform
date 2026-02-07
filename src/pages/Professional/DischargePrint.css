@@ -1,0 +1,74 @@
+@media print {
+  .no-print, 
+  button, 
+  .form-actions, 
+  .cluster {
+    display: none !important;
+  }
+
+  .page {
+    margin: 0;
+    padding: 20px;
+    background: white;
+  }
+
+  .panel {
+    border: none !important;
+    box-shadow: none !important;
+    margin-bottom: 30px;
+  }
+
+  textarea, input {
+    border: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+  }
+
+  .form-section-title {
+    border-bottom: 2px solid #000;
+    text-transform: uppercase;
+    font-size: 14px;
+  }
+
+  .signature-wrapper {
+    margin-top: 50px;
+    page-break-inside: avoid;
+  }
+}
+
+.sigCanvas {
+  width: 100%;
+  height: 200px;
+  cursor: crosshair;
+}
+
+.signature-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  margin-top: 1rem;
+}
+
+.signature-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.canvas-wrapper {
+  border: 1px solid #ddd;
+  background: #fff;
+  border-radius: 4px;
+}
+
+.sigCanvas {
+  width: 100%;
+  height: 180px;
+}
+
+@media print {
+  .no-print { display: none !important; }
+  .panel { border: none !important; box-shadow: none !important; }
+  .canvas-wrapper { border: none !important; border-bottom: 1px solid #000 !important; }
+  .discharge-container { width: 100%; max-width: 100%; }
+}

@@ -11,6 +11,21 @@ export const ROLES_LABEL = {
   [ROLES.ASSISTANT]: "Asistente",
   [ROLES.PATIENT]: "Paciente",
 };
+export const DISCHARGE_REASONS = [
+  { value: "OBJETIVOS_CUMPLIDOS", label: "Objetivos cumplidos" },
+  { value: "ALTA_VOLUNTARIA", label: "Alta voluntaria" },
+  { value: "ABANDONO", label: "Abandono / Deserción" },
+  { value: "REFERENCIA", label: "Referencia a otro especialista" },
+  { value: "OTRO", label: "Otro" },
+];
+
+export const CASE_RESULTS = [
+  { value: "RESUELTO", label: "Caso resuelto" },
+  { value: "MEJORADO", label: "Caso mejorado" },
+  { value: "EMPEORADO", label: "Caso empeorado" },
+  { value: "DROP_OUT", label: "Drop out (Abandono)" },
+];
+
 
 export const EVOLUCION_TEMPORAL = ["Progresivo", "Agudo", "Crónico", "Episódico"];
 export const PRONOSTICO = ["Excelente", "Bueno", "Reservado", "Malo"];
@@ -35,6 +50,7 @@ export const CIVIL_STATUS_OPTIONS = [
   { value: "VIUDO", label: "Viudo/a" },
   { value: "UNION_LIBRE", label: "Unión Libre" },
 ];
+
 
 export const EDUCATION_OPTIONS = [
   { value: "PRIMARIA", label: "Primaria" },
@@ -82,6 +98,7 @@ export const ROUTES = {
   patientPrescriptions: "/patient/prescriptions",
   patientDocuments: "/patient/documents",
   patientProfile: "/patient/profile",
+  DisblePatient: "/patients/:id/discharge",
 };
 
 export const SESSION_STATUS = {

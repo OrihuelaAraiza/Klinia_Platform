@@ -51,6 +51,7 @@ const NotFound = lazy(() => import("../pages/NotFound"));
 const PatientReportsList = lazy(() => import("../components/PatientReportList"));
 const PatientDocuments = lazy(() => import("../pages/PatientDocument"));
 const ProfileProfessional = lazy(() => import("../pages/Professional/ProfessionalProfile"));
+const DisblePatient = lazy(()=> import("../pages/Professional/PatientDischarge"))
 
 function RouteAuditor() {
   const location = useLocation();
@@ -160,6 +161,9 @@ export default function AppRoutes() {
             <Route path={ROUTES.prescriptionDetail} element={<PrescriptionDetail />} />
             <Route path={ROUTES.orderNew} element={<OrderForm />} />
             <Route path={ROUTES.orderDetail} element={<OrderDetail />} />
+
+            {/* Alta de Paciente */}
+            <Route path={ROUTES.DisblePatient} element={<DisblePatient />} />
             
             {/* Gestión de Reportes y Documentos */}
             <Route path="/patients/:patientId/reports" element={<PatientReportsList />} />

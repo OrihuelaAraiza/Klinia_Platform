@@ -51,7 +51,6 @@ export default function PatientDetail() {
 
   const handleDownload = async (blobName) => {
     try {
-      // 🚨 Importante: desestructurar la respuesta { data } según tu apiClient
       const response = await patientsService.getAttachmentUrl(id, blobName);
       const downloadUrl = response.url || response.data?.url;
 
@@ -568,6 +567,13 @@ export default function PatientDetail() {
             <Button variant="ghost" onClick={() => navigate(`/sessions`)} className="clinical-link-btn">
               Agenda
             </Button>
+            <Button 
+            variant="ghost" 
+            onClick={() => navigate(ROUTES.DisblePatient, { state: { patient } })} 
+            className="clinical-link-btn"
+          >
+            Alta
+          </Button>
           </div>
         </CardBody>
       </Card>
