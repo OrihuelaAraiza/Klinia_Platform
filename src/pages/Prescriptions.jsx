@@ -314,7 +314,7 @@ const handleSubmit = async (event) => {
                                     onClick={() => setActiveTab(item.id)}
                                     className={`btn-tab ${activeTab === item.id ? 'active' : ''}`}
                                 >
-                                    <span className="tab-icon">{item.icon}</span>
+                                    {item.icon ? <span className="tab-icon">{item.icon}</span> : null}
                                     {item.label}
                                 </button>
                             ))}

@@ -604,7 +604,7 @@ export default function PatientDetail() {
             ) : prescriptionsState.items.length === 0 ? (
               <p className="helper-text">No hay prescripciones registradas.</p>
             ) : (
-              <ul className="stack-2">
+              <ul className="prescriptions-list stack-2" role="list">
                 {prescriptionsState.items.map((item) => {
                   const statusLabel = item.status === "suspendida" ? "Suspendida" : "Vigente";
                   const variant = item.status === "suspendida" ? "danger" : "success";
