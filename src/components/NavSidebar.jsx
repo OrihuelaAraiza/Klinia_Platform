@@ -5,8 +5,8 @@ import SidebarLink from "./SidebarLink";
 const NAV_ITEMS = [
   { to: ROUTES.dashboard, label: "Inicio", icon: DashboardIcon, roles: [ROLES.ADMIN, ROLES.PROFESSIONAL, ROLES.ASSISTANT] },
   { to: ROUTES.patients, label: "Pacientes", icon: UsersIcon, roles: [ROLES.ADMIN, ROLES.PROFESSIONAL, ROLES.ASSISTANT] },
-  { to: ROUTES.sessions, label: "Sesiones", icon: CalendarIcon, roles: [ROLES.ADMIN, ROLES.PROFESSIONAL, ROLES.ASSISTANT] },
-  { to: ROUTES.prescriptions, label: "Prescripciones", icon: ClipboardIcon, roles: [ROLES.ADMIN, ROLES.PROFESSIONAL, ROLES.ASSISTANT] },
+  { to: ROUTES.sessions, label: "Agenda", icon: CalendarIcon, roles: [ROLES.ADMIN, ROLES.PROFESSIONAL, ROLES.ASSISTANT] },
+  { to: ROUTES.prescriptions, label: "Sesiones", icon: ClipboardIcon, roles: [ROLES.ADMIN, ROLES.PROFESSIONAL, ROLES.ASSISTANT] },
   { to: ROUTES.reports, label: "Reportes", icon: ChartIcon, roles: [ROLES.ADMIN, ROLES.PROFESSIONAL] },
 ];
 

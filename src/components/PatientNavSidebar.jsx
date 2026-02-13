@@ -6,8 +6,8 @@ const PATIENT_NAV_ITEMS = [
   { to: "/patient/dashboard", label: "Inicio", icon: HomeIcon },
   { to: "/patient/clinical-history", label: "Mi Historia Clínica", icon: FileTextIcon },
   { to: "/patient/notes", label: "Mis Notas", icon: ClipboardIcon },
-  { to: "/patient/sessions", label: "Mis Sesiones", icon: CalendarIcon },
-  { to: "/patient/prescriptions", label: "Mis Prescripciones", icon: PillIcon },
+  { to: "/patient/sessions", label: "Mi Agenda", icon: CalendarIcon },
+  { to: "/patient/prescriptions", label: "Mis Sesiones", icon: PillIcon },
   { to: "/patient/documents", label: "Documentos", icon: FolderIcon },
 ];
 
@@ -98,4 +98,3 @@ export default function PatientNavSidebar({
     </nav>
   );
 }
-
