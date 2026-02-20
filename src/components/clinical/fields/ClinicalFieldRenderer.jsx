@@ -27,15 +27,27 @@ export default function ClinicalFieldRenderer({
   const isReadonly = readOnly || field.type === "readonly";
   const shouldShow = useMemo(() => {
     if (!field.conditional) return true;
-    const conditionalField = field.conditional.field;
-    const conditionalValue = field.conditional.value;
-    const operator = field.conditional.operator || "==";
+
+    const { field: conditionalField, value: conditionalValue, operator = "==" } = field.conditional;
     const currentValue = formData[conditionalField];
-    
+
+    // Normaliza el valor actual a string para comparar con el schema
+    const normalize = (val) => {
+      if (typeof val === "boolean") return val ? "SI" : "NO";
+      if (typeof val === "string") return val.toUpperCase().trim();
+      return val;
+    };
+
+    const normalizedCurrent = normalize(currentValue);
+    const normalizedExpected = normalize(conditionalValue);
+
     if (operator === "!=") {
-      return currentValue !== "" && currentValue !== conditionalValue;
+      return normalizedCurrent !== "" &&
+        normalizedCurrent !== undefined &&
+        normalizedCurrent !== normalizedExpected;
     }
-    return currentValue === conditionalValue;
+
+    return normalizedCurrent === normalizedExpected;
   }, [field.conditional, formData]);
 
   if (!shouldShow) return null;
