@@ -47,24 +47,26 @@ function buildInitialForm(patientId = "") {
 
         // --- 2. Módulo Estratégico 
         trastorno: "",
-        dx_op: "",                  // DX Operativo SPR
-        dimensiones_spr: "",        // String/JSON de áreas afectadas
-        val_yo: "",                 // Valoración áreas Yo
-        val_demas: "",              // Valoración áreas Demás
-        val_mundo: "",              // Valoración áreas Mundo
+        dx_op: "",                  
+        dimensiones_spr: [],        
+        dimensiones_detalles: {},   // <--- NUEVO: Detalles dinámicos
+        val_yo: [],                 
+        val_yo_detalles: {},        // <--- NUEVO
+        val_demas: [],              
+        val_demas_detalles: {},     // <--- NUEVO
+        val_mundo: [],              
+        val_mundo_detalles: {},     // <--- NUEVO
+        obj_paciente: "",
+        obj_terapeuta: "",
 
         // --- 3. Registro de Sesión
         sesionNumero: 1,
-        sesionFecha: new Date().toISOString().split('T')[0], // Formato YYYY-MM-DD para input date
+        sesionFecha: new Date().toISOString().split('T')[0], 
         sesionFase: "",
         cambio_criterio: "",
         notas_reestructuracion: "",
-        px1_tipo: "",
-        px1_text: "",
-        px1_oss: false,
-        px1_add: false,
-        px1_rss: false,
-
+        // Inputs para las 20 PX iniciales (se manejan dinámicamente en el componente hijo)
+        
         // --- 4. Clinimetría 
         escala_beck_dep: "",       
         escala_beck_ans: "",
@@ -74,15 +76,6 @@ function buildInitialForm(patientId = "") {
         escala_eespr: "",
         notas_escalas: ""
     };
-}
-
-function calculateAge(birthDate) {
-    if (!birthDate) return "—";
-    const date = new Date(birthDate);
-    if (Number.isNaN(date.getTime())) return "—";
-    const diff = Date.now() - date.getTime();
-    const ageDate = new Date(diff);
-    return Math.abs(ageDate.getUTCFullYear() - 1970);
 }
 
 export default function Prescriptions() {
@@ -107,11 +100,8 @@ export default function Prescriptions() {
     const [submitting, setSubmitting] = useState(false);
     const [formError, setFormError] = useState("");
     const [successRecord, setSuccessRecord] = useState(null);
-    const [pdfLoading, setPdfLoading] = useState(false);
-
     const [activeTab, setActiveTab] = useState("nosologico");
 
-    // Definición del menú 
     const menuItems = [
         { id: "nosologico", label: "Nosológico" },
         { id: "estrategico", label: "Estratégico"},
@@ -120,10 +110,6 @@ export default function Prescriptions() {
     ];
 
     const [prescriptionsList, setPrescriptionsList] = useState([]);
-    const [prescriptionsLoading, setPrescriptionsLoading] = useState(false);
-
-    const isAssistant = role === ROLES.ASSISTANT;
-    const isFormDisabled = isAssistant || !patient || Boolean(patientError);
 
     const handleFormChange = (e) => {
         if (e && e.target) {
@@ -137,11 +123,10 @@ export default function Prescriptions() {
         else if (typeof e === 'object') {
             setForm((prev) => ({ ...prev, ...e }));
         }
-        
         if (formError) setFormError("");
     };
 
-    // Efecto para cargar paciente y recetas (se mantiene tu lógica original funcional)
+    // Carga de datos del paciente
     useEffect(() => {
         if (!selectedPatientId) {
             setPatient(null);
@@ -155,121 +140,89 @@ export default function Prescriptions() {
             .finally(() => setPatientLoading(false));
     }, [selectedPatientId]);
 
-    // Búsqueda con debounce (tu lógica funcional)
+    // Búsqueda de pacientes con Debounce
     useEffect(() => {
         const timeout = setTimeout(() => {
             if (searchQuery.trim()) {
                 setSearchLoading(true);
-                patientsService.listPatients({ q: searchQuery.trim(), professionalId: user?.id })
+                patientsService.listPatients({ q: searchQuery.trim() })
                     .then(res => setSearchResults(res.items || []))
                     .finally(() => setSearchLoading(false));
             }
         }, SEARCH_DEBOUNCE_MS);
         return () => clearTimeout(timeout);
-    }, [searchQuery, user?.id]);
+    }, [searchQuery]);
 
     const selectPatient = (candidate) => {
         navigate(`${ROUTES.prescriptions}?patientId=${candidate.id}`);
         setSelectedPatientId(candidate.id);
         setSearchResults([]);
+        setForm(prev => ({ ...prev, patientRecordId: candidate.id }));
     };
 
     const clearSelection = () => {
         navigate(ROUTES.prescriptions);
         setSelectedPatientId("");
         setPatient(null);
+        setForm(buildInitialForm(""));
     };
 
-const handleSubmit = async (event) => {
-    event.preventDefault();
-    
+    const handleSubmit = async (event) => {
+        event.preventDefault();
 
-    // 1. Validaciones mínimas obligatorias antes de procesar
-    if (!form.motivoConsulta || !selectedPatientId) {
-        error("El motivo de consulta y la selección del paciente son obligatorios.");
-        return;
-    }
-
-    setSubmitting(true);
-    setFormError("");
-
-    try {
-        // 2. Empaquetar las 20 Prescripciones dinámicas en el objeto px_data
-        const pxData = {};
-        for (let i = 1; i <= 20; i++) {
-            if (form[`px${i}_text`] || form[`px${i}_tipo`]) {
-                pxData[`px${i}`] = {
-                    text: form[`px${i}_text`] || "",
-                    tipo: form[`px${i}_tipo`] || "",
-                    oss: !!form[`px${i}_oss`],
-                    add: !!form[`px${i}_add`],
-                    rss: !!form[`px${i}_rss`],
-                };
-            }
+        if (!form.motivoConsulta || !selectedPatientId) {
+            error("El motivo de consulta y la selección del paciente son obligatorios.");
+            return;
         }
 
-        // 3. Construcción del Payload Final
-        const payload = {
-            // Datos de Identificación
-            patientRecordId: selectedPatientId,
+        setSubmitting(true);
+        setFormError("");
 
-            // --- Módulo Nosológico ---
-            motivoConsulta: form.motivoConsulta,
-            dx_dsmvtr: form.dx_dsmvtr,
-            dx_cie11: form.dx_cie11,
-            dx_primeraAparicion: form.dx_primeraAparicion,
-            dx_evolucion: form.dx_evolucion,
-            dx_precipitantes: form.dx_precipitantes,
-            dx_dif: form.dx_dif,
-            dx_comorbilidad: form.dx_comorbilidad,
-            pronostico: form.pronostico,
-            pronostico_favorables: form.pronostico_favorables,
-            pronostico_desfavorables: form.pronostico_desfavorables,
-            hasFarmacos: !!form.hasFarmacos,
-            farmacos_lista: form.farmacos_lista,
-            planTratamiento: form.planTratamiento,
+        try {
+            // 1. Procesar las 20 PX dinámicas
+            const pxData = {};
+            for (let i = 1; i <= 20; i++) {
+                if (form[`px${i}_text`] || form[`px${i}_tipo`]) {
+                    pxData[`px${i}`] = {
+                        text: form[`px${i}_text`] || "",
+                        tipo: form[`px${i}_tipo`] || "",
+                        oss: !!form[`px${i}_oss`],
+                        add: !!form[`px${i}_add`],
+                        rss: !!form[`px${i}_rss`],
+                    };
+                }
+            }
 
-            // --- Módulo Estratégico ---
-            trastorno: form.trastorno,
-            dx_op: form.dx_op,
-            dimensiones_spr: form.dimensiones_spr,
-            val_yo: form.val_yo,
-            val_demas: form.val_demas,
-            val_mundo: form.val_mundo,
+            // 2. Construir Payload Final combinando el form y los detalles dinámicos
+            const payload = {
+                ...form,
+                patientRecordId: selectedPatientId,
+                px_data: pxData,
+                // Conversión de tipos para el Backend/Prisma
+                sesionNumero: parseInt(form.sesionNumero) || 1,
+                sesionFecha: form.sesionFecha ? new Date(form.sesionFecha).toISOString() : new Date().toISOString(),
+                escala_beck_dep: form.escala_beck_dep ? parseFloat(form.escala_beck_dep) : null,
+                escala_beck_ans: form.escala_beck_ans ? parseFloat(form.escala_beck_ans) : null,
+                escala_pdss: form.escala_pdss ? parseFloat(form.escala_pdss) : null,
+                escala_ybocs: form.escala_ybocs ? parseFloat(form.escala_ybocs) : null,
+                escala_tlp: form.escala_tlp ? parseFloat(form.escala_tlp) : null,
+                escala_eespr: form.escala_eespr ? parseFloat(form.escala_eespr) : null,
+            };
 
-            // --- Registro de Sesión 
-            sesionNumero: parseInt(form.sesionNumero) || 1,
-            sesionFecha: form.sesionFecha ? new Date(form.sesionFecha).toISOString() : new Date().toISOString(),
-            sesionFase: form.sesionFase,
-            cambio_criterio: form.cambio_criterio,
-            notas_reestructuracion: form.notas_reestructuracion,
+            const record = await prescriptionsService.create(payload);
             
-            // Aquí inyectamos el JSON de las 20 PX
-            px_data: pxData,
+            setSuccessRecord(record);
+            success(`Registro guardado exitosamente. Folio: ${record.folio}`);
+            auditService.logAudit("clinical_record_created", { patientId: selectedPatientId, folio: record.folio });
 
-            escala_beck_dep: form.escala_beck_dep ? parseFloat(form.escala_beck_dep) : null,
-            escala_beck_ans: form.escala_beck_ans ? parseFloat(form.escala_beck_ans) : null,
-            escala_pdss: form.escala_pdss ? parseFloat(form.escala_pdss) : null,
-            escala_ybocs: form.escala_ybocs ? parseFloat(form.escala_ybocs) : null,
-            escala_tlp: form.escala_tlp ? parseFloat(form.escala_tlp) : null,
-            escala_eespr: form.escala_eespr ? parseFloat(form.escala_eespr) : null,
-            notas_escalas: form.notas_escalas
-        };
-
-        const record = await prescriptionsService.create(payload);
-        
-        setSuccessRecord(record);
-        setPrescriptionsList((prev) => [record, ...prev]); 
-        success(`Registro guardado exitosamente con folio ${record.folio}`);
-
-    } catch (err) {
-        console.error("Submit Error:", err);
-        setFormError(err?.message || "Error al procesar el registro.");
-        error(err?.message || "Ocurrió un error inesperado.");
-    } finally {
-        setSubmitting(false);
-    }
-};
+        } catch (err) {
+            const msg = err.response?.data?.message || err.message || "Error al procesar el registro.";
+            setFormError(msg);
+            error(msg);
+        } finally {
+            setSubmitting(false);
+        }
+    };
 
     return (
         <section className="page stack-5">
@@ -277,36 +230,54 @@ const handleSubmit = async (event) => {
                 <h1>Prescripciones y Registro Clínico</h1>
             </header>
 
-            {/* Búsqueda y Detalle de Paciente (Se mantienen igual para no romper tu flujo) */}
             {!selectedPatientId ? (
                 <Card>
-                    <CardBody>
-                        <InputField label="Buscar paciente" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
-                       
-                        {searchResults.map(p => (
-                            <Button key={p.id} onClick={() => selectPatient(p)}>{p.firstName} {p.lastName}</Button>
-                        ))}
+                    <CardBody className="stack-3">
+                        <InputField 
+                            label="Buscar paciente para iniciar registro" 
+                            placeholder="Nombre, apellido o CURP..."
+                            value={searchQuery} 
+                            onChange={(e) => setSearchQuery(e.target.value)} 
+                        />
+                        {searchLoading && <SkeletonList items={3} />}
+                        <div className="grid-3 gap-2">
+                            {searchResults.map(p => (
+                                <Button key={p.id} variant="outline" onClick={() => selectPatient(p)}>
+                                    <User size={16} className="mr-2" /> {p.firstName} {p.lastName}
+                                </Button>
+                            ))}
+                        </div>
                     </CardBody>
                 </Card>
             ) : (
-                <Card>
-                    <CardHeader className="cluster justify-between">
-                        <h3>Paciente: {patient?.firstName} {patient?.lastName}</h3>
-                        <h3>Fecha de Nacimiento: {patient?.birthDate}</h3>
-                        <h3>Curp: {patient?.curp}</h3>
-                        <h3>Teléfono: {patient?.phone}</h3>
-                        <Button variant="ghost" onClick={clearSelection}>Cambiar</Button>
+                <Card className="bg-primary-light border-primary">
+                    <CardHeader className="cluster justify-between align-center">
+                        <div className="cluster gap-4">
+                            <div className="avatar-placeholder"><User /></div>
+                            <div>
+                                <h3 className="m-0">{patient?.firstName} {patient?.lastName}</h3>
+                                <p className="text-sm m-0">CURP: {patient?.curp || 'No registrada'}</p>
+                            </div>
+                        </div>
+                        <div className="cluster gap-2">
+                {/* NUEVO BOTÓN: Ver Historial / Recetas del paciente */}
+                    <Button 
+                        variant="outline" 
+                        onClick={() => navigate(`/prescriptions/${selectedPatientId}`)} 
+                    >
+                        <FileText size={16} className="mr-2" /> Ver Detalle de Registro
+                    </Button>
+                
+                <Button variant="ghost" onClick={clearSelection}>Cambiar Paciente</Button>
+            </div>
                     </CardHeader>
                 </Card>
             )}
 
-            {/* --- SECCIONES DEL FORMULARIO INTEGRAL --- */}
             {selectedPatientId && patient && (
                 <div className="stack-4">
-                    
-                    {/* Menú de Navegación Estilo Tabs */}
-                    <nav className="tabs-container">
-                        <div className="cluster gap-2 bg-light p-1 rounded shadow-sm">
+                    <nav className="tabs-container sticky-top">
+                        <div className="cluster gap-1 bg-white p-1 rounded border shadow-sm">
                             {menuItems.map((item) => (
                                 <button
                                     key={item.id}
@@ -314,16 +285,13 @@ const handleSubmit = async (event) => {
                                     onClick={() => setActiveTab(item.id)}
                                     className={`btn-tab ${activeTab === item.id ? 'active' : ''}`}
                                 >
-                                    {item.icon ? <span className="tab-icon">{item.icon}</span> : null}
                                     {item.label}
                                 </button>
                             ))}
                         </div>
                     </nav>
 
-                    <form className="stack-4" onSubmit={handleSubmit}>
-                        
-                        {/* Contenedor de Secciones con Renderizado Condicional */}
+                    <form onSubmit={handleSubmit} className="stack-4">
                         <div className="tab-content">
                             {activeTab === "nosologico" && (
                                 <Card><CardBody>
@@ -350,18 +318,16 @@ const handleSubmit = async (event) => {
                             )}
                         </div>
 
-                        {/* Botón de Guardar Permanente */}
-                        <div className="form-grid__actions sticky-bottom py-3 bg-white border-top">
-                            <div className="cluster justify-between align-center mb-2">
-                                <p className="text-sm text-muted">
-                                    Editando: <strong>{menuItems.find(i => i.id === activeTab).label}</strong>
-                                </p>
-                                <div className="cluster gap-2">
-                                    <ButtonPrimary type="submit" loading={submitting}>
-                                        Guardar Registro Completo
-                                    </ButtonPrimary>
-                                </div>
-                            </div>
+                        <div className="cluster justify-end sticky-bottom py-4 bg-white border-top gap-3">
+                            <p className="text-sm text-muted mr-auto">
+                                Estás en el módulo: <strong>{activeTab.toUpperCase()}</strong>
+                            </p>
+                            <Button variant="ghost" type="button" onClick={() => navigate(ROUTES.dashboard)}>
+                                Cancelar
+                            </Button>
+                            <ButtonPrimary type="submit" loading={submitting}>
+                                Finalizar y Guardar Registro
+                            </ButtonPrimary>
                         </div>
                     </form>
                 </div>
