@@ -72,9 +72,9 @@ function buildZodSchema(fields) {
         break;
       case "number":
         if (field.required && !isConditional) {
-          fieldSchema = z.coerce.number({ 
+          fieldSchema = z.coerce.number({
             required_error: `${field.label} es requerido`,
-            invalid_type_error: "Debe ser un número" 
+            invalid_type_error: "Debe ser un número"
           });
         } else {
           fieldSchema = z.union([z.coerce.number(), z.nan()]).optional();
@@ -141,7 +141,7 @@ export default function ClinicalHistoryWizard({
   const [currentStep, setCurrentStep] = useState(0);
 
   // Crear pasos desde las secciones del esquema
-  const steps = useMemo(() => 
+  const steps = useMemo(() =>
     schema.sections.map((section, index) => ({
       id: section.sectionId,
       label: section.title,
@@ -202,20 +202,20 @@ export default function ClinicalHistoryWizard({
   }, [formData.apsicFechaInicio, context?.datetime, setValue]);
 
   const handleFieldChange = (fieldId, value) => {
-    setValue(fieldId, value, { 
-      shouldValidate: true, 
-      shouldDirty: true, 
-      shouldTouch: true 
+    setValue(fieldId, value, {
+      shouldValidate: true,
+      shouldDirty: true,
+      shouldTouch: true
     });
   };
 
-  const handleNext = async () => {
-    // Validar solo los campos del paso actual
+  const handleNext = async (e) => {
+    e?.preventDefault();
+    e?.stopPropagation();
+
     const currentFields = currentStepData.section.fields.map(f => f.id);
     const isValid = await trigger(currentFields);
-    if (!isValid) {
-      return;
-    }
+    if (!isValid) return;
     if (currentStep < steps.length - 1) {
       setCurrentStep(prev => prev + 1);
     }
@@ -231,11 +231,11 @@ export default function ClinicalHistoryWizard({
     try {
       // Asegurar que se envíen todos los datos del formulario, no solo los del paso actual
       const allFormData = watch();
-      
+
       // Combinar datos: los datos del submit pueden tener valores más actualizados
       // pero también necesitamos todos los datos de otros pasos
       const dataToSubmit = { ...allFormData, ...data };
-      
+
       // Filtrar valores undefined pero mantener null y strings vacíos
       const cleanedData = {};
       Object.keys(dataToSubmit).forEach(key => {
@@ -243,7 +243,7 @@ export default function ClinicalHistoryWizard({
           cleanedData[key] = dataToSubmit[key];
         }
       });
-      
+
       // Log para debugging (siempre mostrar para diagnosticar)
       console.log('📝 Datos del formulario al enviar:', {
         stepDataKeys: Object.keys(data || {}),
@@ -256,13 +256,13 @@ export default function ClinicalHistoryWizard({
           return acc;
         }, {}),
       });
-      
+
       // Validar que haya datos antes de enviar
       if (Object.keys(cleanedData).length === 0) {
         console.error('❌ No hay datos para enviar. El formulario está vacío.');
         throw new Error('El formulario está vacío. Por favor, completa al menos un campo.');
       }
-      
+
       await onSubmit?.(cleanedData);
     } catch (error) {
       console.error("Error al enviar el formulario:", error);
@@ -287,8 +287,8 @@ export default function ClinicalHistoryWizard({
         index === currentStep
           ? "current"
           : index < currentStep
-          ? "completed"
-          : "pending",
+            ? "completed"
+            : "pending",
     })),
     [steps, currentStep]
   );
@@ -303,75 +303,68 @@ export default function ClinicalHistoryWizard({
         <Stepper steps={stepperSteps} />
       </div>
 
-      <form onSubmit={handleSubmit(handleFormSubmit)} className="wizard-form stack-5" noValidate>
+      {/* form con id, sin botones dentro del form */}
+      <form
+        id="clinical-history-form"
+        onSubmit={handleSubmit(handleFormSubmit)}
+        className="wizard-form stack-5"
+        noValidate
+      >
         <ClinicalSectionCard section={currentStepData.section}>
           <div className="stack-4">
-            {currentStepData.section.fields.map((field) => {
-              const fieldValue = formData[field.id];
-              const fieldError = errors[field.id]?.message;
-
-              return (
-                <ClinicalFieldRenderer
-                  key={field.id}
-                  field={field}
-                  value={fieldValue}
-                  onChange={handleFieldChange}
-                  errors={errors}
-                  readOnly={readOnly}
-                  context={context}
-                  formData={formData}
-                />
-              );
-            })}
+            {currentStepData.section.fields.map((field) => (
+              <ClinicalFieldRenderer
+                key={field.id}
+                field={field}
+                value={formData[field.id]}
+                onChange={handleFieldChange}
+                errors={errors}
+                readOnly={readOnly}
+                context={context}
+                formData={formData}
+              />
+            ))}
           </div>
         </ClinicalSectionCard>
-
-        {!readOnly && (
-          <div className="wizard-actions cluster" style={{ justifyContent: "space-between", gap: "var(--s-2)" }}>
-            <div className="cluster" style={{ gap: "var(--s-2)" }}>
-              {!isFirstStep && (
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={handlePrevious}
-                  disabled={isSubmitting}
-                >
-                  <ChevronLeft size={16} style={{ marginRight: "0.5rem" }} />
-                  Anterior
-                </Button>
-              )}
-            </div>
-
-            <div className="cluster" style={{ gap: "var(--s-2)" }}>
-              {onSaveDraft && (
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={handleDraftSave}
-                  disabled={isSubmitting}
-                >
-                  {draftLabel}
-                </Button>
-              )}
-              {!isLastStep ? (
-                <Button
-                  type="button"
-                  variant="primary"
-                  onClick={handleNext}
-                  disabled={isSubmitting}
-                >
-                  Siguiente
-                  <ChevronRight size={16} style={{ marginLeft: "0.5rem" }} />
-                </Button>
-              ) : (
-                <Button type="submit" loading={isSubmitting} disabled={isSubmitting}>
-                  {submitLabel}
-                </Button>
-              )}
-            </div>
-          </div>
-        )}
       </form>
+
+      {/* Botones fuera del form */}
+      {!readOnly && (
+        <div className="wizard-actions cluster" style={{ justifyContent: "space-between", gap: "var(--s-2)" }}>
+          <div className="cluster" style={{ gap: "var(--s-2)" }}>
+            {!isFirstStep && (
+              <Button type="button" variant="secondary" onClick={handlePrevious} disabled={isSubmitting}>
+                <ChevronLeft size={16} style={{ marginRight: "0.5rem" }} />
+                Anterior
+              </Button>
+            )}
+          </div>
+
+          <div className="cluster" style={{ gap: "var(--s-2)" }}>
+            {onSaveDraft && (
+              <Button type="button" variant="secondary" onClick={handleDraftSave} disabled={isSubmitting}>
+                {draftLabel}
+              </Button>
+            )}
+            {!isLastStep ? (
+              <Button
+                type="button"
+                variant="primary"
+                onClick={(e) => handleNext(e)}
+                disabled={isSubmitting}
+              >
+                Siguiente
+                <ChevronRight size={16} style={{ marginLeft: "0.5rem" }} />
+              </Button>
+            ) : (
+              // Conexión al form por medio del id sin tener que estar dentro del <form>
+              <Button type="submit" form="clinical-history-form" loading={isSubmitting} disabled={isSubmitting}>
+                {submitLabel}
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -158,7 +158,7 @@ export default function AppRoutes() {
             {/* Recetas y Órdenes */}
             <Route path={ROUTES.prescriptions} element={<Prescriptions />} />
             <Route path={ROUTES.prescriptionsNew} element={<Prescriptions />} />
-            <Route path={ROUTES.prescriptionDetail} element={<PrescriptionDetail />} />
+            <Route path="/prescriptions/:id" element={<PrescriptionDetail />} />
             <Route path={ROUTES.orderNew} element={<OrderForm />} />
             <Route path={ROUTES.orderDetail} element={<OrderDetail />} />
 
