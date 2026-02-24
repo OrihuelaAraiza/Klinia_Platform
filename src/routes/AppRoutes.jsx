@@ -52,6 +52,7 @@ const PatientReportsList = lazy(() => import("../components/PatientReportList"))
 const PatientDocuments = lazy(() => import("../pages/PatientDocument"));
 const ProfileProfessional = lazy(() => import("../pages/Professional/ProfessionalProfile"));
 const DisblePatient = lazy(()=> import("../pages/Professional/PatientDischarge"))
+const SupervisionLog = lazy(() => import("../pages/SupervisionLog"));
 
 function RouteAuditor() {
   const location = useLocation();
@@ -103,6 +104,7 @@ export default function AppRoutes() {
           {/* SÓLO ADMIN */}
           <Route element={<ProtectedRoute allow={[ROLES.ADMIN]} />}>
             <Route path="/auth/debug" element={<AuthDebug />} />
+            <Route path="/supervision" element={<SupervisionLog />} />
           </Route>
 
           {/* PLATAFORMA DEL PACIENTE */}

@@ -18,6 +18,7 @@ import { ROLES, ROUTES } from "../utils/constants";
 import { useToast } from "../components/UI/Toast";
 import ExportMenu from "../components/ExportMenu";
 import patientsService from "../services/patientsService";
+import { reingressPatient } from "../services/patientsService";
 
 const CONSENT_TYPES = [
   { type: "attention", label: "Consentimiento de atención" },
@@ -89,6 +90,8 @@ export default function PatientDetail() {
     error: "",
   });
   const [cancelOrderModal, setCancelOrderModal] = useState({ open: false, orderId: null });
+  const [reingresModal, setReingresModal] = useState({ open: false, reason: "" });
+  const [reingresLoading, setReingresLoading] = useState(false);
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -347,6 +350,24 @@ export default function PatientDetail() {
     }
   };
 
+  const handleReingress = async () => {
+    if (!reingresModal.reason.trim()) {
+      toast.error("El motivo de reingreso es requerido.");
+      return;
+    }
+    setReingresLoading(true);
+    try {
+      const updated = await reingressPatient(id, reingresModal.reason);
+      setPatient(updated);
+      setReingresModal({ open: false, reason: "" });
+      toast.success("Paciente reingresado correctamente.");
+    } catch (err) {
+      toast.error(err?.message || "No pudimos reingresar al paciente.");
+    } finally {
+      setReingresLoading(false);
+    }
+  };
+
   if (loading) {
     return <p>Cargando paciente…</p>;
   }
@@ -376,6 +397,8 @@ export default function PatientDetail() {
     { label: name || "Paciente" },
   ];
 
+  const isDischarge = patient?.status === "DISCHARGED";
+
   return (
     <section className="page stack-5">
       <div className="page-header">
@@ -384,20 +407,33 @@ export default function PatientDetail() {
           <div className="stack-1">
             <h1>{name || "Paciente"}</h1>
             <p className="helper-text">CURP: {patient.curp}</p>
+            {isDischarge && (
+              <Badge variant="danger">Paciente dado de alta</Badge>
+            )}
           </div>
           <div className="cluster">
             <Button
               variant="primary"
               onClick={() => navigate(`/patients/${id}/notes`)}
+              disabled={isDischarge}
               style={{ minWidth: '140px' }}
             >
               Ver notas
             </Button>
-            {!isAssistant ? (
+            {!isAssistant && !isDischarge && (
               <Button variant="secondary" onClick={handleEditPatient}>
                 Editar
               </Button>
-            ) : null}
+            )}
+            {/* Botón reingreso — Solo se ve si el paciente está dado de alta */}
+            {!isAssistant && isDischarge && (
+              <Button
+                variant="secondary"
+                onClick={() => setReingresModal({ open: true, reason: "" })}
+              >
+                Reingresar paciente
+              </Button>
+            )}
             <ExportMenu patientId={id} patient={patient} consents={consents} disabled={isAssistant} />
           </div>
         </div>
@@ -464,7 +500,7 @@ export default function PatientDetail() {
                   type="button"
                   className="link link--button"
                   onClick={() => fileInputRef.current?.click()}
-                  disabled={isAssistant}
+                  disabled={isAssistant || isDischarge}
                 >
                   examina tu equipo
                 </button>
@@ -501,12 +537,8 @@ export default function PatientDetail() {
                         >
                           Descargar
                         </Button>
-                        {!isAssistant && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeleteAttachment(file.id)}
-                            className="text-danger"
+                        {!isAssistant && !isDischarge && (
+                          <Button variant="ghost" size="sm" onClick={() => handleDeleteAttachment(file.id)} className="text-danger"
                           >
                             Eliminar
                           </Button>
@@ -546,10 +578,19 @@ export default function PatientDetail() {
         </CardHeader>
         <CardBody>
           <div className="clinical-links__grid">
-            <Button onClick={() => navigate(`/patients/${id}/history`)} disabled={isAssistant} className="clinical-link-btn">
+            <Button
+              onClick={() => navigate(`/patients/${id}/history`)}
+              disabled={isAssistant || isDischarge} // 👈
+              className="clinical-link-btn"
+            >
               Historia clínica
             </Button>
-            <Button variant="secondary" onClick={() => navigate(`/patients/${id}/notes`)} className="clinical-link-btn">
+            <Button
+              variant="secondary"
+              onClick={() => navigate(`/patients/${id}/notes`)}
+              disabled={isDischarge} // 👈
+              className="clinical-link-btn"
+            >
               Notas de evolución
             </Button>
             <Button variant="ghost" onClick={() => navigate(`/patients/${id}/sessions`)} className="clinical-link-btn">
@@ -558,7 +599,12 @@ export default function PatientDetail() {
             <Button variant="ghost" onClick={() => navigate(`/patients/${id}/consents`)} className="clinical-link-btn">
               Consentimientos
             </Button>
-            <Button variant="ghost" onClick={() => navigate(`/prescriptions`)} disabled={isAssistant} className="clinical-link-btn">
+            <Button
+              variant="ghost"
+              onClick={() => navigate(`/prescriptions`)}
+              disabled={isAssistant || isDischarge} // 👈
+              className="clinical-link-btn"
+            >
               Prescripciones
             </Button>
             <Button variant="ghost" onClick={() => navigate(`/reports`)} className="clinical-link-btn">
@@ -567,13 +613,16 @@ export default function PatientDetail() {
             <Button variant="ghost" onClick={() => navigate(`/sessions`)} className="clinical-link-btn">
               Agenda
             </Button>
-            <Button 
-            variant="ghost" 
-            onClick={() => navigate(ROUTES.DisblePatient, { state: { patient } })} 
-            className="clinical-link-btn"
-          >
-            Alta
-          </Button>
+            {/* Botón Alta — ocultar si ya está dado de alta */}
+            {!isDischarge && (
+              <Button
+                variant="ghost"
+                onClick={() => navigate(ROUTES.DisblePatient, { state: { patient } })}
+                className="clinical-link-btn"
+              >
+                Alta
+              </Button>
+            )}
           </div>
         </CardBody>
       </Card>
@@ -589,7 +638,7 @@ export default function PatientDetail() {
             <Button
               variant="secondary"
               onClick={() => navigate(`${ROUTES.prescriptionsNew}?patientId=${id}`)}
-              disabled={isAssistant}
+              disabled={isAssistant || isDischarge}
             >
               Emitir prescripción
             </Button>
@@ -640,7 +689,7 @@ export default function PatientDetail() {
             <div className="stack-3">
               <div className="cluster justify-between align-center wrap">
                 <h3>Órdenes clínicas</h3>
-                {!isAssistant && (
+                {!isAssistant && !isDischarge && (
                   <Button
                     variant="secondary"
                     onClick={() => navigate(`/patients/${id}/orders/new`)}
@@ -714,7 +763,7 @@ export default function PatientDetail() {
             <div className="stack-3">
               <div className="cluster justify-between align-center wrap">
                 <h3>Informes clínicos</h3>
-                {!isAssistant && (
+                {!isAssistant && !isDischarge && (
                   <Button
                     variant="secondary"
                     onClick={() => navigate(`/patients/${id}/reports/new`)}
@@ -802,7 +851,7 @@ export default function PatientDetail() {
                     type="button"
                     variant="secondary"
                     size="sm"
-                    disabled={isAssistant || status === "signed"}
+                    disabled={isAssistant || status === "signed" || isDischarge}
                     onClick={() => openConfirm(type, "sign")}
                   >
                     Firmar
@@ -811,7 +860,7 @@ export default function PatientDetail() {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    disabled={isAssistant || status !== "signed"}
+                    disabled={isAssistant || status === "signed" || isDischarge}
                     onClick={() => openConfirm(type, "revoke")}
                   >
                     Revocar
@@ -872,6 +921,44 @@ export default function PatientDetail() {
           Esta acción marcará la orden como cancelada. Esta acción no se puede deshacer.
         </p>
       </Modal>
+
+      <Modal
+        open={reingresModal.open}
+        onClose={() => setReingresModal({ open: false, reason: "" })}
+        title="Reingresar paciente"
+        footer={
+          <div className="cluster">
+            <Button variant="ghost" onClick={() => setReingresModal({ open: false, reason: "" })}>
+              Cancelar
+            </Button>
+            <Button
+              variant="primary"
+              onClick={handleReingress}
+              loading={reingresLoading}
+              disabled={reingresLoading}
+            >
+              Confirmar reingreso
+            </Button>
+          </div>
+        }
+      >
+        <div className="stack-3">
+          <p className="helper-text">
+            El paciente volverá a estado activo. Por favor describe el motivo del reingreso.
+          </p>
+          <div className="stack-2">
+            <label className="ui-field__label">Motivo de reingreso *</label>
+            <textarea
+              className="ui-field__input"
+              rows={4}
+              placeholder="Describe el motivo del reingreso..."
+              value={reingresModal.reason}
+              onChange={(e) => setReingresModal(prev => ({ ...prev, reason: e.target.value }))}
+            />
+          </div>
+        </div>
+      </Modal>
+
     </section>
   );
 }

@@ -8,6 +8,7 @@ const NAV_ITEMS = [
   { to: ROUTES.sessions, label: "Agenda", icon: CalendarIcon, roles: [ROLES.ADMIN, ROLES.PROFESSIONAL, ROLES.ASSISTANT] },
   { to: ROUTES.prescriptions, label: "Sesiones", icon: ClipboardIcon, roles: [ROLES.ADMIN, ROLES.PROFESSIONAL, ROLES.ASSISTANT] },
   { to: ROUTES.reports, label: "Reportes", icon: ChartIcon, roles: [ROLES.ADMIN, ROLES.PROFESSIONAL] },
+  { to: ROUTES.supervision, label: "Bitácora", icon: ShieldIcon, roles: [ROLES.ADMIN] },
 ];
 
 function DashboardIcon(props) {
