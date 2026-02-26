@@ -90,6 +90,7 @@ export const ROUTES = {
   orderDetail: "/patients/:patientId/orders/:orderId",
   reportNew: "/patients/:patientId/reports/new",
   reportDetail: "/patients/:patientId/reports/:reportId",
+  supervision: "/supervision",
   // Patient routes
   patientDashboard: "/patient/dashboard",
   patientClinicalHistory: "/patient/clinical-history",

@@ -223,6 +223,7 @@ export const api = {
   get: (path, options) => request(path, { ...options, method: "GET" }),
   post: withMethod("POST"),
   put: withMethod("PUT"),
+  patch: withMethod("PATCH"),
   del: (path, options) => request(path, { ...options, method: "DELETE" }),
   request,
 };

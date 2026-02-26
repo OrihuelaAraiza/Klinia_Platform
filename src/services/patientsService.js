@@ -23,12 +23,12 @@ export function updatePatient(id, payload, options = {}) {
 
 
 export async function importAndReassign(payload) {
-    return api.post("/patients/import-reassign", payload, { auth: true });
+  return api.post("/patients/import-reassign", payload, { auth: true });
 }
 
 
 export const uploadAttachment = (id, formData) => {
-  return api.post(`/patients/${id}/attachments`, formData, { auth: true }); 
+  return api.post(`/patients/${id}/attachments`, formData, { auth: true });
 };
 
 export const getAttachmentUrl = (patientId, blobName) => {
@@ -41,12 +41,12 @@ export const deleteAttachment = (patientId, attachmentId) => {
 }
 
 export const getProfessionalsList = () => {
-    return api.get("/profiles/list-professionals", { auth: true });
+  return api.get("/profiles/list-professionals", { auth: true });
 };
 
 export const createDischargeNote = async (data) => {
   const { patientId, ...payload } = data;
-  
+
   return api.post(`/patients/${patientId}/discharge`, payload, { auth: true });
 };
 
@@ -74,6 +74,10 @@ export async function listMyTherapists() {
   return api.get("/patient/my-therapists", { auth: true });
 }
 
+export async function reingressPatient(patientId, reason) {
+  return api.patch(`/patients/${patientId}/reingress`, { reason }, { auth: true });
+}
+
 export default {
   listPatients,
   getPatient,
@@ -82,12 +86,13 @@ export default {
   importAndReassign,
   uploadAttachment,
   getAttachmentUrl,
-  deleteAttachment, 
+  deleteAttachment,
   getProfessionalsList,
   getMyProfile,
-  updateMyProfile, 
-  requestPhoneVerification, 
+  updateMyProfile,
+  requestPhoneVerification,
   getMyDocuments,
   listMyTherapists,
-  createDischargeNote
+  createDischargeNote,
+  reingressPatient,
 };
