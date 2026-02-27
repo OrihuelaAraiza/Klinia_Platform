@@ -127,14 +127,14 @@ export const SESSION_STATUS_VARIANT = {
 };
 
 export const SESSION_MODALITY = {
-  PRESENCIAL: "presencial",
-  VIRTUAL: "virtual",
+  IN_PERSON: "IN_PERSON",   
+  TELEMEDICINE: "TELEMEDICINE", 
 };
 
 export const SESSION_MODALITY_LABEL = {
-  [SESSION_MODALITY.PRESENCIAL]: "Presencial",
-  [SESSION_MODALITY.VIRTUAL]: "Virtual",
-};
+  [SESSION_MODALITY.IN_PERSON]: "Presencial",
+  [SESSION_MODALITY.TELEMEDICINE]: "Virtual",
+}
 
 export const CONSENT_TYPES = {
   ATTENTION: "attention",

@@ -74,9 +74,13 @@ export async function listMyTherapists() {
   return api.get("/patient/my-therapists", { auth: true });
 }
 
-export async function reingressPatient(patientId, reason) {
-  return api.patch(`/patients/${patientId}/reingress`, { reason }, { auth: true });
+export const reingressPatient = async (id, reason) => {
+  return api.post(`/patients/${id}/re-entry`, { reason }, { auth: true }); 
 }
+
+export const globalSearch = async (query) => {
+  return api.get(`/patients/global/search?q=${query}`, { auth: true });
+};
 
 export default {
   listPatients,
@@ -95,4 +99,5 @@ export default {
   listMyTherapists,
   createDischargeNote,
   reingressPatient,
+  globalSearch
 };

@@ -351,6 +351,9 @@ export default function PatientDetail() {
   };
 
   const handleReingress = async () => {
+
+    auditService.logAudit("patient_re_entry_client", { id });
+
     if (!reingresModal.reason.trim()) {
       toast.error("El motivo de reingreso es requerido.");
       return;
@@ -361,6 +364,9 @@ export default function PatientDetail() {
       setPatient(updated);
       setReingresModal({ open: false, reason: "" });
       toast.success("Paciente reingresado correctamente.");
+      setReingresModal({ open: false, reason: "" });
+toast.success("Paciente reingresado correctamente.");
+auditService.logAudit("patient_re_entry_client", { id }); 
     } catch (err) {
       toast.error(err?.message || "No pudimos reingresar al paciente.");
     } finally {
