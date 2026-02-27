@@ -401,6 +401,33 @@ export default function PatientDetail() {
 
   return (
     <section className="page stack-5">
+
+      {/* ── Banner de estado del paciente ── */}
+      <div className={`patient-status-banner ${isDischarge ? "patient-status-banner--discharged" : "patient-status-banner--active"}`}>
+        <div className="cluster gap-3 align-center">
+          <span className={`status-dot ${isDischarge ? "status-dot--off" : "status-dot--on"}`} />
+          <div>
+            <strong>
+              {isDischarge ? "Expediente cerrado — Paciente dado de alta" : "Paciente activo"}
+            </strong>
+            {isDischarge && (
+              <p style={{ margin: 0, fontSize: "0.875rem", opacity: 0.85 }}>
+                Las funciones de edición y registro clínico están deshabilitadas.
+              </p>
+            )}
+          </div>
+        </div>
+        {isDischarge && !isAssistant && (
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => setReingresModal({ open: true, reason: "" })}
+          >
+            Dar de Reingreso
+          </Button>
+        )}
+      </div>
+
       <div className="page-header">
         <Breadcrumbs items={breadcrumbs} />
         <div className="cluster patient-detail__header">
@@ -580,7 +607,7 @@ export default function PatientDetail() {
           <div className="clinical-links__grid">
             <Button
               onClick={() => navigate(`/patients/${id}/history`)}
-              disabled={isAssistant || isDischarge} // 👈
+              disabled={isAssistant || isDischarge}
               className="clinical-link-btn"
             >
               Historia clínica
@@ -588,7 +615,7 @@ export default function PatientDetail() {
             <Button
               variant="secondary"
               onClick={() => navigate(`/patients/${id}/notes`)}
-              disabled={isDischarge} // 👈
+              disabled={isDischarge}
               className="clinical-link-btn"
             >
               Notas de evolución
@@ -602,7 +629,7 @@ export default function PatientDetail() {
             <Button
               variant="ghost"
               onClick={() => navigate(`/prescriptions`)}
-              disabled={isAssistant || isDischarge} // 👈
+              disabled={isAssistant || isDischarge}
               className="clinical-link-btn"
             >
               Prescripciones
@@ -958,6 +985,49 @@ export default function PatientDetail() {
           </div>
         </div>
       </Modal>
+
+      <style dangerouslySetInnerHTML={{ __html: `
+        .patient-status-banner {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 0.875rem 1.25rem;
+          border-radius: 10px;
+          border: 1px solid;
+          gap: 1rem;
+          flex-wrap: wrap;
+        }
+        .patient-status-banner--active {
+          background: #f0fdf4;
+          border-color: #bbf7d0;
+          color: #166534;
+        }
+        .patient-status-banner--discharged {
+          background: #fef2f2;
+          border-color: #fecaca;
+          color: #991b1b;
+        }
+        .status-dot {
+          width: 10px;
+          height: 10px;
+          border-radius: 50%;
+          flex-shrink: 0;
+          display: inline-block;
+        }
+        .status-dot--on {
+          background: #16a34a;
+          box-shadow: 0 0 0 3px #bbf7d0;
+        }
+        .status-dot--off {
+          background: #dc2626;
+          box-shadow: 0 0 0 3px #fecaca;
+        }
+        .clinical-links__grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+          gap: 12px;
+        }
+      `}} />
 
     </section>
   );
