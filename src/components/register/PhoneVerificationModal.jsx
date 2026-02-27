@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef} from 'react';
 import verificationService from '../../services/verificationService'; 
 import Field from "../UI/Field";
+import Button from "../UI/Button";
 
 export function PhoneVerificationModal({ phone, onClose, onSuccess }) {
   const [otpCode, setOtpCode] = useState("");
@@ -69,12 +70,12 @@ const handleCheckOtp = async (e) => {
           </Field>
           
           <div className="camera-modal-actions">
-            <button type="submit" onClick={handleCheckOtp} disabled={isLoading || otpCode.length < 6} className="ui-btn btn--primary btn--md" >
+            <Button type="submit" disabled={isLoading || otpCode.length < 6} variant="primary">
               {isLoading ? "Verificando..." : "Confirmar Código"}
-            </button>
-            <button type="button" className="ui-btn btn--ghost btn--md "  onClick={onClose} disabled={isLoading}>
+            </Button>
+            <Button type="button" variant="ghost" onClick={onClose} disabled={isLoading}>
               Cancelar
-            </button>
+            </Button>
           </div>
         </form>
       </div>

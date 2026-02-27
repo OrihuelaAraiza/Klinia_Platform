@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Button from "../UI/Button";
 import faceService from "../../services/faceService";
 
 export default function StepFace({
@@ -52,7 +53,7 @@ export default function StepFace({
       }
       setCameraReady(true);
       setCameraError("");
-    } catch (error) {
+    } catch {
       setCameraError("No pudimos acceder a la cámara. Permite el acceso.");
       setCameraReady(false);
       stopStream();
@@ -88,28 +89,28 @@ export default function StepFace({
     });
   }, []);
 
-const handleVerify = useCallback(async (blob) => {
+  const handleVerify = useCallback(async (blob) => {
     setVerifying(true);
     try {
-        const response = await faceService.verifyFace(blob);
-        
-        const finalId = response.id || response.selfieFileId;
+      const response = await faceService.verifyFace(blob);
 
-        const reader = new FileReader();
-        reader.onloadend = () => {
-            onChange?.({
-                selfieFileId: finalId, 
-                preview: reader.result,
-                score: response.score || 1,
-            });
-        };
-        reader.readAsDataURL(blob);
-    } catch (error) {
-        setCameraError("Error al procesar la selfie en el servidor.");
+      const finalId = response.id || response.selfieFileId;
+
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        onChange?.({
+          selfieFileId: finalId,
+          preview: reader.result,
+          score: response.score || 1,
+        });
+      };
+      reader.readAsDataURL(blob);
+    } catch {
+      setCameraError("Error al procesar la selfie en el servidor.");
     } finally {
-        setVerifying(false);
+      setVerifying(false);
     }
-}, [onChange]);
+  }, [onChange]);
 
   const handleTakePhoto = async () => {
     if (disabled || verifying) return;
@@ -142,35 +143,36 @@ const handleVerify = useCallback(async (blob) => {
         <div className="face-capture">
           <div className="face-capture__preview">
             {previewSrc ? (
-              <img src={previewSrc} alt="Selfie capturada" style={{ width: '100%', borderRadius: '8px' }} />
+              <img src={previewSrc} alt="Selfie capturada" />
             ) : cameraReady ? (
-              <video ref={videoRef} playsInline autoPlay muted style={{ width: '100%', borderRadius: '8px' }} />
+              <video ref={videoRef} playsInline autoPlay muted />
             ) : (
               <div className="face-capture__placeholder">
                 {cameraSupported ? "Activando cámara..." : "Cámara no soportada."}
               </div>
             )}
-            <canvas ref={canvasRef} style={{ display: 'none' }} />
+            <canvas ref={canvasRef} className="face-capture__canvas" />
           </div>
 
-          <div className="face-capture__actions" style={{ marginTop: '20px', textAlign: 'center' }}>
-            <button
+          <div className="face-capture__actions justify-center">
+            <Button
               type="button"
-              className="btn btn--primary"
+              variant="primary"
               onClick={previewSrc ? handleRetry : handleTakePhoto}
               disabled={disabled || verifying || (!previewSrc && !cameraReady)}
+              loading={verifying}
             >
-              {verifying ? "Procesando..." : previewSrc ? "Tomar otra foto" : "Capturar Selfie"}
-            </button>
+              {previewSrc ? "Tomar otra foto" : "Capturar Selfie"}
+            </Button>
           </div>
         </div>
 
-        <div className="face-capture__status" style={{ marginTop: '10px', textAlign: 'center', color: 'var(--color-primary)' }}>
+        <div className="face-capture__status">
           {statusMessage}
         </div>
 
         {(cameraError || errors?.selfieFileId) && (
-          <p className="error-message" style={{ color: 'red', textAlign: 'center', marginTop: '10px' }}>
+          <p className="face-capture__error">
             {cameraError || errors.selfieFileId}
           </p>
         )}

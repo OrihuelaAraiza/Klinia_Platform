@@ -19,6 +19,7 @@ const VARIANT_CLASS = {
   secondary: "btn--secondary",
   ghost: "btn--ghost",
   accent: "btn--accent",
+  success: "btn--success",
   danger: "btn--danger",
 };
 

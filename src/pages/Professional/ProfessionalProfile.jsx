@@ -356,7 +356,7 @@ export default function ProfessionalProfile() {
                                     <Field label="Teléfono">
                                         <div className="phone-verify-input">
                                             <input name="phone" value={generalForm.phone} onChange={(e) => handleGeneralFormChange('phone', e.target.value)} className="input-field__input" maxLength={10} />
-                                            <button type="button" onClick={() => setIsPhoneModalOpen(true)} className="ui-btn btn--primary btn--md">Verificar</button>
+                                            <Button type="button" onClick={() => setIsPhoneModalOpen(true)} variant="primary">Verificar</Button>
                                         </div>
                                     </Field>
                                 </div>

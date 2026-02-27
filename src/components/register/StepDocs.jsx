@@ -6,6 +6,7 @@ import {
   useCallback,
 } from "react";
 import Field from "../UI/Field";
+import Button from "../UI/Button";
 import uploadService from "../../services/uploadService";
 import { CameraModal } from "./CameraModal";
 
@@ -73,17 +74,6 @@ export default function StepDocs({
     setIsModalOpen(false);
   };
   
-  const handleRetake = (side) => {
-    if (side === 'front' && frontImage) {
-      URL.revokeObjectURL(frontImage.previewUrl);
-      setFrontImage(null);
-    } else if (side === 'back' && backImage) {
-      URL.revokeObjectURL(backImage.previewUrl);
-      setBackImage(null);
-    }
-    onDocumentChange('idOrPassportFileId', null);
-  };
-  
   const combineAndUpload = useCallback(async () => {
     if (!frontImage || !backImage || isCombining || documents?.idOrPassportFileId) return;
 
@@ -108,14 +98,14 @@ export default function StepDocs({
           
           onDocumentChange('idOrPassportFileId', fileId);
           setFileNames(prev => ({ ...prev, idOrPassportFileId: "INE_Camara_Combinada.jpg" }));
-        } catch (err) {
+        } catch {
           setLocalErrors(prev => ({ ...prev, idOrPassportFileId: "Error al subir fotos." }));
         } finally {
           setIsCombining(false);
           setUploadingMap((prev) => ({ ...prev, idOrPassportFileId: false }));
         }
       }, 'image/jpeg', 0.85);
-    } catch (err) {
+    } catch {
       setIsCombining(false);
       setUploadingMap((prev) => ({ ...prev, idOrPassportFileId: false }));
     }
@@ -149,7 +139,7 @@ export default function StepDocs({
       onDocumentChange?.(key, fileId);
       setFileNames(prev => ({ ...prev, [key]: file.name }));
       setLocalErrors((prev) => ({ ...prev, [key]: "" }));
-    } catch (error) {
+    } catch {
       setLocalErrors((prev) => ({ ...prev, [key]: "Error de conexión." }));
       onDocumentChange?.(key, null);
     } finally {
@@ -177,13 +167,31 @@ export default function StepDocs({
             <Field key={field.key} label={field.label} required={field.key !== 'curpDocumentFileId'} hint={field.helper} error={fieldError}>
               <div className="file-upload">
                 {field.key === "idOrPassportFileId" && (
-                  <div className="id-capture-stack" style={{ marginBottom: '10px', display: 'flex', gap: '8px' }}>
-                    <button type="button" className={`btn btn--sm ${frontImage ? 'btn--success' : 'btn--secondary'}`} onClick={() => { setCapturingFor('front'); setIsModalOpen(true); }}>
+                  <div className="id-capture-stack">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={frontImage ? "success" : "secondary"}
+                      disabled={disabled}
+                      onClick={() => {
+                        setCapturingFor('front');
+                        setIsModalOpen(true);
+                      }}
+                    >
                       {frontImage ? "✓ Frente" : " Frente"}
-                    </button>
-                    <button type="button" className={`btn btn--sm ${backImage ? 'btn--success' : 'btn--secondary'}`} onClick={() => { setCapturingFor('back'); setIsModalOpen(true); }}>
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={backImage ? "success" : "secondary"}
+                      disabled={disabled}
+                      onClick={() => {
+                        setCapturingFor('back');
+                        setIsModalOpen(true);
+                      }}
+                    >
                       {backImage ? "✓ Vuelta" : " Vuelta"}
-                    </button>
+                    </Button>
                   </div>
                 )}
                 
@@ -194,13 +202,13 @@ export default function StepDocs({
                   </span>
                 </label>
                 
-                <div className="file-upload__status" style={{ marginTop: '5px', fontSize: '0.85rem' }}>
+                <div className="file-upload__status">
                   {isUploadingField ? (
-                    <span style={{ color: 'var(--color-primary)' }}> Subiendo...</span>
+                    <span className="file-upload__status--uploading"> Subiendo...</span>
                   ) : fileId ? (
-                    <span style={{ color: 'green' }}> {fileName || 'Cargado'}</span>
+                    <span className="file-upload__status--success"> {fileName || 'Cargado'}</span>
                   ) : (
-                    <span style={{ color: '#666' }}>Falta archivo</span>
+                    <span className="file-upload__status--pending">Falta archivo</span>
                   )}
                 </div>
               </div>

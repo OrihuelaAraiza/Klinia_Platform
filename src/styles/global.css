@@ -129,6 +129,16 @@
   --radius-sm: var(--r-sm);
   --radius-md: var(--r-md);
   --radius-lg: 16px;
+  --radius: var(--radius-sm);
+  --s2: var(--s-2);
+  --ui-primary: var(--primary);
+  --ui-bg-muted: var(--surface-2);
+  --ui-border: var(--border);
+  --ui-danger: var(--danger);
+  --color-primary: var(--primary);
+  --color-primary-600: color-mix(in srgb, var(--primary) 88%, #0f172a 12%);
+  --color-error: var(--danger);
+  --error: var(--danger);
 }
 
 /* ===== DARK MODE - BreveMente ===== */
@@ -672,50 +682,7 @@ main {
 }
 
 /* Buttons */
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.25rem;
-  border-radius: var(--radius-sm);
-  border: 1px solid transparent;
-  font-weight: 600;
-  font-size: 0.95rem;
-  line-height: 1.2;
-  cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.2s ease, background 0.2s ease;
-  text-decoration: none;
-}
-
-.btn-primary {
-  background: var(--primary);
-  color: #f8fafc;
-}
-
-.btn-secondary {
-  background: var(--secondary);
-  color: #f8fafc;
-  border-color: var(--secondary);
-}
-
-.btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 15px 30px color-mix(in srgb, var(--primary) 18%, transparent);
-}
-
-.btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.6;
-  box-shadow: none;
-  transform: none;
-}
-
-.btn.is-full {
-  width: 100%;
-}
-
-.ui-btn {
+:is(.ui-btn, .btn) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -723,45 +690,49 @@ main {
   border-radius: var(--r-sm);
   border: 1px solid transparent;
   font-weight: 600;
-  line-height: 1;
   font-family: var(--font-main);
-  text-decoration: none;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+  padding: 0.65rem 1rem;
+  font-size: 0.95rem;
+  line-height: 1;
   cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+  text-decoration: none;
   position: relative;
 }
 
-.ui-btn.is-full {
+:is(.ui-btn, .btn).is-full {
   width: 100%;
 }
 
-.ui-btn.btn--sm {
+:is(.ui-btn, .btn).btn--sm {
   padding: 0.45rem 0.75rem;
   font-size: 0.85rem;
 }
 
-.ui-btn.btn--md {
+:is(.ui-btn, .btn).btn--md {
   padding: 0.65rem 1rem;
   font-size: 0.95rem;
 }
 
-.ui-btn.btn--lg {
+:is(.ui-btn, .btn).btn--lg {
   padding: 0.9rem 1.4rem;
   font-size: 1.05rem;
 }
 
-.ui-btn.btn--primary {
+:is(.ui-btn, .btn).btn--primary,
+.btn-primary {
   background: linear-gradient(
     135deg,
     color-mix(in srgb, var(--primary) 85%, #1f2937 15%) 0%,
     var(--primary) 100%
   );
+  border-color: color-mix(in srgb, var(--primary) 40%, transparent);
   color: #f8fafc;
   box-shadow: var(--shadow-1);
-  border-color: color-mix(in srgb, var(--primary) 40%, transparent);
 }
 
-.ui-btn.btn--secondary {
+:is(.ui-btn, .btn).btn--secondary,
+.btn-secondary {
   background: linear-gradient(
     135deg,
     color-mix(in srgb, var(--secondary) 85%, #0f172a 15%) 0%,
@@ -771,7 +742,7 @@ main {
   border-color: color-mix(in srgb, var(--secondary) 40%, transparent);
 }
 
-.ui-btn.btn--accent {
+:is(.ui-btn, .btn).btn--accent {
   background: linear-gradient(
     135deg,
     color-mix(in srgb, var(--accent) 72%, #ffffff 28%) 0%,
@@ -782,33 +753,40 @@ main {
   border-color: color-mix(in srgb, var(--accent) 35%, transparent);
 }
 
-.ui-btn.btn--ghost {
+:is(.ui-btn, .btn).btn--ghost {
   background: transparent;
   color: var(--primary);
   border-color: color-mix(in srgb, var(--primary) 25%, transparent);
 }
 
-.ui-btn.btn--danger {
+:is(.ui-btn, .btn).btn--success {
+  background: color-mix(in srgb, var(--success) 92%, #0f172a 8%);
+  color: #fff;
+  box-shadow: var(--shadow-1);
+  border-color: color-mix(in srgb, var(--success) 48%, transparent);
+}
+
+:is(.ui-btn, .btn).btn--danger {
   background: var(--danger);
   color: #fff;
   box-shadow: var(--shadow-1);
 }
 
-.ui-btn:hover {
+:is(.ui-btn, .btn):hover {
   transform: translateY(-1px) scale(1.01);
   filter: brightness(1.03);
 }
 
-.ui-btn:focus-visible {
+:is(.ui-btn, .btn):focus-visible {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 30%, transparent), var(--shadow-1);
 }
 
-.ui-btn:active {
+:is(.ui-btn, .btn):active {
   transform: translateY(0);
 }
 
-.ui-btn.is-disabled,
-.ui-btn:disabled {
+:is(.ui-btn, .btn).is-disabled,
+:is(.ui-btn, .btn):disabled {
   opacity: 0.6;
   cursor: not-allowed;
   transform: none;
@@ -816,7 +794,7 @@ main {
   box-shadow: none;
 }
 
-.ui-btn.is-loading {
+:is(.ui-btn, .btn).is-loading {
   pointer-events: none;
 }
 
@@ -3684,7 +3662,8 @@ main {
   font-weight: 500;
 }
 
-.input-field__input {
+.input-field__input,
+.ui-field__input {
   width: 100%;
   padding: 0.75rem 0.85rem;
   border-radius: var(--radius-sm);
@@ -3699,26 +3678,31 @@ main {
 }
 
 @media (max-width: 640px) {
-  .input-field__input {
+  .input-field__input,
+  .ui-field__input {
     font-size: 16px; /* Previene zoom automático en iOS */
   }
 }
 
-.input-field__input::placeholder {
+.input-field__input::placeholder,
+.ui-field__input::placeholder {
   color: var(--field-placeholder);
   opacity: 0.95;
 }
 
-.input-field__input:hover {
+.input-field__input:hover,
+.ui-field__input:hover {
   border-color: color-mix(in srgb, var(--focus) 25%, var(--field-border) 75%);
 }
 
-.input-field__input:focus {
+.input-field__input:focus,
+.ui-field__input:focus {
   border-color: var(--focus);
   box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15);
 }
 
-.input-field__input.has-error {
+.input-field__input.has-error,
+.ui-field__input.has-error {
   border-color: #f87171;
   box-shadow: 0 0 0 4px rgba(248, 113, 113, 0.2);
 }
@@ -4362,6 +4346,7 @@ main {
   }
 
   .input-field__input,
+  .ui-field__input,
   .role-select,
   .textarea {
     min-height: 44px;
@@ -4877,6 +4862,12 @@ main {
   gap: var(--s-2);
 }
 
+.id-capture-stack {
+  margin-bottom: var(--s-2);
+  display: flex;
+  gap: var(--s-2);
+}
+
 .file-upload__control {
   display: inline-flex;
   align-items: center;
@@ -4907,6 +4898,18 @@ main {
 
 .file-upload__status {
   font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.file-upload__status--uploading {
+  color: var(--color-primary);
+}
+
+.file-upload__status--success {
+  color: var(--success);
+}
+
+.file-upload__status--pending {
   color: var(--text-muted);
 }
 
@@ -5016,11 +5019,14 @@ main {
 .face-capture__status {
   font-size: 0.95rem;
   color: var(--text-muted);
+  text-align: center;
 }
 
 .face-capture__error {
   color: var(--danger);
   font-weight: 600;
+  margin: 0;
+  text-align: center;
 }
 
 @media (max-width: 1024px) {

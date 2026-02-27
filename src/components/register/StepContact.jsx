@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import InputField from "../InputField";
 import { PhoneVerificationModal } from './PhoneVerificationModal'; 
 import Field from "../UI/Field";
+import Button from "../UI/Button";
 
 export default function StepContact({
   data,
@@ -65,14 +66,14 @@ export default function StepContact({
             {isPhoneVerified ? (
               <span className="phone-verified-badge">✓ Verificado</span>
             ) : (
-              <button 
+              <Button 
                 type="button" 
                 onClick={() => handleOpenModal('phone')} 
                 disabled={disabled || (data.phone || '').length !== 10}
-                className="ui-btn btn--primary btn--md" 
+                variant="primary"
               >
                 Verificar
-              </button>
+              </Button>
             )}
           </div>
         </Field>
@@ -103,14 +104,14 @@ export default function StepContact({
             {isEmergencyVerified ? (
               <span className="phone-verified-badge">✓ Verificado</span>
             ) : (
-              <button 
+              <Button 
                 type="button" 
                 onClick={() => handleOpenModal('emergencyPhone')} 
                 disabled={disabled || (data.emergencyPhone || '').length !== 10}
-                className="ui-btn btn--primary btn--md" 
+                variant="primary"
               >
                 Verificar
-              </button>
+              </Button>
             )}
           </div>
         </Field>
