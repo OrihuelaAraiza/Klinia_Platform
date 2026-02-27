@@ -102,41 +102,39 @@ export default function SessionDetailDrawer({ sessionId, onClose, onUpdate, isAs
         loadSession(sessionId);
         setMode('view');
     }, [sessionId, loadSession]);
+
     const executeChangeStatus = async (nextStatus, reason = "") => {
-    if (!session || statusChanging) return;
+        if (!session || statusChanging) return;
 
-    setStatusChanging(nextStatus);
-    try {
-        const payload = {
-            status: nextStatus,
-            reason: reason || undefined,
-        };
+        setStatusChanging(nextStatus);
+        try {
+            const payload = {
+                status: nextStatus,
+                reason: reason || undefined,
+            };
 
-        const response = await changeStatus(sessionId, payload);
-        const updated = response || {
-            ...session,
-            status: nextStatus,
-            updatedAt: new Date().toISOString()
-        };
+            const response = await changeStatus(sessionId, payload);
+            const updated = response || {
+                ...session,
+                status: nextStatus,
+                updatedAt: new Date().toISOString()
+            };
 
-        setSession(updated);
-        onUpdate?.(updated);
-        toast.success(`Estado cambiado a ${SESSION_STATUS_LABEL[nextStatus]}.`);
+            setSession(updated);
+            onUpdate?.(updated);
+            toast.success(`Estado cambiado a ${SESSION_STATUS_LABEL[nextStatus]}.`);
 
-        if (nextStatus === SESSION_STATUS.ATENDIDA && !updated.noteId) {
-            setNoteDialogOpen(true);
+            if (nextStatus === SESSION_STATUS.ATENDIDA && !updated.noteId) {
+                setNoteDialogOpen(true);
+            }
+        } catch (err) {
+            toast.error(err?.message || "Error al actualizar el estado.");
+        } finally {
+            setStatusChanging(null);
+            setSelectedAction(""); 
         }
-        
-
-    } catch (err) {
-        toast.error(err?.message || "Error al actualizar el estado.");
-    } finally {
-        setStatusChanging(null);
-        setSelectedAction(""); 
-    }
-};
+    };
     
-    // --- GUARDAR EDICIÓN ---
     const handleSaveEdit = async (payload) => {
         try {
             const updated = await updateSession(sessionId, payload); 
@@ -149,7 +147,6 @@ export default function SessionDetailDrawer({ sessionId, onClose, onUpdate, isAs
         }
     };
 
-    // --- LINK NOTE ---
     const handleNoteLinked = (noteId, note) => {
         const updatedSession = { ...session, noteId, note };
         setSession(updatedSession);
@@ -157,7 +154,6 @@ export default function SessionDetailDrawer({ sessionId, onClose, onUpdate, isAs
         setNoteDialogOpen(false);
     };
 
-    // --- SELECT ---
     const handleSelectAction = (event) => {
         const status = event.target.value;
         if (status) setSelectedAction(status);
@@ -201,7 +197,29 @@ export default function SessionDetailDrawer({ sessionId, onClose, onUpdate, isAs
                     </div>
                     <div className="stack-1">
                             <p><strong>Profesional:</strong> {professionalName}</p>
-                            <p><strong>Ubicación/Link:</strong> {session.location || '—'}</p>
+                            
+                            {/* Ubicación física */}
+                            <p><strong>Ubicación:</strong> {session.location || '—'}</p>
+                            
+                            {/* Link de llamada condicional y destacado */}
+                            {session.callLink && (
+                                <p>
+                                    <strong>Enlace de llamada:</strong><br />
+                                    <a 
+                                        href={session.callLink.startsWith('http') ? session.callLink : `https://${session.callLink}`} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        style={{ 
+                                            color: '#007bff', 
+                                            fontWeight: 'bold', 
+                                            textDecoration: 'underline',
+                                            wordBreak: 'break-all'
+                                        }}
+                                    >
+                                        {session.callLink}
+                                    </a>
+                                </p>
+                            )}
                             
                             {session.status === SESSION_STATUS.CANCELADA ? (
                                 <p>
@@ -220,7 +238,6 @@ export default function SessionDetailDrawer({ sessionId, onClose, onUpdate, isAs
                 </CardBody>
             </Card>
 
-            {/* CAMBIO DE ESTADO (DESPLEGABLE) */}
             {!isAssistant && availableTransitions.length > 0 ? (
                 <Card hoverable={false}>
                     <CardHeader>
@@ -247,7 +264,6 @@ export default function SessionDetailDrawer({ sessionId, onClose, onUpdate, isAs
                                 )}
                             </Field>
                             
-                            {/* Botón para ejecutar la acción seleccionada */}
                             {selectedAction && (
                                 <Button 
                                     variant={ACTION_VARIANT[selectedAction]} 
@@ -261,13 +277,10 @@ export default function SessionDetailDrawer({ sessionId, onClose, onUpdate, isAs
                                     Ejecutar {ACTION_LABEL[selectedAction]}
                                 </Button>
                             )}
-
                         </div>
                     </CardBody>
                 </Card>
             ) : null}
-
-           
         </section>
     );
 
@@ -297,7 +310,6 @@ export default function SessionDetailDrawer({ sessionId, onClose, onUpdate, isAs
                 {mode === 'edit' ? renderEditView() : renderDetailView()}
             </Drawer>
             
-            {/* MODAL DE CONFIRMACIÓN DE ESTADO */}
             {pendingStatusModal ? (
                 <Modal
                     open={true}
@@ -311,10 +323,10 @@ export default function SessionDetailDrawer({ sessionId, onClose, onUpdate, isAs
                             <Button
                                 onClick={() => {
                                     const status = pendingStatusModal;
-                                    const reason = statusChangeNote.trim(); // Obtener la nota
+                                    const reason = statusChangeNote.trim();
                                     setPendingStatusModal("");
-                                    setStatusChangeNote(""); // Limpiar nota después de usar
-                                    executeChangeStatus(status, reason); // Ejecutar con la nota
+                                    setStatusChangeNote("");
+                                    executeChangeStatus(status, reason);
                                     setSelectedAction(""); 
                                 }}
                             >
@@ -328,7 +340,6 @@ export default function SessionDetailDrawer({ sessionId, onClose, onUpdate, isAs
                         {SESSION_STATUS_LABEL[pendingStatusModal] || pendingStatusModal}?
                     </p>
                     
-                    {/* CAMPO DE NOTA/MOTIVO */}
                     <div className="stack-3 mt-3">
                         <Field
                             label="Motivo o Nota (Opcional)"
@@ -355,8 +366,6 @@ export default function SessionDetailDrawer({ sessionId, onClose, onUpdate, isAs
                 </Modal>
             ) : null}
 
-
-            {/* DIALOGO DE VINCULACIÓN */}
             <LinkNoteDialog
                 open={noteDialogOpen}
                 onClose={() => setNoteDialogOpen(false)}
