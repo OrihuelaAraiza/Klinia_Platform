@@ -514,7 +514,7 @@ auditService.logAudit("patient_re_entry_client", { id });
 
         <Card hoverable={false}>
           <CardHeader>
-            <h2>Archivos adjuntos</h2>
+            <h2>Archivos adjuntos y Consentimientos</h2>
           </CardHeader>
           <CardBody className="stack-3">
             <div
@@ -857,8 +857,8 @@ auditService.logAudit("patient_re_entry_client", { id });
           </CardBody>
         </Card>
       </div>
-
-      {/* Consentimientos */}
+{/** 
+      {/* Consentimientos 
       <Card hoverable={false}>
         <CardHeader>
           <h2>Consentimientos</h2>
@@ -909,6 +909,8 @@ auditService.logAudit("patient_re_entry_client", { id });
           ) : null}
         </CardBody>
       </Card>
+    
+      */}
 
       <Modal
         open={confirmModal.open}
@@ -1019,7 +1021,7 @@ auditService.logAudit("patient_re_entry_client", { id });
           border-radius: 50%;
           flex-shrink: 0;
           display: inline-block;
-        }
+        }a
         .status-dot--on {
           background: #16a34a;
           box-shadow: 0 0 0 3px #bbf7d0;
