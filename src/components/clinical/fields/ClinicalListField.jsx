@@ -15,6 +15,22 @@ export default function ClinicalListField({
 }) {
   const [localErrors, setLocalErrors] = useState({});
 
+  // Función auxiliar para convertir objetos a texto seguro
+  const getSafeText = (val) => {
+    if (val === null || val === undefined || val === "") return "";
+    if (typeof val === "object" && !Array.isArray(val)) {
+      return (
+        val.descripcion || 
+        val.label || 
+        val.medicamento || 
+        val.nombre || 
+        val.codigo || 
+        Object.values(val).filter(v => typeof v !== 'object').join(" — ")
+      );
+    }
+    return String(val);
+  };
+
   const handleAdd = () => {
     const newItem = {};
     field.subfields?.forEach((subfield) => {
@@ -31,31 +47,57 @@ export default function ClinicalListField({
   const handleItemChange = (index, subfieldId, subValue) => {
     const newValue = [...value];
     if (!newValue[index]) {
-      newValue[index] = {};
+        newValue[index] = {};
     }
     newValue[index][subfieldId] = subValue;
     onChange(field.id, newValue);
   };
 
-  const validateItem = (item, index) => {
-    const itemErrors = {};
-    field.subfields?.forEach((subfield) => {
-      if (subfield.required && !item[subfield.id]) {
-        itemErrors[subfield.id] = `${subfield.label} es requerido`;
-      }
-    });
-    if (Object.keys(itemErrors).length > 0) {
-      setLocalErrors((prev) => ({ ...prev, [index]: itemErrors }));
-      return false;
-    }
-    setLocalErrors((prev => {
-      const next = { ...prev };
-      delete next[index];
-      return next;
-    }));
-    return true;
-  };
+  // --- MODO LECTURA ---
+  if (readOnly) {
+    return (
+      <Field label={field.label} hint={field.helperText}>
+        <div className="stack-2">
+          {(!value || value.length === 0) ? (
+            <p className="helper-text italic">{field.emptyMessage || "Sin registros"}</p>
+          ) : (
+            <div className="stack-2">
+              {value.map((item, idx) => (
+                <div 
+                  key={idx} 
+                  style={{ 
+                    padding: "var(--s-3)", 
+                    borderLeft: "4px solid var(--color-primary-500)", 
+                    background: "var(--surface-2)",
+                    borderRadius: "var(--r-sm)",
+                    fontSize: "0.95rem"
+                  }}
+                >
+                  {field.subfields?.map((sub) => {
+                    const textValue = getSafeText(item[sub.id]);
+                    if (!textValue) return null;
 
+                    return (
+                      <div key={sub.id} style={{ marginBottom: "4px" }}>
+                        <span style={{ fontWeight: "600", color: "var(--color-neutral-800)" }}>
+                          {sub.label}:
+                        </span>{" "}
+                        <span style={{ color: "var(--color-neutral-700)" }}>
+                          {textValue}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </Field>
+    );
+  }
+
+  // --- MODO EDICIÓN ---
   return (
     <Field label={field.label} required={field.required} error={error} hint={field.helperText}>
       <div className="clinical-list-field">
@@ -69,17 +111,15 @@ export default function ClinicalListField({
               <div key={index} className="clinical-list-item" style={{ padding: "var(--s-4)", border: "1px solid var(--border)", borderRadius: "var(--r-md)", background: "var(--surface-2)" }}>
                 <div className="cluster" style={{ justifyContent: "space-between", marginBottom: "var(--s-3)" }}>
                   <strong style={{ fontSize: "0.95rem" }}>{field.itemLabel || `Elemento ${index + 1}`}</strong>
-                  {!readOnly && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleRemove(index)}
-                      title="Eliminar"
-                    >
-                      <X size={16} />
-                    </Button>
-                  )}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleRemove(index)}
+                    title="Eliminar"
+                  >
+                    <X size={16} />
+                  </Button>
                 </div>
                 <div className="stack-3">
                   {field.subfields?.map((subfield) => {
@@ -88,14 +128,20 @@ export default function ClinicalListField({
                     
                     if (!shouldShow) return null;
 
+                    // Si estamos editando un campo de texto pero el valor es un objeto,
+                    // lo extraemos como texto para que el INPUT no explote.
+                    const isTextType = ["text", "textarea"].includes(subfield.type);
+                    const currentValue = item[subfield.id];
+                    const safeValueForInput = isTextType ? getSafeText(currentValue) : currentValue;
+
                     return (
                       <ClinicalFieldRenderer
                         key={subfield.id}
                         field={subfield}
-                        value={item[subfield.id]}
+                        value={safeValueForInput || ""}
                         onChange={(id, val) => handleItemChange(index, id, val)}
                         errors={localErrors[index] || {}}
-                        readOnly={readOnly}
+                        readOnly={false} 
                         context={context}
                         formData={{ ...formData, ...item }}
                       />
@@ -106,22 +152,17 @@ export default function ClinicalListField({
             ))}
           </div>
         )}
-        {!readOnly && (
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={handleAdd}
-            style={{ marginTop: "var(--s-3)" }}
-          >
-            <Plus size={16} style={{ marginRight: "0.5rem" }} />
-            {field.addLabel || "Agregar"}
-          </Button>
-        )}
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          onClick={handleAdd}
+          style={{ marginTop: "var(--s-3)" }}
+        >
+          <Plus size={16} style={{ marginRight: "0.5rem" }} />
+          {field.addLabel || "Agregar"}
+        </Button>
       </div>
     </Field>
   );
 }
-
-
-

@@ -20,6 +20,17 @@ const STATUS_BADGE = {
   closed: "success",
 };
 
+function flattenNoteData(note) {
+  if (!note) return {};
+  const { extraFields, ...rest } = note;
+  return {
+    ...rest,
+    ...(extraFields && typeof extraFields === 'object' ? extraFields : {}),
+    diagnosticos: rest.diagnoses || [],
+    medicacion_indicada: rest.medications || [],
+  };
+}
+
 export default function NoteDetail() {
   const { id, noteId } = useParams();
   const navigate = useNavigate();
@@ -38,7 +49,6 @@ export default function NoteDetail() {
   const [editing, setEditing] = useState(false);
 
   useEffect(() => {
-    // Si noteId es "new" o no existe, redirigir o mostrar error
     if (!noteId || noteId === "new") {
       setLoading(false);
       setError("ID de nota inválido.");
@@ -56,87 +66,74 @@ export default function NoteDetail() {
         ]);
         if (!active) return;
         setNote(noteResponse);
-        if (patientResponse) {
-          setPatient(patientResponse);
-        }
+        if (patientResponse) setPatient(patientResponse);
       } catch (err) {
         if (!active) return;
-        const message = err.message || "No pudimos cargar la nota.";
-        setError(message);
+        setError(err.message || "No pudimos cargar la nota.");
       } finally {
-        if (active) {
-          setLoading(false);
-        }
+        if (active) setLoading(false);
       }
     }
     load();
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, [id, noteId]);
 
-  const professional = useMemo(
-    () => ({
-      id: user?.id ?? "user",
-      name: user?.name ?? "Profesional BreveMente",
-      license: user?.license || user?.kycRecord?.certificateFolio,
-    }),
-    [user]
-  );
+  const professional = useMemo(() => ({
+    id: user?.id ?? "user",
+    name: user?.name ?? "Profesional BreveMente",
+    license: user?.license || user?.kycRecord?.certificateFolio,
+  }), [user]);
 
   const patientName = useMemo(() => {
     if (!patient) return "Paciente";
     return `${patient.firstName ?? ""} ${patient.lastName ?? ""}`.trim() || "Paciente";
   }, [patient]);
 
-  const breadcrumbs = useMemo(
-    () => [
-      { to: "/patients", label: "Pacientes" },
-      { to: `/patients/${id}`, label: patientName },
-      { to: `/patients/${id}/notes`, label: "Notas de evolución" },
-      { label: note?.datetime ? formatDateISOToHuman(note.datetime) : "Nota" },
-    ],
-    [id, note?.datetime, patientName]
-  );
+  const breadcrumbs = useMemo(() => [
+    { to: "/patients", label: "Pacientes" },
+    { to: `/patients/${id}`, label: patientName },
+    { to: `/patients/${id}/notes`, label: "Notas de evolución" },
+    { label: note?.datetime ? formatDateISOToHuman(note.datetime) : "Nota" },
+  ], [id, note?.datetime, patientName]);
 
   const context = useMemo(() => ({
-    patient: patient ? patient : {
+    patient: patient ?? {
       id: note?.patientId || null,
       firstName: note?.patient?.firstName || null,
       lastName: note?.patient?.lastName || null,
       birthDate: note?.patient?.birthDate || null,
       gender: note?.patient?.gender || null,
-    } || null,
-    patientId: id ? id : note?.patientId || null,
+    },
+    patientId: id ?? note?.patientId ?? null,
     professional: note?.professional || professional,
     datetime: note?.datetime || new Date().toISOString(),
   }), [patient, id, note, professional]);
 
   const handleCloseNote = async () => {
-    if (!note || isAssistant || note.status === "closed") {
-      return;
-    }
+    if (!note || isAssistant || note.status === "closed") return;
     try {
       const updated = await closeNote(id, noteId);
       setNote(updated ?? { ...note, status: "closed", closedAt: new Date().toISOString() });
       toast.success("Nota cerrada correctamente");
       setConfirmClose(false);
     } catch (err) {
-      const message = err.message || "No pudimos cerrar la nota.";
-      setError(message);
-      toast.error(message);
+      toast.error(err.message || "No pudimos cerrar la nota.");
     }
   };
 
   const handleUpdate = async (payload) => {
     try {
-      const updated = await updateNote(id, noteId, payload);
+      const normalized = {
+        ...payload,
+        diagnoses: payload.diagnosticos || payload.diagnoses || [],
+        medications: payload.medicacion_indicada || payload.medications || [],
+      };
+      const updated = await updateNote(id, noteId, normalized);
       setNote(updated);
       setEditing(false);
       toast.success("Nota actualizada correctamente");
     } catch (err) {
-      const message = err.message || "No pudimos actualizar la nota.";
-      toast.error(message);
+      toast.error(err.message || "No pudimos actualizar la nota.");
       throw err;
     }
   };
@@ -153,12 +150,7 @@ export default function NoteDetail() {
         setNote((prev) => {
           const base = prev?.addenda ?? prev?.addendums ?? [];
           const next = [...base, { datetime: now, author: professional.name, text }];
-          return {
-            ...prev,
-            addenda: next,
-            addendums: next,
-            updatedAt: now,
-          };
+          return { ...prev, addenda: next, addendums: next, updatedAt: now };
         });
       }
       toast.success("Addendum agregado");
@@ -170,40 +162,8 @@ export default function NoteDetail() {
     }
   };
 
-  if (loading) {
-    return <p>Cargando nota…</p>;
-  }
-
-  if (error) {
-    return (
-      <section className="page stack-4">
-        <Breadcrumbs items={breadcrumbs} />
-        <Card hoverable={false}>
-          <CardBody>
-            <p className="form-error" role="alert">
-              {error}
-            </p>
-            <Button variant="secondary" onClick={() => navigate(-1)}>
-              Volver
-            </Button>
-          </CardBody>
-        </Card>
-      </section>
-    );
-  }
-
-  if (!note) {
-    return null;
-  }
-
-  const addenda = note.addenda ?? note.addendums ?? [];
-  const isClosed = note.status === "closed";
-  const canEdit = !isClosed && !editing;
-
   const handleExportPdf = async () => {
-    if (isAssistant || !note) {
-      return;
-    }
+    if (isAssistant || !note) return;
     try {
       setExporting(true);
       await exportNotePdf(id, note, { patient });
@@ -214,6 +174,28 @@ export default function NoteDetail() {
       setExporting(false);
     }
   };
+
+  if (loading) return <p>Cargando nota…</p>;
+
+  if (error) {
+    return (
+      <section className="page stack-4">
+        <Breadcrumbs items={breadcrumbs} />
+        <Card hoverable={false}>
+          <CardBody>
+            <p className="form-error" role="alert">{error}</p>
+            <Button variant="secondary" onClick={() => navigate(-1)}>Volver</Button>
+          </CardBody>
+        </Card>
+      </section>
+    );
+  }
+
+  if (!note) return null;
+
+  const addenda = note.addenda ?? note.addendums ?? [];
+  const isClosed = note.status === "closed";
+  const canEdit = !isClosed && !isAssistant && !editing;
 
   return (
     <section className="page stack-5">
@@ -228,26 +210,24 @@ export default function NoteDetail() {
             <Badge variant={STATUS_BADGE[note.status] || "neutral"}>
               {note.status === "closed" ? "Cerrada" : "Abierta"}
             </Badge>
-            <>
-              <Button variant="ghost" onClick={handleExportPdf} loading={exporting}>
-                Exportar PDF
+            <Button variant="ghost" onClick={handleExportPdf} loading={exporting}>
+              Exportar PDF
+            </Button>
+            {canEdit && (
+              <Button variant="secondary" onClick={() => setEditing(true)}>
+                Editar
               </Button>
-              {canEdit && (
-                <Button variant="secondary" onClick={() => setEditing(true)}>
-                  Editar
-                </Button>
-              )}
-              {!isClosed && !isAssistant && (
-                <Button variant="secondary" onClick={() => setConfirmClose(true)}>
-                  Cerrar nota
-                </Button>
-              )}
-              {isClosed && (
-                <Button variant="ghost" onClick={() => setAddendumOpen(true)}>
-                  Agregar addendum
-                </Button>
-              )}
-            </>
+            )}
+            {!isClosed && !isAssistant && (
+              <Button variant="secondary" onClick={() => setConfirmClose(true)}>
+                Cerrar nota
+              </Button>
+            )}
+            {isClosed && !isAssistant && (
+              <Button variant="ghost" onClick={() => setAddendumOpen(true)}>
+                Agregar addendum
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -259,7 +239,7 @@ export default function NoteDetail() {
         <CardBody>
           <DynamicClinicalForm
             schema={NOTE_SCHEMA}
-            initialData={note}
+            initialData={flattenNoteData(note)}
             onSubmit={handleUpdate}
             readOnly={!editing}
             context={context}

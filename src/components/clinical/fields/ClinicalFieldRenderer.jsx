@@ -1,6 +1,7 @@
 /**
  * ClinicalFieldRenderer
- * Renders individual clinical form fields based on schema configuration
+ * Renderiza campos clínicos individuales basándose en la configuración del esquema.
+ * Incluye protección contra el renderizado accidental de objetos JSON.
  */
 
 import { useMemo } from "react";
@@ -25,13 +26,36 @@ export default function ClinicalFieldRenderer({
 }) {
   const fieldError = errors[field.id];
   const isReadonly = readOnly || field.type === "readonly";
+
+  /**
+   * ESCUDO PROTECTOR (Anti-Crash):
+   * Si el valor es un objeto (como {codigo, descripcion}), extraemos las propiedades
+   * de texto. Esto evita el error "Objects are not valid as a React child".
+   */
+  const safeValue = useMemo(() => {
+    if (value === null || value === undefined) return "";
+    
+    // Si es un objeto pero no es un Array (las listas las maneja ClinicalListField)
+    if (typeof value === "object" && !Array.isArray(value)) {
+      // Prioridad de llaves comunes en tus esquemas
+      return (
+        value.label || 
+        value.descripcion || 
+        value.medicamento || 
+        value.nombre || 
+        value.codigo ||
+        Object.values(value).filter(v => typeof v !== 'object').join(" - ")
+      );
+    }
+    return value;
+  }, [value]);
+
   const shouldShow = useMemo(() => {
     if (!field.conditional) return true;
 
     const { field: conditionalField, value: conditionalValue, operator = "==" } = field.conditional;
     const currentValue = formData[conditionalField];
 
-    // Normaliza el valor actual a string para comparar con el schema
     const normalize = (val) => {
       if (typeof val === "boolean") return val ? "SI" : "NO";
       if (typeof val === "string") return val.toUpperCase().trim();
@@ -52,6 +76,7 @@ export default function ClinicalFieldRenderer({
 
   if (!shouldShow) return null;
 
+  // Manejo de campos Readonly y Computados (Edad, Nombre Paciente, etc.)
   if (field.type === "readonly" && field.computed) {
     let computedValue = field.computed(formData, context);
 
@@ -62,22 +87,31 @@ export default function ClinicalFieldRenderer({
       computedValue = match?.label ?? computedValue;
     }
 
+    // Aseguramos que el valor computado sea un string/número renderizable
+    const finalComputed = typeof computedValue === "object" && computedValue !== null
+      ? (computedValue.label || computedValue.descripcion || JSON.stringify(computedValue))
+      : computedValue;
+
     return (
       <ClinicalReadonlyField
         field={field}
-        value={computedValue}
+        value={finalComputed}
         error={fieldError}
       />
     );
   }
 
-  // Render based on field type
+  // Renderizado según el tipo de campo definido en NOTE_SCHEMA
   switch (field.type) {
     case "text":
+    case "number":
+    case "date":
+    case "datetime":
       return (
         <ClinicalTextField
           field={field}
-          value={value || ""}
+          type={field.type === "datetime" ? "datetime-local" : field.type}
+          value={safeValue} // Usamos el valor seguro
           onChange={onChange}
           error={fieldError}
           readOnly={isReadonly}
@@ -88,43 +122,7 @@ export default function ClinicalFieldRenderer({
       return (
         <ClinicalTextareaField
           field={field}
-          value={value || ""}
-          onChange={onChange}
-          error={fieldError}
-          readOnly={isReadonly}
-        />
-      );
-
-    case "number":
-      return (
-        <ClinicalTextField
-          field={field}
-          type="number"
-          value={value || ""}
-          onChange={onChange}
-          error={fieldError}
-          readOnly={isReadonly}
-        />
-      );
-
-    case "date":
-      return (
-        <ClinicalTextField
-          field={field}
-          type="date"
-          value={value || ""}
-          onChange={onChange}
-          error={fieldError}
-          readOnly={isReadonly}
-        />
-      );
-
-    case "datetime":
-      return (
-        <ClinicalTextField
-          field={field}
-          type="datetime-local"
-          value={value || ""}
+          value={safeValue} // Usamos el valor seguro
           onChange={onChange}
           error={fieldError}
           readOnly={isReadonly}
@@ -132,49 +130,19 @@ export default function ClinicalFieldRenderer({
       );
 
     case "select":
-      return (
-        <ClinicalSelectField
-          field={field}
-          value={value || ""}
-          onChange={onChange}
-          error={fieldError}
-          readOnly={isReadonly}
-        />
-      );
-
     case "multiselect":
-      return (
-        <ClinicalSelectField
-          field={field}
-          value={value || []}
-          onChange={onChange}
-          error={fieldError}
-          readOnly={isReadonly}
-          multiple
-        />
-      );
-
     case "radio":
-      return (
-        <ClinicalSelectField
-          field={field}
-          value={value || ""}
-          onChange={onChange}
-          error={fieldError}
-          readOnly={isReadonly}
-          asRadio
-        />
-      );
-
     case "checkbox":
       return (
         <ClinicalSelectField
           field={field}
-          value={value || false}
+          value={value} // Los selectores suelen manejar sus propios objetos internamente
           onChange={onChange}
           error={fieldError}
           readOnly={isReadonly}
-          asCheckbox
+          multiple={field.type === "multiselect"}
+          asRadio={field.type === "radio"}
+          asCheckbox={field.type === "checkbox"}
         />
       );
 
@@ -182,7 +150,7 @@ export default function ClinicalFieldRenderer({
       return (
         <ClinicalYesNoField
           field={field}
-          value={value || ""}
+          value={value}
           onChange={onChange}
           error={fieldError}
           readOnly={isReadonly}
@@ -214,10 +182,6 @@ export default function ClinicalFieldRenderer({
       );
 
     default:
-      console.warn(`Unknown field type: ${field.type} for field ${field.id}`);
       return null;
   }
 }
-
-
-
