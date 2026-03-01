@@ -125,47 +125,55 @@ function validateStep(stepId, form) {
 
 function buildPayload(form) {
   return {
-    email: form.access.email,
-    password: form.access.password,
-    confirmPassword: form.access.confirmPassword,
+    // 1. Objeto de Acceso
+    access: {
+      email: form.access.email.toLowerCase(),
+      password: form.access.password,
+      confirmPassword: form.access.confirmPassword,
+    },
 
-    firstName: form.identity.firstName,
-    lastName: form.identity.lastName,
-    curp: form.identity.curp || null,
-    birthDate: form.identity.birthDate,
-    gender: form.identity.gender,
+    // 2. Objeto de Identidad
+    identity: {
+      firstName: form.identity.firstName,
+      lastName: form.identity.lastName,
+      curp: form.identity.curp?.toUpperCase() || null,
+      birthDate: form.identity.birthDate,
+      gender: form.identity.gender,
+      nationality: "Mexicana",
+      // Campos que Prisma tiene como opcionales pero pertenecen a identidad
+      rfc: form.extended.rfc || null,
+      legalGuardianName: form.extended.legalGuardianName || null,
+      legalGuardianRelation: form.extended.legalGuardianRelation || null,
+      legalGuardianPhone: form.extended.legalGuardianPhone || null,
+    },
 
-    rfc: form.extended.rfc || null,
-    homePhone: form.extended.homePhone || null,
-    workPhone: form.extended.workPhone || null,
-    emergencyRelation: form.extended.emergencyRelation || null,
-    legalGuardianName: form.extended.legalGuardianName || null,
-    legalGuardianRelation: form.extended.legalGuardianRelation || null,
-    legalGuardianPhone: form.extended.legalGuardianPhone || null,
-    nationality: "Mexicana",
+    // 3. Objeto de Dirección
+    address: {
+      street: form.address.street || null,
+      postalCode: form.address.postalCode || null,
+      neighborhood: form.address.neighborhood || null,
+      state: form.address.state || null,
+      municipality: form.address.city || null, // Mapeado a 'municipality' de tu Prisma
+    },
 
-    street: form.address.street || null,
-    postalCode: form.address.postalCode || null,
-    neighborhood: form.address.neighborhood || null,
-    state: form.address.state || null,
-    municipality: form.address.city || null, 
+    // 4. Objeto de Contacto
+    contact: {
+      phone: form.contact.phone,
+      homePhone: form.extended.homePhone || null,
+      workPhone: form.extended.workPhone || null,
+      emergencyName: form.contact.emergencyName,
+      emergencyPhone: form.contact.emergencyPhone,
+      emergencyRelation: form.extended.emergencyRelation || null,
+      phoneIsVerified: !!form.contact.phoneIsVerified,
+      emergencyPhoneIsVerified: !!form.contact.emergencyPhoneIsVerified,
+    },
 
-    referral: form.source.referral,
-    purpose: form.source.purpose,
-    professionalInChargeId: "U_91ztvm1k", 
-
-    phone: form.contact.phone,
-    emergencyName: form.contact.emergencyName,
-    emergencyPhone: form.contact.emergencyPhone,
-    phoneIsVerified: !!form.contact.phoneIsVerified,
-    emergencyPhoneIsVerified: !!form.contact.emergencyPhoneIsVerified,
-
-    attachments: [], 
-    occupation: null,
-    civilStatus: null,
-    education: null,
-    religion: null,
-    genderIdentity: null
+    // 5. Objeto de Origen (Aquí va el ID que mencionas)
+    source: {
+      referral: form.source.referral,
+      purpose: form.source.purpose,
+      professionalInChargeId: form.source.professionalInChargeId || "U_91ztvm1k", 
+    }
   };
 }
 
@@ -216,10 +224,11 @@ export default function PatientRegister() {
         toast.success("Cuenta de paciente creada con éxito. Inicia sesión.");
         navigate(ROUTES.login, { replace: true });
     } catch (error) {
-        const message = error.response?.data?.message || "Error al crear la cuenta.";
-        setFormError(message);
-        toast.error(message);
-    } finally {
+    // Esto te dirá EXACTAMENTE qué campo de Prisma o Zod está rechazando
+    console.error("DETALLE DEL ERROR 400:", error.response?.data?.details); 
+    const message = error.response?.data?.message || "Error al crear la cuenta.";
+    setFormError(message);
+}finally {
         setSubmitting(false);
     }
   };

@@ -63,11 +63,7 @@ function buildUrl(path = "") {
     let base = BASE_URL;
     const baseEndsWithApi = base.endsWith("/api") || base.endsWith("/api/");
     
-    // If BASE_URL already ends with /api, don't add it again
-    // If path already starts with /api, remove the /api prefix to avoid duplication
-    if (normalizedPath.startsWith("/api")) {
-      normalizedPath = normalizedPath.substring(4); // Remove "/api"
-    }
+
     
     if (!baseEndsWithApi) {
       base = base.endsWith("/") ? `${base}api` : `${base}/api`;
