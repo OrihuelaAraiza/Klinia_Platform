@@ -182,13 +182,20 @@ export default function Notes() {
                     </Badge>
                   </CardHeader>
                   <CardBody className="stack-2">
-                    <p>
-                      <strong>Diagnóstico(s):</strong>{" "}
-                      {(Array.isArray(note.diagnosticos) ? note.diagnosticos : []).length > 0
-                        ? note.diagnosticos.map((dx) => `${dx.codigo} - ${dx.descripcion}`).join(", ")
-                        : "Sin diagnóstico"}
-                    </p>
-                    <Button variant="ghost" size="sm" onClick={() => navigate(`/notes/${note.id}`)}>
+                   <p>
+                        <strong>Diagnóstico(s):</strong>{" "}
+                        {(() => {
+                          const dx = Array.isArray(note.diagnosticos) 
+                            ? note.diagnosticos 
+                            : Array.isArray(note.diagnoses) 
+                            ? note.diagnoses 
+                            : [];
+                          return dx.length > 0
+                            ? dx.map((d) => `${d.codigo} - ${d.descripcion}`).join(", ")
+                            : "Sin diagnóstico";
+                        })()}
+                      </p>
+                    <Button variant="ghost" size="sm" onClick={() => navigate(`/patients/${id}/notes/${note.id}`)}>
                       Ver detalle
                     </Button>
                   </CardBody>

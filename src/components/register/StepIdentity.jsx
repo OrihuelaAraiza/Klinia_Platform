@@ -86,7 +86,7 @@ export default function StepIdentity({
         />
 
         <InputField
-          label="Folio de Certificado"
+          label="Folio o Número de Cédula"
           name="certificateFolio" 
           value={data.certificateFolio} 
           onChange={handleChange}

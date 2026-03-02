@@ -60,13 +60,16 @@ export default function NoteDetail() {
       setLoading(true);
       setError("");
       try {
-        const [noteResponse, patientResponse] = await Promise.all([
-          getNote(id, noteId),
-          getPatient(id).catch(() => null),
-        ]);
+        const noteResponse = await getNote(id, noteId);
         if (!active) return;
         setNote(noteResponse);
-        if (patientResponse) setPatient(patientResponse);
+
+        // Usar patientId de la nota si id del param es undefined
+        const patientId = id && id !== "undefined" ? id : noteResponse?.patientId;
+        if (patientId) {
+          const patientResponse = await getPatient(patientId).catch(() => null);
+          if (active && patientResponse) setPatient(patientResponse);
+        }
       } catch (err) {
         if (!active) return;
         setError(err.message || "No pudimos cargar la nota.");
@@ -203,7 +206,7 @@ export default function NoteDetail() {
         <Breadcrumbs items={breadcrumbs} />
         <div className="cluster" style={{ justifyContent: "space-between" }}>
           <div className="stack-1">
-            <h1>Nota del {formatDateISOToHuman(note.datetime)}</h1>
+            <h1>Nota del Paciente{formatDateISOToHuman(note.datetime)}</h1>
             <p className="helper-text">{note.professional?.name}</p>
           </div>
           <div className="cluster">

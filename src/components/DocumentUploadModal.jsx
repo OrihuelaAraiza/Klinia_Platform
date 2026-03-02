@@ -40,8 +40,8 @@ export default function DocumentUploadModal({ currentFile, onClose, onSave }) {
             setName('');
             return;
         }
-        if (file.size > 5 * 1024 * 1024) {
-            error("El archivo excede los 5MB permitidos.");
+        if (file.size > 10 * 1024 * 1024) { 
+            error("El archivo excede los 10MB permitidos.");
             return;
         }
 
@@ -117,7 +117,7 @@ export default function DocumentUploadModal({ currentFile, onClose, onSave }) {
                         <input type="file" ref={inputRef} onChange={(e) => handleFileChange(e.target.files[0])} style={{ display: 'none' }} accept=".pdf,.jpg,.jpeg,.png" />
                         <Upload size={32} style={{ margin: '0 auto 1rem', color: 'var(--ui-primary)' }} />
                         <p style={{ fontWeight: 500 }}>Haz clic o arrastra tu archivo aquí</p>
-                        <p className="helper-text">PDF, PNG o JPG (Máx. 5MB)</p>
+                        <p className="helper-text">PDF, PNG o JPG (Máx. 10MB)</p>
                     </div>
                 ) : (
                     <div className="stack-4">
