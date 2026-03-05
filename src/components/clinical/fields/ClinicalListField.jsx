@@ -13,11 +13,23 @@ export default function ClinicalListField({
   formData = {},
   context = {},
 }) {
-  const [localErrors, setLocalErrors] = useState({});
+  const [localErrors] = useState({});
 
   // Función auxiliar para convertir objetos a texto seguro
   const getSafeText = (val) => {
     if (val === null || val === undefined || val === "") return "";
+    if (Array.isArray(val)) {
+      if (val.length === 0) return "";
+      return val
+        .map((entry) => {
+          if (typeof entry === "object" && entry !== null) {
+            return entry.name || entry.filename || entry.label || entry.id || "";
+          }
+          return String(entry);
+        })
+        .filter(Boolean)
+        .join(", ");
+    }
     if (typeof val === "object" && !Array.isArray(val)) {
       return (
         val.descripcion || 
@@ -34,7 +46,13 @@ export default function ClinicalListField({
   const handleAdd = () => {
     const newItem = {};
     field.subfields?.forEach((subfield) => {
-      newItem[subfield.id] = subfield.type === "number" ? null : "";
+      if (subfield.type === "number") {
+        newItem[subfield.id] = null;
+      } else if (subfield.type === "file") {
+        newItem[subfield.id] = [];
+      } else {
+        newItem[subfield.id] = "";
+      }
     });
     onChange(field.id, [...value, newItem]);
   };

@@ -195,6 +195,15 @@ export const NOTE_SCHEMA = {
               label: "Fecha de aplicación",
               type: "date",
             },
+            {
+              id: "archivos_soporte",
+              label: "Archivos de soporte",
+              type: "file",
+              multiple: true,
+              accept: "application/pdf,image/jpeg,image/jpg,image/png",
+              maxSize: 5 * 1024 * 1024,
+              helperText: "Adjunta evidencia de la escala (PDF/JPG/PNG, máx. 5MB por archivo)",
+            },
           ],
         },
       ],
@@ -427,6 +436,5 @@ export const NOTE_SCHEMA = {
 };
 
 export default NOTE_SCHEMA;
-
 
 
