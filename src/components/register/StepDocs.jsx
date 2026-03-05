@@ -21,16 +21,6 @@ const DOCUMENT_FIELDS = [
     label: "Cédula profesional",
     helper: "PDF o JPG (max 5 MB)",
   },
-  {
-    key: "curpDocumentFileId", 
-    label: "Documento CURP (Opcional)",
-    helper: "Súbelo si tu CURP no está en tu INE (PDF/JPG)",
-  },
-  {
-    key: "proofOfAddressFileId",
-    label: "Comprobante de domicilio (≤ 3 meses)",
-    helper: "PDF o JPG (max 5 MB)",
-  },
 ];
 
 const MAX_SIZE = 5 * 1024 * 1024;
@@ -41,6 +31,7 @@ export default function StepDocs({
   errors,
   onDocumentChange,
   onBusyChange,
+  embedded = false,
   disabled = false,
 }) {
   const [localErrors, setLocalErrors] = useState({});
@@ -149,22 +140,16 @@ export default function StepDocs({
     }
   };
 
-  return (
-    <div className="register-step">
-      <div className="register-step__header">
-        <h2 className="register-step__title">Documentación</h2>
-        <p className="register-step__subtitle">Sube tus archivos. Los campos marcados con * son obligatorios para continuar.</p>
-      </div>
-
-      <div className="register-step__body register-step__grid">
-        {DOCUMENT_FIELDS.map((field) => {
+  const content = (
+    <div className="register-step__body register-step__grid">
+      {DOCUMENT_FIELDS.map((field) => {
           const fileId = documents?.[field.key];
           const fileName = fileNames[field.key];
           const fieldError = localErrors[field.key] || errors[field.key];
           const isUploadingField = uploadingMap[field.key];
 
           return (
-            <Field key={field.key} label={field.label} required={field.key !== 'curpDocumentFileId'} hint={field.helper} error={fieldError}>
+            <Field key={field.key} label={field.label} required hint={field.helper} error={fieldError}>
               <div className="file-upload">
                 {field.key === "idOrPassportFileId" && (
                   <div className="id-capture-stack">
@@ -214,8 +199,27 @@ export default function StepDocs({
               </div>
             </Field>
           );
-        })}
-      </div>
+      })}
+    </div>
+  );
+
+  return (
+    <div className={embedded ? "register-step__embedded stack-3" : "register-step"}>
+      {embedded ? (
+        <div className="register-step__header">
+          <h3 className="register-step__title">Documentación</h3>
+          <p className="register-step__subtitle">
+            Adjunta tu identificación oficial y cédula profesional.
+          </p>
+        </div>
+      ) : (
+        <div className="register-step__header">
+          <h2 className="register-step__title">Documentación</h2>
+          <p className="register-step__subtitle">Sube tus archivos. Los campos marcados con * son obligatorios para continuar.</p>
+        </div>
+      )}
+
+      {content}
       <canvas ref={combinedCanvasRef} style={{ display: 'none' }} />
       {isModalOpen && <CameraModal onCapture={handleCapture} onClose={() => setIsModalOpen(false)} />}
     </div>

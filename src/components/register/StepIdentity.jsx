@@ -1,11 +1,16 @@
 import { useMemo } from "react";
 import InputField from "../InputField";
 import Field from "../UI/Field"; // Asegúrate de tener acceso al componente Field para el select
+import StepDocs from "./StepDocs";
 
 export default function StepIdentity({
   data,
   errors,
   onChange,
+  documents,
+  documentErrors,
+  onDocumentChange,
+  onDocumentBusyChange,
   disabled = false,
 }) {
   const today = useMemo(() => {
@@ -86,12 +91,12 @@ export default function StepIdentity({
         />
 
         <InputField
-          label="Folio o Número de Cédula"
+          label="Cédula profesional"
           name="certificateFolio" 
           value={data.certificateFolio} 
           onChange={handleChange}
           required
-          placeholder="Folio de 7 o 36 caracteres"
+          placeholder="Número de cédula profesional"
           error={errors.certificateFolio} 
           disabled={disabled}
           autoComplete="off"
@@ -109,6 +114,15 @@ export default function StepIdentity({
           max={today}
         />
       </div>
+
+      <StepDocs
+        embedded
+        documents={documents}
+        errors={documentErrors}
+        onDocumentChange={onDocumentChange}
+        onBusyChange={onDocumentBusyChange}
+        disabled={disabled}
+      />
     </div>
   );
 }
