@@ -67,6 +67,7 @@ function createInitialForm() {
             specialty: "",
         },
         address: {
+            officeName: "",
             street: "",
             neighborhood: "",
             postalCode: "",
@@ -210,6 +211,12 @@ function validateAddress(data) {
     if (!required(data.state)) {
         errors.state = "Selecciona un estado.";
     }
+    if (!required(data.officeName)) { 
+        errors.officeName = "Ingresa el nombre del consultorio o clínica.";
+    }
+    if (!required(data.street)) {
+        errors.street = "Ingresa tu calle y numero.";
+    }
     return errors;
 }
 
@@ -291,6 +298,7 @@ function buildPayload(form) {
             specialty: form.identity.specialty,
         },
         address: {
+            officeName: sanitize(form.address.officeName),
             street: sanitize(form.address.street),
             neighborhood: sanitize(form.address.neighborhood),
             postalCode: sanitize(form.address.postalCode),

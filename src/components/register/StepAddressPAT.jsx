@@ -59,26 +59,11 @@ export default function StepAddress({
   return (
     <div className="register-step">
       <div className="register-step__header">
-        <h2 className="register-step__title">Domicilio Profesional</h2>
-        <p className="register-step__subtitle">
-          Ingresa el código postal para localizar la ubicación de tu consultorio.
-        </p>
+        <h2 className="register-step__title">Domicilio</h2>
+       
       </div>
 
       <div className="register-step__body register-step__grid">
-        {/* Campo: Nombre del Consultorio */}
-        <div style={{ gridColumn: "1 / -1" }}>
-          <InputField
-            label="Nombre del consultorio / Clínica"
-            name="officeName"
-            value={data.officeName || ""}
-            onChange={handleChange}
-            required
-            placeholder="Ej. Centro Médico Especializado"
-            error={errors.officeName}
-            disabled={disabled}
-          />
-        </div>
 
         {/* Campo: Código Postal */}
         <InputField
