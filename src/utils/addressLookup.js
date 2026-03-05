@@ -4,21 +4,26 @@ export const lookupPostalCode = async (cp) => {
   if (!cp || cp.length !== 5) return null;
 
   try {
+    // La respuesta de tu backend ya es el objeto con estado, municipio, etc.
     const response = await api.get(`/utils/consulta-cp/${cp}`, { auth: true });
     
-    if (!response || !response.codigo_postal) return null;
+    // Verificación de seguridad: si no hay estado, algo salió mal
+    if (!response || !response.estado) {
+        console.warn("La API no devolvió el formato esperado:", response);
+        return null;
+    }
 
-    const info = response.codigo_postal;
-
-    // Log para depuración: verifica esto en la consola del navegador
-    console.log("Datos recibidos de la API:", info);
+    // Log para depuración
+    console.log("Datos procesados en lookupPostalCode:", response);
 
     return {
-      stateName: info.estado,
-      city: info.municipio,
-      postalCode: info.codigo_postal,
-      // Validamos que sea un array antes de enviarlo al componente
-      colonies: Array.isArray(info.colonias) ? info.colonias : [] 
+      stateName: response.estado, // Antes buscabas info.estado
+      city: response.municipio,   // Antes buscabas info.municipio
+      postalCode: cp,
+      // Mapeamos las colonias: si vienen como objetos {nombre: "..."} extraemos solo el string
+      colonies: Array.isArray(response.colonias) 
+        ? response.colonias.map(c => typeof c === 'string' ? c : c.nombre)
+        : [] 
     };
   } catch (error) {
     console.error("Error en lookupPostalCode:", error);
@@ -28,8 +33,18 @@ export const lookupPostalCode = async (cp) => {
 
 export const findStateValue = (statesList, stateNameFromApi) => {
   if (!statesList || !stateNameFromApi) return "";
-  const normalize = (s) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  
+  // Normalización para ignorar acentos y mayúsculas (Ej: "Puebla" -> "puebla")
+  const normalize = (s) => 
+    String(s).toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim();
+
   const search = normalize(stateNameFromApi);
-  const found = statesList.find(s => normalize(s.label) === search);
+  
+  // Buscamos en la lista de constantes (MEXICAN_STATES)
+  const found = statesList.find(s => normalize(s.label) === search || normalize(s.value) === search);
+  
   return found ? found.value : "";
 };
