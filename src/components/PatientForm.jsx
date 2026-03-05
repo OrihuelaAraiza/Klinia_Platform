@@ -60,6 +60,7 @@ export default function PatientForm({ initialValue, onSubmit, onCancel, readOnly
   const [colonies, setColonies] = useState([]);
   const [loadingCP, setLoadingCP] = useState(false);
   const [errors, setErrors] = useState({});
+  const [submitError, setSubmitError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const isReadOnly = Boolean(readOnly);
@@ -92,6 +93,7 @@ export default function PatientForm({ initialValue, onSubmit, onCancel, readOnly
     const { name, value } = e.target;
     setForm(prev => ({ ...prev, [name]: value }));
     if (errors[name]) setErrors(prev => ({ ...prev, [name]: undefined }));
+    if (submitError) setSubmitError("");
   };
 
   const handleSubmit = async (e) => {
@@ -109,9 +111,16 @@ export default function PatientForm({ initialValue, onSubmit, onCancel, readOnly
 
     try {
       setSubmitting(true);
+      setSubmitError("");
       await onSubmit(form);
     } catch (err) {
-      console.error(err);
+      const fieldErrors = err?.fieldErrors;
+      if (fieldErrors && typeof fieldErrors === "object") {
+        setErrors((prev) => ({ ...prev, ...fieldErrors }));
+      }
+      setSubmitError(
+        err?.message || "No se pudo guardar el expediente. Intenta nuevamente."
+      );
     } finally {
       setSubmitting(false);
     }
@@ -201,6 +210,11 @@ export default function PatientForm({ initialValue, onSubmit, onCancel, readOnly
         {onCancel && <Button type="button" variant="ghost" onClick={onCancel} disabled={submitting}>Cancelar</Button>}
         {!isReadOnly && <Button type="submit" loading={submitting}>Guardar Expediente</Button>}
       </div>
+      {submitError ? (
+        <p className="ui-field__error" role="alert">
+          {submitError}
+        </p>
+      ) : null}
     </form>
   );
 }
