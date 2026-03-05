@@ -13,7 +13,7 @@ export default function StepPatientSource({ data, onChange, errors, disabled }) 
         const list = await getProfessionalsList();
         
         // Filtramos para omitir a los Psiquiatras
-        // Asumiendo que el campo es 'specialty' según tu esquema de Prisma
+        // Si no tiene especialidad (null), lo dejamos pasar para que tome el default abajo
         const filtered = (list || []).filter(
           (pro) => pro.specialty !== "PSIQUIATRA"
         );
@@ -33,10 +33,22 @@ export default function StepPatientSource({ data, onChange, errors, disabled }) 
     onChange(name, value);
   };
 
-  // Función auxiliar para poner en bonita la especialidad
+  /**
+   * Nueva lógica de formateo:
+   * Si no hay especialidad, retorna "Psicoterapeuta"
+   * Si existe, la pone en minúsculas con la primera en mayúscula
+   */
   const formatSpecialty = (s) => {
-    if (!s) return "";
-    return s.charAt(0) + s.slice(1).toLowerCase();
+    if (!s) return "Psicoterapeuta";
+    
+    // Diccionario para que los valores de base de datos se vean bien
+    const labels = {
+      "PSICOLOGO": "Psicólogo",
+      "PSICOTERAPEUTA": "Psicoterapeuta",
+      "PSIQUIATRA": "Psiquiatra"
+    };
+
+    return labels[s] || s.charAt(0) + s.slice(1).toLowerCase();
   };
 
   return (
@@ -50,7 +62,6 @@ export default function StepPatientSource({ data, onChange, errors, disabled }) 
 
       <div className="register-step__body register-step__grid">
         
-        {/* DROPDOWN DE TERAPEUTAS */}
         <Field 
             label="Selecciona tu terapeuta" 
             required 
@@ -67,6 +78,8 @@ export default function StepPatientSource({ data, onChange, errors, disabled }) 
             <option value="">-- Elige un profesional --</option>
             {professionals.map((pro) => (
               <option key={pro.id} value={pro.id}>
+                {/* Aquí aplicamos el default: pro.specialty || "PSICOTERAPEUTA" no es necesario 
+                    porque la función formatSpecialty ya lo maneja */}
                 {pro.name} — ({formatSpecialty(pro.specialty)})
               </option>
             ))}

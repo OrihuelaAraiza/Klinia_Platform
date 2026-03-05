@@ -12,7 +12,7 @@ import Logo from "../components/Brand/Logo";
 import { ROUTES } from "../utils/constants";
 import apiClient from "../services/apiClient";
 import { isValidEmail, isValidPassword, minLength, required, isValidMXPhone, isValidCURP } from "../utils/validators";
-import StepAddress from "../components/register/StepAddress";
+import StepAddress from "../components/register/StepAddressPAT";
 
 // --- CONSTANTES ---
 const STEP_FLOW = [
