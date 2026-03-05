@@ -71,6 +71,15 @@ export default function ClinicalListField({
     onChange(field.id, newValue);
   };
 
+  const resolveFileUrl = (file) => (
+    file?.blobUrl ||
+    file?.url ||
+    file?.fileUrl ||
+    file?.downloadUrl ||
+    file?.path ||
+    ""
+  );
+
   // --- MODO LECTURA ---
   if (readOnly) {
     return (
@@ -92,6 +101,51 @@ export default function ClinicalListField({
                   }}
                 >
                   {field.subfields?.map((sub) => {
+                    if (sub.type === "file") {
+                      const files = Array.isArray(item[sub.id]) ? item[sub.id] : [];
+                      if (files.length === 0) return null;
+
+                      return (
+                        <div key={sub.id} style={{ marginBottom: "8px" }}>
+                          <div
+                            style={{
+                              fontWeight: "600",
+                              color: "var(--color-neutral-800)",
+                              marginBottom: "4px",
+                            }}
+                          >
+                            {sub.label}:
+                          </div>
+                          <div className="cluster" style={{ gap: "var(--s-2)", flexWrap: "wrap" }}>
+                            {files.map((file, fileIndex) => {
+                              const fileName = file?.name || `Archivo ${fileIndex + 1}`;
+                              const fileUrl = resolveFileUrl(file);
+
+                              if (!fileUrl) {
+                                return (
+                                  <span key={`${sub.id}-${file?.id || fileIndex}`} className="helper-text">
+                                    {fileName}
+                                  </span>
+                                );
+                              }
+
+                              return (
+                                <a
+                                  key={`${sub.id}-${file?.id || fileIndex}`}
+                                  href={fileUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="link"
+                                >
+                                  Ver archivo: {fileName}
+                                </a>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    }
+
                     const textValue = getSafeText(item[sub.id]);
                     if (!textValue) return null;
 
