@@ -83,6 +83,8 @@ function buildInitialForm(patientId = "") {
 export default function Prescriptions() {
     const { success, error, info } = useToast() || {}; 
     const { role, user } = useOutletContext() ?? {};
+    const professionalId = user?.therapistId || user?.id || "";
+    const shouldFilterByProfessional = role === ROLES.PROFESSIONAL || role === ROLES.ASSISTANT;
     const navigate = useNavigate();
     const location = useLocation();
     const searchParams = new URLSearchParams(location.search);
@@ -148,18 +150,36 @@ export default function Prescriptions() {
             .finally(() => setPatientLoading(false));
     }, [selectedPatientId]);
 
-    // Búsqueda de pacientes con Debounce
+    const loadSearchResults = useCallback(async (rawQuery = "") => {
+        setSearchLoading(true);
+        try {
+            const response = await patientsService.listPatients({
+                q: rawQuery.trim(),
+                size: 100,
+                ...(shouldFilterByProfessional && professionalId ? { professionalId } : {}),
+            });
+            const items = Array.isArray(response?.items) ? response.items : response;
+            setSearchResults(items || []);
+        } catch (err) {
+            setSearchResults([]);
+            error(err?.message || "No pudimos cargar pacientes.");
+        } finally {
+            setSearchLoading(false);
+        }
+    }, [professionalId, shouldFilterByProfessional, error]);
+
+    // Cargar pacientes y filtrar conforme se escribe
     useEffect(() => {
+        const trimmed = searchQuery.trim();
+        if (!trimmed) {
+            loadSearchResults("");
+            return;
+        }
         const timeout = setTimeout(() => {
-            if (searchQuery.trim()) {
-                setSearchLoading(true);
-                patientsService.listPatients({ q: searchQuery.trim() })
-                    .then(res => setSearchResults(res.items || []))
-                    .finally(() => setSearchLoading(false));
-            }
+            loadSearchResults(trimmed);
         }, SEARCH_DEBOUNCE_MS);
         return () => clearTimeout(timeout);
-    }, [searchQuery]);
+    }, [searchQuery, loadSearchResults]);
 
     const selectPatient = (candidate) => {
         navigate(`${ROUTES.prescriptions}?patientId=${candidate.id}&tab=${activeTab}`);
