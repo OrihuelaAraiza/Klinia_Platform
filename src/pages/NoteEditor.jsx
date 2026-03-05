@@ -98,17 +98,28 @@ export default function NoteEditor() {
     [id, patientName, isNew, note?.datetime]
   );
 
-  const context = useMemo(() => ({
-    patient: patient ? patient : {
-      id: note?.patientId || null,
-      firstName: note?.patient?.firstName || null,
-      lastName: note?.patient?.lastName || null,
-      birthDate: note?.patient?.birthDate || null,
-      gender: note?.patient?.gender || null,
-    } || null,
-    patientId: id ? id : note?.patientId || null,
-    datetime: note?.datetime || new Date().toISOString(),
-  }), [patient, id, user, note]);
+  const context = useMemo(() => {
+    const fallbackPatient = note
+      ? {
+          id: note?.patientId || null,
+          firstName: note?.patient?.firstName || null,
+          lastName: note?.patient?.lastName || null,
+          birthDate: note?.patient?.birthDate || null,
+          gender: note?.patient?.gender || null,
+        }
+      : null;
+
+    return {
+      patient: patient ?? fallbackPatient,
+      patientId: id || note?.patientId || null,
+      professional: {
+        id: user?.id,
+        name: user?.name,
+        license: user?.license || user?.kycRecord?.certificateFolio,
+      },
+      datetime: note?.datetime || new Date().toISOString(),
+    };
+  }, [patient, id, note, user]);
 
   const handleSave = async (payload) => {
     try {
@@ -121,7 +132,7 @@ export default function NoteEditor() {
           status: "open",
         });
         toast.success("Nota creada correctamente");
-        navigate(`/notes/${created.id}`);
+        navigate(`/patients/${id}/notes/${created.id}`);
       } else {
         const updated = await updateNote(id, noteId, payload);
         setNote(updated);
@@ -273,4 +284,3 @@ export default function NoteEditor() {
     </section>
   );
 }
-
