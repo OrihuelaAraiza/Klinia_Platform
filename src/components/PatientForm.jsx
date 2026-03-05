@@ -36,7 +36,6 @@ const SEX_OPTIONS = [
 function validateForm({ form }) {
   const errors = {};
   
-  // Lista de campos que NO pueden estar vacíos
   const requiredFields = [
     "firstName", "lastName", "birthDate", "gender", "phone", "email", 
     "postalCode", "state", "city", "neighborhood", "street",
@@ -73,12 +72,19 @@ export default function PatientForm({ initialValue, onSubmit, onCancel, readOnly
           const data = await lookupPostalCode(form.postalCode);
           if (data) {
             setColonies(data.colonies);
-            setForm(prev => ({ ...prev, city: data.city, state: findStateValue(MEXICAN_STATES, data.stateName) }));
+            setForm(prev => ({ 
+              ...prev, 
+              city: data.city, 
+              state: findStateValue(MEXICAN_STATES, data.stateName),
+              neighborhood: data.colonies.length === 1 ? data.colonies[0] : prev.neighborhood
+            }));
           }
         } catch (e) { console.error(e); }
         finally { setLoadingCP(false); }
       };
       fetchCP();
+    } else {
+      setColonies([]);
     }
   }, [form.postalCode]);
 
@@ -95,9 +101,7 @@ export default function PatientForm({ initialValue, onSubmit, onCancel, readOnly
     const validationErrors = validateForm({ form });
     
     if (Object.keys(validationErrors).length > 0) {
-      console.error("❌ Errores de validación detectados:", validationErrors);
       setErrors(validationErrors);
-      // Hacer scroll al primer error para que el usuario sepa qué pasó
       const firstErrorKey = Object.keys(validationErrors)[0];
       document.getElementsByName(firstErrorKey)[0]?.focus();
       return;
@@ -105,10 +109,9 @@ export default function PatientForm({ initialValue, onSubmit, onCancel, readOnly
 
     try {
       setSubmitting(true);
-      console.log("🚀 Enviando formulario...", form);
       await onSubmit(form);
     } catch (err) {
-      console.error("❌ Error en el envío:", err);
+      console.error(err);
     } finally {
       setSubmitting(false);
     }
@@ -118,7 +121,6 @@ export default function PatientForm({ initialValue, onSubmit, onCancel, readOnly
     <form className="patient-form" onSubmit={handleSubmit} noValidate>
       <div className="stack-4">
         
-        {/* SECCIÓN 1: Identidad */}
         <section className="form-section">
           <h4 className="form-section-title">Identidad Básica</h4>
           <div className="form-grid">
@@ -137,7 +139,6 @@ export default function PatientForm({ initialValue, onSubmit, onCancel, readOnly
           </div>
         </section>
 
-        {/* SECCIÓN 2: Información Adicional */}
         <section className="form-section">
           <h4 className="form-section-title">Información Adicional</h4>
           <div className="form-grid">
@@ -154,16 +155,16 @@ export default function PatientForm({ initialValue, onSubmit, onCancel, readOnly
           </div>
         </section>
 
-        {/* SECCIÓN 3: Domicilio */}
         <section className="form-section">
           <h4 className="form-section-title">Domicilio</h4>
           <div className="form-grid">
             <InputField label="CP" name="postalCode" value={form.postalCode} onChange={handleChange} required maxLength={5} disabled={isReadOnly} error={errors.postalCode} />
-            <InputField label="Ciudad" name="city" value={form.city} onChange={handleChange} required disabled={isReadOnly} error={errors.city} />
+            <InputField label="Estado" name="state" value={form.state} onChange={handleChange} required disabled={isReadOnly} readOnly={colonies.length > 0} error={errors.state} />
+            <InputField label="Ciudad" name="city" value={form.city} onChange={handleChange} required disabled={isReadOnly} readOnly={colonies.length > 0} error={errors.city} />
             <Field label="Colonia" name="neighborhood" required error={errors.neighborhood}>
               {({ fieldId }) => (
                 <select id={fieldId} name="neighborhood" value={form.neighborhood} onChange={handleChange} disabled={isReadOnly || colonies.length === 0} className="role-select">
-                  <option value="">Selecciona</option>
+                  <option value="">{colonies.length > 0 ? "Selecciona colonia" : "Esperando CP..."}</option>
                   {colonies.map((c, i) => <option key={i} value={c}>{c}</option>)}
                 </select>
               )}
@@ -174,7 +175,6 @@ export default function PatientForm({ initialValue, onSubmit, onCancel, readOnly
           </div>
         </section>
 
-        {/* SECCIÓN 4: Contacto */}
         <section className="form-section">
           <h4 className="form-section-title">Contacto</h4>
           <div className="form-grid">
@@ -185,7 +185,6 @@ export default function PatientForm({ initialValue, onSubmit, onCancel, readOnly
           </div>
         </section>
 
-        {/* SECCIÓN 5: Motivo */}
         <section className="form-section">
           <h4 className="form-section-title">Consulta</h4>
           <div className="form-grid">
