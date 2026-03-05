@@ -1,9 +1,15 @@
 import { api } from "./apiClient";
 
 
-export async function listPatients({ q = "", page = 1, size = 50 } = {}, options = {}) {
-  const params = { q, page, size };
-  return api.get("/patients", { params, auth: true, ...options });
+export async function listPatients(
+  { q = "", page = 1, size = 50, professionalId = "", signal, ...extraParams } = {},
+  options = {}
+) {
+  const params = { q, page, size, ...extraParams };
+  if (professionalId) {
+    params.professionalId = professionalId;
+  }
+  return api.get("/patients", { params, auth: true, signal, ...options });
 }
 
 

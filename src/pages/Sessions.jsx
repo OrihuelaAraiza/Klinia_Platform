@@ -15,7 +15,7 @@ import SessionDetailDrawer from "../components/SessionDetailDrawer";
 import { useToast } from "../components/UI/Toast";
 import auditService from "../services/auditService";
 import { listSessions, createSession, exportIcs } from "../services/sessionsService";
-import { createPatient } from "../services/patientsService";
+import { createPatient, listPatients } from "../services/patientsService";
 import { ROUTES, SESSION_STATUS, SESSION_STATUS_LABEL, SESSION_STATUS_VARIANT } from "../utils/constants";
 import {
     formatSessionModality,
@@ -148,6 +148,7 @@ export default function Sessions() {
     const [todayLoading, setTodayLoading] = useState(true);
     const [todayError, setTodayError] = useState("");
     const [icsLoading, setIcsLoading] = useState("");
+    const [professionalPatients, setProfessionalPatients] = useState([]);
 
 
     const refreshTodaySessions = useCallback(async () => {
@@ -222,6 +223,38 @@ export default function Sessions() {
             refreshTodaySessions();
         }
     }, [refreshTodaySessions, professionalId]);
+
+    useEffect(() => {
+        let active = true;
+        async function loadProfessionalPatients() {
+            if (!professionalId) return;
+            try {
+                const response = await listPatients({
+                    professionalId,
+                    page: 1,
+                    size: 500,
+                });
+                if (!active) return;
+                const items = Array.isArray(response?.items) ? response.items : response;
+                setProfessionalPatients(items || []);
+            } catch (err) {
+                if (!active) return;
+                toast.error(err?.message || "No pudimos cargar pacientes para búsqueda.");
+            }
+        }
+        loadProfessionalPatients();
+        return () => {
+            active = false;
+        };
+    }, [professionalId, toast]);
+
+    useEffect(() => {
+        const debounce = setTimeout(() => {
+            setQuery((prev) => ({ ...prev, q: filters.q.trim() }));
+        }, 250);
+
+        return () => clearTimeout(debounce);
+    }, [filters.q]);
 
     const handleFilterChange = (event) => {
         const { name, value } = event.target;
@@ -360,6 +393,27 @@ export default function Sessions() {
     };
 
     const rows = listState.items;
+    const patientSearchOptions = useMemo(() => {
+        const queryValue = filters.q.trim().toLowerCase();
+        const normalized = professionalPatients.map((patient) => {
+            const fullName = `${patient.firstName || ""} ${patient.lastName || ""}`.trim();
+            const searchTarget = [fullName, patient.curp, patient.email, patient.phone]
+                .filter(Boolean)
+                .join(" ")
+                .toLowerCase();
+            return {
+                id: patient.id,
+                fullName: fullName || patient.curp || patient.email || patient.phone || patient.id,
+                details: [patient.curp, patient.email].filter(Boolean).join(" • "),
+                searchTarget,
+            };
+        });
+
+        if (!queryValue) {
+            return normalized.slice(0, 100);
+        }
+        return normalized.filter((item) => item.searchTarget.includes(queryValue)).slice(0, 100);
+    }, [professionalPatients, filters.q]);
 
     const getFullName = (session) => {
         if (!session) {
@@ -482,7 +536,18 @@ export default function Sessions() {
                             name="q"
                             value={filters.q}
                             onChange={handleFilterChange}
+                            list="sessions-patients-list"
+                            assistiveText="Escribe para filtrar por paciente o selecciona una sugerencia."
                         />
+                        <datalist id="sessions-patients-list">
+                            {patientSearchOptions.map((option) => (
+                                <option
+                                    key={option.id}
+                                    value={option.fullName}
+                                    label={option.details || option.fullName}
+                                />
+                            ))}
+                        </datalist>
                     </div>
                     <div className="sessions-filters__field">
                         <InputField

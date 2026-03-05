@@ -17,6 +17,7 @@ const InputField = forwardRef(function InputField(
     disabled = false,
     readOnly = false,
     children,
+    ...inputProps
   },
   ref
 ) {
@@ -52,6 +53,7 @@ const InputField = forwardRef(function InputField(
             readOnly={readOnly}
             aria-invalid={Boolean(error)}
             aria-describedby={describedBy}
+            {...inputProps}
           />
         )
       )}
