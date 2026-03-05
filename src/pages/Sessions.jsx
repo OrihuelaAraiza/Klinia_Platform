@@ -14,7 +14,8 @@ import SessionMiniCalendar from "../components/SessionMiniCalendar";
 import SessionDetailDrawer from "../components/SessionDetailDrawer";
 import { useToast } from "../components/UI/Toast";
 import auditService from "../services/auditService";
-import { listSessions, createSession, changeStatus, exportIcs } from "../services/sessionsService";
+import { listSessions, createSession, exportIcs } from "../services/sessionsService";
+import { createPatient } from "../services/patientsService";
 import { ROUTES, SESSION_STATUS, SESSION_STATUS_LABEL, SESSION_STATUS_VARIANT } from "../utils/constants";
 import {
     formatSessionModality,
@@ -72,6 +73,50 @@ function getDateRangeISO(dateKey, isStart = true) {
     return date.toISOString();
 }
 
+function buildPreRegisteredPatientPayload(candidate = {}, professionalId = "") {
+    const now = new Date();
+    const fallbackDate = `${Math.max(1900, now.getFullYear() - 18)}-01-01`;
+    const firstName = candidate.firstName?.trim() || "Paciente";
+    const lastName = candidate.lastName?.trim() || "Por Registrar";
+    const phone = candidate.phone?.trim() || "0000000000";
+    const fallbackEmail = `preregistro+${Date.now()}@brevemente.local`;
+
+    return {
+        firstName,
+        lastName,
+        curp: "",
+        birthDate: fallbackDate,
+        gender: "X",
+        genderIdentity: "",
+        phone,
+        email: candidate.email?.trim() || fallbackEmail,
+        homePhone: "",
+        workPhone: "",
+        street: "Pendiente por registrar",
+        postalCode: "00000",
+        neighborhood: "Pendiente",
+        state: "Pendiente",
+        municipality: "Pendiente",
+        city: "Pendiente",
+        rfc: "",
+        nationality: "Mexicana",
+        occupation: "",
+        civilStatus: "",
+        religion: "",
+        education: "",
+        emergencyName: `${firstName} ${lastName}`.trim(),
+        emergencyPhone: phone,
+        emergencyRelation: "Pendiente",
+        legalGuardianName: "",
+        legalGuardianRelation: "",
+        legalGuardianPhone: "",
+        referral: "Agenda",
+        purpose: "Registro iniciado desde agenda",
+        professionalId,
+        attachments: [],
+    };
+}
+
 
 export default function Sessions() {
     const toast = useToast();
@@ -97,7 +142,6 @@ export default function Sessions() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [drawerOpen, setDrawerOpen] = useState(false);
-    const [statusLoading, setStatusLoading] = useState({});
     const [pendingNoteSession, setPendingNoteSession] = useState(null);
     const [calendarSelection, setCalendarSelection] = useState("");
     const [todaySessions, setTodaySessions] = useState([]);
@@ -196,12 +240,30 @@ export default function Sessions() {
     };
 
     const handleCreateSession = async (payload) => {
-        const finalPayload = {
-            ...payload,
-            professionalId: professionalId,
-        };
-
         try {
+            let finalPayload = {
+                ...payload,
+                professionalId: professionalId,
+            };
+
+            if (!finalPayload.patientId && payload?.patientMode === "unregistered") {
+                const patientPayload = buildPreRegisteredPatientPayload(
+                    payload?.unregisteredPatient,
+                    professionalId
+                );
+
+                const createdPatient = await createPatient(patientPayload);
+                const createdPatientName = `${createdPatient?.firstName || ""} ${createdPatient?.lastName || ""}`.trim();
+                const preRegNote = `Pre-registro creado desde Agenda.`;
+                finalPayload = {
+                    ...finalPayload,
+                    patientId: createdPatient?.id,
+                    patientName: createdPatientName || undefined,
+                    notes: [preRegNote, finalPayload.notes].filter(Boolean).join(" "),
+                };
+                toast.success("Paciente pre-registrado y sesión agendada.");
+            }
+
             const session = await createSession(finalPayload);
             toast.success("Sesión creada");
 
@@ -220,6 +282,21 @@ export default function Sessions() {
         }
     };
 
+    const handleStartRegistration = (prefill = {}) => {
+        navigate(ROUTES.patients, {
+            state: {
+                openCreate: true,
+                prefillPatient: {
+                    firstName: prefill.firstName || "",
+                    lastName: prefill.lastName || "",
+                    phone: prefill.phone || "",
+                    email: prefill.email || "",
+                },
+                source: "sessions",
+            },
+        });
+    };
+
 
     const updateSessionInState = (sessionId, updater) => {
         setListState((prev) => ({
@@ -233,43 +310,6 @@ export default function Sessions() {
             prev.map((item) => (item.id === sessionId ? { ...item, ...updater(item) } : item))
         );
     };
-
-    const handleStatusChange = async (session, nextStatus) => {
-        setStatusLoading({ sessionId: session.id, status: nextStatus });
-        try {
-            const response = await changeStatus(session.id, {
-                status: nextStatus,
-            });
-
-            const updated = response || {
-                ...session,
-                status: nextStatus,
-                updatedAt: new Date().toISOString(),
-            };
-
-            updateSessionInState(session.id, () => updated);
-            updateTodaySession(session.id, () => updated);
-
-            toast.success(`Sesión ${SESSION_STATUS_LABEL[nextStatus] || nextStatus}`);
-
-            auditService.logAudit("session_status_change", {
-                sessionId: session.id,
-                status: nextStatus,
-                patientId: session.patientId,
-            });
-
-            if (nextStatus === SESSION_STATUS.ATENDIDA && !session.noteId) {
-                setPendingNoteSession({ ...session, ...updated });
-            }
-
-            refreshTodaySessions();
-        } catch (err) {
-            toast.error(err?.message || "No pudimos actualizar el estado.");
-        } finally {
-            setStatusLoading({});
-        }
-    };
-
 
     const handleAutocreateNote = async () => {
         if (!pendingNoteSession) return;
@@ -344,6 +384,13 @@ export default function Sessions() {
                 <div className="sessions-header__actions">
                     <Button variant="secondary" size="sm" onClick={() => navigate(ROUTES.sessionsCalendar)}>
                         Vista calendario
+                    </Button>
+                    <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => handleStartRegistration()}
+                    >
+                        Registrar paciente
                     </Button>
                     <Button size="sm" onClick={() => setDrawerOpen(true)}>
                         Nueva sesión
@@ -517,7 +564,6 @@ export default function Sessions() {
                         ) : null}
                         {rows.map((session) => {
                             const badgeVariant = SESSION_STATUS_VARIANT[session.status] || "neutral";
-                            const isChanging = statusLoading.sessionId === session.id ? statusLoading.status : null;
                             const patientFullName = getFullName(session);
                             const TRANSITIONS = {
                                 [SESSION_STATUS.PROGRAMADA]: [SESSION_STATUS.CONFIRMADA, SESSION_STATUS.CANCELADA],
@@ -600,6 +646,7 @@ export default function Sessions() {
                 <SessionForm
                     onSubmit={handleCreateSession}
                     onCancel={() => setDrawerOpen(false)}
+                    onStartRegistration={handleStartRegistration}
                     defaultProfessional={professional.name}
                     defaultProfessionalId={professional.id}
                 />

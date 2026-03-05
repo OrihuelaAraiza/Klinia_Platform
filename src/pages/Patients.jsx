@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useOutletContext } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion as Motion, AnimatePresence } from "framer-motion";
 // Corregir rutas de importación de componentes/servicios
 import Button from "../components/UI/Button.jsx";
 import Drawer from "../components/UI/Drawer.jsx";
@@ -119,6 +119,7 @@ export default function Patients() {
   const [searchTerm, setSearchTerm] = useState("");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingPatient, setEditingPatient] = useState(null);
+  const [createPrefill, setCreatePrefill] = useState(null);
   const [cieModalOpen, setCieModalOpen] = useState(false);
   const [cieQuery, setCieQuery] = useState("");
   const [page] = useState(1);
@@ -188,6 +189,15 @@ export default function Patients() {
     }
   }, [location.state, patients, loading, navigate, location.pathname]);
 
+  useEffect(() => {
+    if (!location.state?.openCreate) return;
+    const prefill = location.state?.prefillPatient;
+    setEditingPatient(null);
+    setCreatePrefill(prefill && typeof prefill === "object" ? prefill : null);
+    setDrawerOpen(true);
+    navigate(location.pathname, { replace: true });
+  }, [location.state, navigate, location.pathname]);
+
   const cieResults = useMemo(() => {
     if (!cieQuery.trim()) {
       return cieCatalog;
@@ -202,17 +212,20 @@ export default function Patients() {
 
   const handleOpenCreate = () => {
     setEditingPatient(null);
+    setCreatePrefill(null);
     setDrawerOpen(true);
   };
 
   const handleOpenEdit = (patient) => {
     setEditingPatient(patient);
+    setCreatePrefill(null);
     setDrawerOpen(true);
   };
 
   const handleCloseDrawer = () => {
     setDrawerOpen(false);
     setEditingPatient(null);
+    setCreatePrefill(null);
   };
 
   const refreshList = async () => {
@@ -370,7 +383,7 @@ const handleCreateOrUpdate = async (payload) => {
             <tbody>
               <AnimatePresence initial={false}>
                 {patients.map((patient) => (
-                  <motion.tr
+                  <Motion.tr
                     key={patient.id}
                     variants={rowVariants}
                     initial="hidden"
@@ -417,7 +430,7 @@ const handleCreateOrUpdate = async (payload) => {
                         )}
                       </div>
                     </td>
-                  </motion.tr>
+                  </Motion.tr>
                 ))}
               </AnimatePresence>
             </tbody>
@@ -431,7 +444,7 @@ const handleCreateOrUpdate = async (payload) => {
         title={editingPatient ? "Editar paciente" : "Nuevo paciente"}
       >
         <PatientForm
-          initialValue={editingPatient}
+          initialValue={editingPatient || createPrefill}
           onSubmit={handleCreateOrUpdate}
           onCancel={handleCloseDrawer}
           readOnly={Boolean(isAssistant)}

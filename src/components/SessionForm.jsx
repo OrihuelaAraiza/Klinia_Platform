@@ -5,9 +5,15 @@ import Field from "./UI/Field.jsx";
 import { listPatients } from "../services/patientsService.js";
 import { useToast } from "./UI/Toast.jsx";
 import { SESSION_MODALITY, SESSION_MODALITY_LABEL } from "../utils/constants.js";
+import { isValidEmail, isValidPhone } from "../utils/validators.js";
 
 const DEFAULT_FORM = {
+    patientMode: "registered",
     patientId: "",
+    unregisteredFirstName: "",
+    unregisteredLastName: "",
+    unregisteredPhone: "",
+    unregisteredEmail: "",
     datetime: "",
     durationMin: 50,
     professionalId: "",
@@ -47,6 +53,7 @@ export default function SessionForm({
     initialValue,
     onSubmit,
     onCancel,
+    onStartRegistration,
     readOnly = false,
     defaultProfessional,
     defaultProfessionalId,
@@ -64,6 +71,19 @@ export default function SessionForm({
         professionalName:
             initialValue?.professionalName || defaultProfessional || "",
         patientId: presetPatientId || initialValue?.patientId || "",
+        patientMode:
+            presetPatientId ||
+            initialValue?.patientId
+                ? "registered"
+                : (initialValue?.patientMode || "registered"),
+        unregisteredFirstName:
+            initialValue?.unregisteredFirstName || "",
+        unregisteredLastName:
+            initialValue?.unregisteredLastName || "",
+        unregisteredPhone:
+            initialValue?.unregisteredPhone || "",
+        unregisteredEmail:
+            initialValue?.unregisteredEmail || "",
         modality:
             initialValue?.modality || SESSION_MODALITY.IN_PERSON,
         location: initialValue?.location || "",
@@ -118,13 +138,26 @@ export default function SessionForm({
             ...prev,
             ...(initialValue || {}),
             datetime: toLocalInput(initialValue?.datetime),
+            patientMode:
+                presetPatientId ||
+                initialValue?.patientId
+                    ? "registered"
+                    : (initialValue?.patientMode || "registered"),
+            unregisteredFirstName:
+                initialValue?.unregisteredFirstName || "",
+            unregisteredLastName:
+                initialValue?.unregisteredLastName || "",
+            unregisteredPhone:
+                initialValue?.unregisteredPhone || "",
+            unregisteredEmail:
+                initialValue?.unregisteredEmail || "",
             modality:
                 initialValue?.modality ||
                 SESSION_MODALITY.IN_PERSON,
             location: initialValue?.location || "",
             callLink: initialValue?.callLink || "",
         }));
-    }, [initialValue]);
+    }, [initialValue, presetPatientId]);
 
     const patientOptions = useMemo(() => {
         return patients.map((patient) => ({
@@ -140,7 +173,23 @@ export default function SessionForm({
 
     const handleChange = (event) => {
         const { name, value } = event.target;
-        setForm((prev) => ({ ...prev, [name]: value }));
+        setForm((prev) => {
+            if (name === "patientMode") {
+                return {
+                    ...prev,
+                    patientMode: value,
+                    ...(value === "registered"
+                        ? {
+                              unregisteredFirstName: "",
+                              unregisteredLastName: "",
+                              unregisteredPhone: "",
+                              unregisteredEmail: "",
+                          }
+                        : { patientId: "" }),
+                };
+            }
+            return { ...prev, [name]: value };
+        });
         if (errors[name]) {
             setErrors((prev) => ({ ...prev, [name]: "" }));
         }
@@ -148,9 +197,27 @@ export default function SessionForm({
 
     const validate = () => {
         const nextErrors = {};
+        const isUnregisteredMode =
+            !presetPatientId && form.patientMode === "unregistered";
 
-        if (!presetPatientId && !form.patientId) {
+        if (!presetPatientId && !isUnregisteredMode && !form.patientId) {
             nextErrors.patientId = "Selecciona un paciente.";
+        }
+        if (isUnregisteredMode) {
+            if (!form.unregisteredFirstName?.trim()) {
+                nextErrors.unregisteredFirstName = "Ingresa el nombre.";
+            }
+            if (!form.unregisteredLastName?.trim()) {
+                nextErrors.unregisteredLastName = "Ingresa el apellido.";
+            }
+            if (!form.unregisteredPhone?.trim()) {
+                nextErrors.unregisteredPhone = "Ingresa un teléfono de contacto.";
+            } else if (!isValidPhone(form.unregisteredPhone.trim())) {
+                nextErrors.unregisteredPhone = "Ingresa un teléfono válido.";
+            }
+            if (form.unregisteredEmail?.trim() && !isValidEmail(form.unregisteredEmail.trim())) {
+                nextErrors.unregisteredEmail = "Ingresa un correo válido.";
+            }
         }
 
         if (!form.datetime) {
@@ -229,6 +296,20 @@ export default function SessionForm({
             const payload = {
                 patientId:
                     presetPatientId || form.patientId,
+                patientMode:
+                    presetPatientId
+                        ? "registered"
+                        : (form.patientMode || "registered"),
+                unregisteredPatient:
+                    !presetPatientId &&
+                    form.patientMode === "unregistered"
+                        ? {
+                              firstName: form.unregisteredFirstName?.trim(),
+                              lastName: form.unregisteredLastName?.trim(),
+                              phone: form.unregisteredPhone?.trim(),
+                              email: form.unregisteredEmail?.trim(),
+                          }
+                        : undefined,
                 datetime: fromLocalInput(form.datetime),
                 durationMinutes:
                     Number(form.durationMin) || 60,
@@ -265,49 +346,133 @@ export default function SessionForm({
             noValidate
         >
             {!presetPatientId && (
-                <Field
-                    label="Paciente"
-                    required
-                    error={errors.patientId}
-                >
+                <Field label="Tipo de agendamiento">
                     {({ fieldId }) => (
                         <select
                             id={fieldId}
-                            name="patientId"
-                            className={`role-select${
-                                errors.patientId
-                                    ? " has-error"
-                                    : ""
-                            }`}
-                            value={form.patientId}
+                            name="patientMode"
+                            className="role-select"
+                            value={form.patientMode}
                             onChange={handleChange}
-                            disabled={
-                                readOnly ||
-                                loadingPatients ||
-                                patients.length === 0
-                            }
-                            aria-invalid={Boolean(
-                                errors.patientId
-                            )}
+                            disabled={readOnly}
                         >
-                            <option value="">
-                                {loadingPatients
-                                    ? "Cargando pacientes asignados..."
-                                    : "Selecciona..."}
-                            </option>
-                            {patientOptions.map(
-                                (option) => (
-                                    <option
-                                        key={option.value}
-                                        value={option.value}
-                                    >
-                                        {option.label}
-                                    </option>
-                                )
-                            )}
+                            <option value="registered">Paciente registrado</option>
+                            <option value="unregistered">Paciente no registrado</option>
                         </select>
                     )}
                 </Field>
+            )}
+
+            {!presetPatientId && (
+                <>
+                    {form.patientMode !== "unregistered" ? (
+                        <Field
+                            label="Paciente"
+                            required
+                            error={errors.patientId}
+                        >
+                            {({ fieldId }) => (
+                                <select
+                                    id={fieldId}
+                                    name="patientId"
+                                    className={`role-select${
+                                        errors.patientId
+                                            ? " has-error"
+                                            : ""
+                                    }`}
+                                    value={form.patientId}
+                                    onChange={handleChange}
+                                    disabled={
+                                        readOnly ||
+                                        loadingPatients ||
+                                        patients.length === 0
+                                    }
+                                    aria-invalid={Boolean(
+                                        errors.patientId
+                                    )}
+                                >
+                                    <option value="">
+                                        {loadingPatients
+                                            ? "Cargando pacientes asignados..."
+                                            : "Selecciona..."}
+                                    </option>
+                                    {patientOptions.map(
+                                        (option) => (
+                                            <option
+                                                key={option.value}
+                                                value={option.value}
+                                            >
+                                                {option.label}
+                                            </option>
+                                        )
+                                    )}
+                                </select>
+                            )}
+                        </Field>
+                    ) : (
+                        <div className="panel panel--outline stack-3">
+                            <p className="helper-text" style={{ margin: 0 }}>
+                                Agenda una sesión con pre-registro y completa el expediente después.
+                            </p>
+                            <div className="grid-2">
+                                <InputField
+                                    label="Nombre(s)"
+                                    name="unregisteredFirstName"
+                                    value={form.unregisteredFirstName}
+                                    onChange={handleChange}
+                                    required
+                                    error={errors.unregisteredFirstName}
+                                    disabled={readOnly}
+                                />
+                                <InputField
+                                    label="Apellido(s)"
+                                    name="unregisteredLastName"
+                                    value={form.unregisteredLastName}
+                                    onChange={handleChange}
+                                    required
+                                    error={errors.unregisteredLastName}
+                                    disabled={readOnly}
+                                />
+                                <InputField
+                                    label="Teléfono"
+                                    name="unregisteredPhone"
+                                    value={form.unregisteredPhone}
+                                    onChange={handleChange}
+                                    required
+                                    error={errors.unregisteredPhone}
+                                    disabled={readOnly}
+                                />
+                                <InputField
+                                    label="Correo (opcional)"
+                                    type="email"
+                                    name="unregisteredEmail"
+                                    value={form.unregisteredEmail}
+                                    onChange={handleChange}
+                                    error={errors.unregisteredEmail}
+                                    disabled={readOnly}
+                                />
+                            </div>
+                            <div className="cluster">
+                                <Button
+                                    type="button"
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={() =>
+                                        onStartRegistration?.({
+                                            firstName: form.unregisteredFirstName?.trim(),
+                                            lastName: form.unregisteredLastName?.trim(),
+                                            phone: form.unregisteredPhone?.trim(),
+                                            email: form.unregisteredEmail?.trim(),
+                                        })
+                                    }
+                                    disabled={readOnly}
+                                >
+                                    Iniciar registro completo
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+                </>
             )}
 
             <InputField
