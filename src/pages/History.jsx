@@ -72,17 +72,10 @@ export default function History() {
     { label: "Historia clínica" },
   ], [id, patientName]);
 
-  const handleSave = async (payload) => {
-    try {
-      const response = await saveClinicalHistory(id, payload);
-      setHistory(response);
-      toast.success("Historia clínica guardada correctamente");
-    } catch (err) {
-      const message = err.message || "No pudimos guardar la historia clínica.";
-      setError(message);
-      toast.error(message);
-    }
-  };
+  const initialWizardData = useMemo(
+    () => mapHistoryToForm(history),
+    [history]
+  );
 
   const context = useMemo(() => ({
     patient,
@@ -147,6 +140,9 @@ export default function History() {
               Exportar (stub)
             </Button>
           )}
+          <Button variant="secondary" onClick={() => navigate(`/patients/${id}`)}>
+            Regresar al perfil
+          </Button>
         </div>
       </div>
 
@@ -160,7 +156,7 @@ export default function History() {
         <CardBody>
           <ClinicalHistoryWizard
             schema={HC_SCHEMA}
-            initialData={mapHistoryToForm(history)}
+            initialData={initialWizardData}
             onSubmit={async (data) => {
               const saved = await saveClinicalHistory(id, data);
               setHistory(saved);

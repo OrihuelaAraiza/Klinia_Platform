@@ -4768,6 +4768,23 @@ main {
   font-size: 0.95rem;
 }
 
+.stepper__item-btn {
+  border: none;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.stepper__item-btn:hover .stepper__label {
+  text-decoration: underline;
+}
+
 .stepper__item--current {
   color: var(--text);
   font-weight: 600;

@@ -162,7 +162,6 @@ export default function ClinicalHistoryWizard({
   }, [schema]);
 
   const {
-    register,
     handleSubmit,
     watch,
     setValue,
@@ -173,6 +172,7 @@ export default function ClinicalHistoryWizard({
     resolver: zodResolver(fullSchema),
     defaultValues: initialData,
     mode: "onBlur",
+    shouldUnregister: false,
   });
 
   const formData = watch();
@@ -225,6 +225,20 @@ export default function ClinicalHistoryWizard({
     if (currentStep > 0) {
       setCurrentStep(prev => prev - 1);
     }
+  };
+
+  const handleStepClick = async (targetStep) => {
+    if (targetStep === currentStep || targetStep < 0 || targetStep >= steps.length) {
+      return;
+    }
+
+    if (targetStep > currentStep) {
+      const currentFields = currentStepData.section.fields.map((f) => f.id);
+      const isValid = await trigger(currentFields);
+      if (!isValid) return;
+    }
+
+    setCurrentStep(targetStep);
   };
 
   const handleFormSubmit = async (data) => {
@@ -300,7 +314,7 @@ export default function ClinicalHistoryWizard({
   return (
     <div className="clinical-history-wizard">
       <div className="wizard-stepper">
-        <Stepper steps={stepperSteps} />
+        <Stepper steps={stepperSteps} onStepClick={handleStepClick} />
       </div>
 
       {/* form con id, sin botones dentro del form */}

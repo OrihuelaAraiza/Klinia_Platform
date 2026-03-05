@@ -13,6 +13,7 @@ import auditService from "../services/auditService";
 import * as patientsService from "../services/patientsService";
 import * as prescriptionsService from "../services/prescriptionsService";
 import { formatDateISOToHuman } from "../utils/formatters";
+import uploadService from "../services/uploadService";
 
 // IMPORTA TUS SECCIONES AQUÍ
 import DiagnosticNosologico from "../components/Sections/DiagnosticoNosologico";
@@ -23,6 +24,7 @@ import ClinicalScales from "../components/Sections/ClinicalScales";
 const REQUIRED_FIELDS = new Set(["substance", "dose", "frequency", "duration"]);
 const DEFAULT_PAGE_SIZE = 10;
 const SEARCH_DEBOUNCE_MS = 400; 
+const CLINICAL_TABS = ["nosologico", "estrategico", "sesion", "escalas"];
 
 function buildInitialForm(patientId = "") {
     return {
@@ -85,6 +87,9 @@ export default function Prescriptions() {
     const location = useLocation();
     const searchParams = new URLSearchParams(location.search);
     const initialPatientId = searchParams.get("patientId")?.trim() || "";
+    const initialTab = CLINICAL_TABS.includes(searchParams.get("tab"))
+      ? searchParams.get("tab")
+      : "nosologico";
         
     const [selectedPatientId, setSelectedPatientId] = useState(initialPatientId);
     const [patient, setPatient] = useState(null); 
@@ -100,7 +105,10 @@ export default function Prescriptions() {
     const [submitting, setSubmitting] = useState(false);
     const [formError, setFormError] = useState("");
     const [successRecord, setSuccessRecord] = useState(null);
-    const [activeTab, setActiveTab] = useState("nosologico");
+    const [activeTab, setActiveTab] = useState(initialTab);
+    const [scalesAttachments, setScalesAttachments] = useState([]);
+    const [scalesUploadLoading, setScalesUploadLoading] = useState(false);
+    const [scalesUploadError, setScalesUploadError] = useState("");
 
     const menuItems = [
         { id: "nosologico", label: "Nosológico" },
@@ -154,17 +162,73 @@ export default function Prescriptions() {
     }, [searchQuery]);
 
     const selectPatient = (candidate) => {
-        navigate(`${ROUTES.prescriptions}?patientId=${candidate.id}`);
+        navigate(`${ROUTES.prescriptions}?patientId=${candidate.id}&tab=${activeTab}`);
         setSelectedPatientId(candidate.id);
         setSearchResults([]);
         setForm(prev => ({ ...prev, patientRecordId: candidate.id }));
     };
 
     const clearSelection = () => {
-        navigate(ROUTES.prescriptions);
+        navigate(`${ROUTES.prescriptions}?tab=${activeTab}`);
         setSelectedPatientId("");
         setPatient(null);
         setForm(buildInitialForm(""));
+        setScalesAttachments([]);
+        setScalesUploadError("");
+    };
+
+    useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        const nextTab = params.get("tab");
+        if (nextTab && CLINICAL_TABS.includes(nextTab) && nextTab !== activeTab) {
+            setActiveTab(nextTab);
+        }
+    }, [location.search, activeTab]);
+
+    const handleTabChange = (tabId) => {
+        setActiveTab(tabId);
+        const params = new URLSearchParams(location.search);
+        if (selectedPatientId) {
+            params.set("patientId", selectedPatientId);
+        } else {
+            params.delete("patientId");
+        }
+        params.set("tab", tabId);
+        navigate(`${ROUTES.prescriptions}?${params.toString()}`, { replace: true });
+    };
+
+    const handleScalesUpload = async (files) => {
+        if (!selectedPatientId || files.length === 0) return;
+
+        setScalesUploadLoading(true);
+        setScalesUploadError("");
+        try {
+            const uploaded = [];
+            for (const file of files) {
+                const response = await uploadService.uploadDocument(file, {
+                    module: "clinical_scales",
+                    patientId: selectedPatientId,
+                });
+                const uploadId = response?.id || response?.data?.id || crypto.randomUUID();
+                uploaded.push({
+                    id: uploadId,
+                    name: file.name,
+                    size: file.size,
+                });
+            }
+            setScalesAttachments((prev) => [...prev, ...uploaded]);
+            success("Archivo(s) de escalas cargado(s) correctamente.");
+        } catch (err) {
+            const message = err?.message || "No se pudieron subir los archivos de escalas.";
+            setScalesUploadError(message);
+            error(message);
+        } finally {
+            setScalesUploadLoading(false);
+        }
+    };
+
+    const handleRemoveScaleFile = (fileId) => {
+        setScalesAttachments((prev) => prev.filter((file) => file.id !== fileId));
     };
 
     const handleSubmit = async (event) => {
@@ -228,6 +292,9 @@ export default function Prescriptions() {
         <section className="page stack-5">
             <header className="page__header">
                 <h1>Prescripciones y Registro Clínico</h1>
+                <Button variant="secondary" onClick={() => navigate(selectedPatientId ? `/patients/${selectedPatientId}` : ROUTES.patients)}>
+                    Regresar
+                </Button>
             </header>
 
             {!selectedPatientId ? (
@@ -242,7 +309,7 @@ export default function Prescriptions() {
                         {searchLoading && <SkeletonList items={3} />}
                         <div className="grid-3 gap-2">
                             {searchResults.map(p => (
-                                <Button key={p.id} variant="outline" onClick={() => selectPatient(p)}>
+                                <Button key={p.id} variant="secondary" onClick={() => selectPatient(p)}>
                                     <User size={16} className="mr-2" /> {p.firstName} {p.lastName}
                                 </Button>
                             ))}
@@ -261,8 +328,14 @@ export default function Prescriptions() {
                         </div>
                         <div className="cluster gap-2">
                 {/* NUEVO BOTÓN: Ver Historial / Recetas del paciente */}
+                    <Button
+                        variant="secondary"
+                        onClick={() => navigate(`/patients/${selectedPatientId}`)}
+                    >
+                        Volver al perfil
+                    </Button>
                     <Button 
-                        variant="outline" 
+                        variant="secondary" 
                         onClick={() => navigate(`/prescriptions/${selectedPatientId}`)} 
                     >
                         <FileText size={16} className="mr-2" /> Ver Detalle de Registro
@@ -282,7 +355,7 @@ export default function Prescriptions() {
                                 <button
                                     key={item.id}
                                     type="button"
-                                    onClick={() => setActiveTab(item.id)}
+                                    onClick={() => handleTabChange(item.id)}
                                     className={`btn-tab ${activeTab === item.id ? 'active' : ''}`}
                                 >
                                     {item.label}
@@ -313,7 +386,15 @@ export default function Prescriptions() {
 
                             {activeTab === "escalas" && (
                                 <Card><CardBody>
-                                    <ClinicalScales form={form} onChange={handleFormChange} />
+                                    <ClinicalScales
+                                        form={form}
+                                        onChange={handleFormChange}
+                                        attachments={scalesAttachments}
+                                        onUploadFiles={handleScalesUpload}
+                                        onRemoveFile={handleRemoveScaleFile}
+                                        uploadError={scalesUploadError}
+                                        uploading={scalesUploadLoading}
+                                    />
                                 </CardBody></Card>
                             )}
                         </div>
@@ -324,6 +405,13 @@ export default function Prescriptions() {
                             </p>
                             <Button variant="ghost" type="button" onClick={() => navigate(ROUTES.dashboard)}>
                                 Cancelar
+                            </Button>
+                            <Button
+                                variant="secondary"
+                                type="button"
+                                onClick={() => navigate(`/patients/${selectedPatientId}`)}
+                            >
+                                Regresar al perfil
                             </Button>
                             <ButtonPrimary type="submit" loading={submitting}>
                                 Finalizar y Guardar Registro
