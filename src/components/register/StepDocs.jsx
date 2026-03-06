@@ -1,207 +1,9 @@
-import {
-  useEffect,
-  useMemo,
-  useState,
-  useRef,
-  useCallback,
-} from "react";
-import Field from "../UI/Field";
-import Button from "../UI/Button";
-import uploadService from "../../services/uploadService";
-import { CameraModal } from "./CameraModal";
+import { useEffect } from "react";
 
-const DOCUMENT_FIELDS = [
-  {
-    key: "idOrPassportFileId",
-    label: "INE o Pasaporte",
-    helper: "Cámara (Frente y Vuelta) O sube un archivo (PDF/JPG)",
-  },
-  {
-    key: "professionalLicenseFileId",
-    label: "Cédula profesional",
-    helper: "PDF o JPG (max 5 MB)",
-  },
-];
-
-const MAX_SIZE = 5 * 1024 * 1024;
-const ACCEPT_ATTR = ".pdf,.jpg,.jpeg";
-
-export default function StepDocs({
-  documents,
-  errors,
-  onDocumentChange,
-  onBusyChange,
-  embedded = false,
-  disabled = false,
-}) {
-  const [localErrors, setLocalErrors] = useState({});
-  const [uploadingMap, setUploadingMap] = useState({});
-  const [fileNames, setFileNames] = useState({});
-
-  const [frontImage, setFrontImage] = useState(null); 
-  const [backImage, setBackImage] = useState(null); 
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [capturingFor, setCapturingFor] = useState(null); 
-  const [isCombining, setIsCombining] = useState(false);
-  const combinedCanvasRef = useRef(null);
-
-  // LIBERACIÓN DE BARRA DE PROGRESO:
-  // Si hay carga activa en el mapa, está ocupado. Si no, liberamos siempre.
-  const isUploading = useMemo(() => {
-    return Object.values(uploadingMap).some(status => status === true) || isCombining;
-  }, [uploadingMap, isCombining]);
-
+export default function StepDocs({ onBusyChange, embedded = false }) {
   useEffect(() => {
-    onBusyChange?.(isUploading);
-  }, [isUploading, onBusyChange]);
-
-  const handleCapture = (blob) => {
-    const previewUrl = URL.createObjectURL(blob);
-    onDocumentChange('idOrPassportFileId', null); // Reset por si había archivo previo
-    
-    if (capturingFor === 'front') setFrontImage({ blob, previewUrl });
-    else if (capturingFor === 'back') setBackImage({ blob, previewUrl });
-    
-    setIsModalOpen(false);
-  };
-  
-  const combineAndUpload = useCallback(async () => {
-    if (!frontImage || !backImage || isCombining || documents?.idOrPassportFileId) return;
-
-    setIsCombining(true);
-    setUploadingMap((prev) => ({ ...prev, idOrPassportFileId: true }));
-
-    try {
-      const canvas = combinedCanvasRef.current;
-      const ctx = canvas.getContext('2d');
-      const frontImg = await createImageBitmap(frontImage.blob);
-      const backImg = await createImageBitmap(backImage.blob);
-
-      canvas.width = Math.max(frontImg.width, backImg.width);
-      canvas.height = frontImg.height + backImg.height;
-      ctx.drawImage(frontImg, 0, 0);
-      ctx.drawImage(backImg, 0, frontImg.height);
-
-      canvas.toBlob(async (combinedBlob) => {
-        try {
-          const response = await uploadService.uploadDocument(combinedBlob);
-          const fileId = response.id || response.data?.id;
-          
-          onDocumentChange('idOrPassportFileId', fileId);
-          setFileNames(prev => ({ ...prev, idOrPassportFileId: "INE_Camara_Combinada.jpg" }));
-        } catch {
-          setLocalErrors(prev => ({ ...prev, idOrPassportFileId: "Error al subir fotos." }));
-        } finally {
-          setIsCombining(false);
-          setUploadingMap((prev) => ({ ...prev, idOrPassportFileId: false }));
-        }
-      }, 'image/jpeg', 0.85);
-    } catch {
-      setIsCombining(false);
-      setUploadingMap((prev) => ({ ...prev, idOrPassportFileId: false }));
-    }
-  }, [frontImage, backImage, isCombining, onDocumentChange, documents]);
-
-  useEffect(() => {
-    combineAndUpload();
-  }, [combineAndUpload]);
-
-  const handleFileChange = async (key, event) => {
-    const file = event.target.files?.[0];
-    if (!file || disabled) return;
-
-    // Si sube archivo, matamos la lógica de cámara para que no bloquee
-    if (key === 'idOrPassportFileId') {
-      setFrontImage(null);
-      setBackImage(null);
-      setIsCombining(false);
-    }
-
-    if (file.size > MAX_SIZE) {
-      setLocalErrors((prev) => ({ ...prev, [key]: "Máximo 5MB permitido." }));
-      return;
-    }
-
-    setUploadingMap((prev) => ({ ...prev, [key]: true }));
-    try {
-      const response = await uploadService.uploadDocument(file);
-      const fileId = response.id || response.data?.id;
-      
-      onDocumentChange?.(key, fileId);
-      setFileNames(prev => ({ ...prev, [key]: file.name }));
-      setLocalErrors((prev) => ({ ...prev, [key]: "" }));
-    } catch {
-      setLocalErrors((prev) => ({ ...prev, [key]: "Error de conexión." }));
-      onDocumentChange?.(key, null);
-    } finally {
-      setUploadingMap((prev) => ({ ...prev, [key]: false }));
-      // Forzamos al padre a saber que terminamos
-      onBusyChange?.(false);
-    }
-  };
-
-  const content = (
-    <div className="register-step__body register-step__grid">
-      {DOCUMENT_FIELDS.map((field) => {
-          const fileId = documents?.[field.key];
-          const fileName = fileNames[field.key];
-          const fieldError = localErrors[field.key] || errors[field.key];
-          const isUploadingField = uploadingMap[field.key];
-
-          return (
-            <Field key={field.key} label={field.label} required hint={field.helper} error={fieldError}>
-              <div className="file-upload">
-                {field.key === "idOrPassportFileId" && (
-                  <div className="id-capture-stack">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant={frontImage ? "success" : "secondary"}
-                      disabled={disabled}
-                      onClick={() => {
-                        setCapturingFor('front');
-                        setIsModalOpen(true);
-                      }}
-                    >
-                      {frontImage ? "✓ Frente" : " Frente"}
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant={backImage ? "success" : "secondary"}
-                      disabled={disabled}
-                      onClick={() => {
-                        setCapturingFor('back');
-                        setIsModalOpen(true);
-                      }}
-                    >
-                      {backImage ? "✓ Vuelta" : " Vuelta"}
-                    </Button>
-                  </div>
-                )}
-                
-                <label className="file-upload__control">
-                  <input type="file" accept={ACCEPT_ATTR} onChange={(e) => handleFileChange(field.key, e)} disabled={isUploadingField || disabled} className="visually-hidden" />
-                  <span className="file-upload__cta">
-                    {fileId ? "Cambiar Archivo" : "Seleccionar Archivo"}
-                  </span>
-                </label>
-                
-                <div className="file-upload__status">
-                  {isUploadingField ? (
-                    <span className="file-upload__status--uploading"> Subiendo...</span>
-                  ) : fileId ? (
-                    <span className="file-upload__status--success"> {fileName || 'Cargado'}</span>
-                  ) : (
-                    <span className="file-upload__status--pending">Falta archivo</span>
-                  )}
-                </div>
-              </div>
-            </Field>
-          );
-      })}
-    </div>
-  );
+    onBusyChange?.(false);
+  }, [onBusyChange]);
 
   return (
     <div className={embedded ? "register-step__embedded stack-3" : "register-step"}>
@@ -209,19 +11,17 @@ export default function StepDocs({
         <div className="register-step__header">
           <h3 className="register-step__title">Documentación</h3>
           <p className="register-step__subtitle">
-            Adjunta tu identificación oficial y cédula profesional.
+            La carga de INE/Pasaporte y archivo de cédula profesional está temporalmente deshabilitada.
           </p>
         </div>
       ) : (
         <div className="register-step__header">
           <h2 className="register-step__title">Documentación</h2>
-          <p className="register-step__subtitle">Sube tus archivos. Los campos marcados con * son obligatorios para continuar.</p>
+          <p className="register-step__subtitle">
+            La carga de INE/Pasaporte y archivo de cédula profesional está temporalmente deshabilitada.
+          </p>
         </div>
       )}
-
-      {content}
-      <canvas ref={combinedCanvasRef} style={{ display: 'none' }} />
-      {isModalOpen && <CameraModal onCapture={handleCapture} onClose={() => setIsModalOpen(false)} />}
     </div>
   );
 }

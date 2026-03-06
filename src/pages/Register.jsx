@@ -234,15 +234,8 @@ function validateContact(data) {
     return errors;
 }
 
-function validateDocuments(documents) {
-    const errors = {};
-    if (!documents.idOrPassportFileId) {
-        errors.idOrPassportFileId = "Sube tu identificacion oficial.";
-    }
-    if (!documents.professionalLicenseFileId) {
-        errors.professionalLicenseFileId = "Sube tu cedula profesional.";
-    }
-    return errors;
+function validateDocuments() {
+    return {};
 }
 
 function validateStep(stepId, form) {
@@ -252,7 +245,7 @@ function validateStep(stepId, form) {
         case "identity":
             return {
                 ...validateIdentity(form.identity),
-                ...validateDocuments(form.documents),
+                ...validateDocuments(),
             };
         case "address":
             return validateAddress(form.address);
