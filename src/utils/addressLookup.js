@@ -4,17 +4,13 @@ export const lookupPostalCode = async (cp) => {
   if (!cp || cp.length !== 5) return null;
 
   try {
-    // La respuesta de tu backend ya es el objeto con estado, municipio, etc.
-    const response = await api.get(`/utils/consulta-cp/${cp}`, { auth: true });
+    const response = await api.get(`/utils/consulta-cp/${cp}`, { auth: false });
     
     // Verificación de seguridad: si no hay estado, algo salió mal
     if (!response || !response.estado) {
         console.warn("La API no devolvió el formato esperado:", response);
         return null;
     }
-
-    // Log para depuración
-    console.log("Datos procesados en lookupPostalCode:", response);
 
     return {
       stateName: response.estado, // Antes buscabas info.estado

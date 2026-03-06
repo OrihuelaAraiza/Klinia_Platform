@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import InputField from "../InputField";
+import { lookupPostalCode } from "../../utils/addressLookup";
 
 export default function StepAddress({
   data,
@@ -9,9 +10,6 @@ export default function StepAddress({
 }) {
   const [colonias, setColonias] = useState([]);
   const [loadingPostal, setLoadingPostal] = useState(false);
-
-  // Detectar la URL base (usar proxy en local, URL absoluta en servidor si es necesario)
-  const API_BASE = import.meta.env.VITE_API_URL || "";
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -29,33 +27,18 @@ export default function StepAddress({
   const searchPostalCode = async (cp) => {
     setLoadingPostal(true);
     try {
-      // Usamos API_BASE para asegurar la ruta correcta en el servidor
-      const response = await fetch(`${API_BASE}/api/utils/consulta-cp/${cp}`);
-      
-      // PROTECCIÓN: Validar que la respuesta sea JSON
-      const contentType = response.headers.get("content-type");
-      if (!response.ok || !contentType || !contentType.includes("application/json")) {
-        const errorMsg = await response.text();
-        console.error("El servidor no devolvió JSON válido. Respuesta:", errorMsg.substring(0, 100));
+      const result = await lookupPostalCode(cp);
+      if (!result) {
+        setColonias([]);
         return;
       }
 
-      const result = await response.json();
+      setColonias(result.colonies || []);
+      onChange?.("city", result.city || "");
+      onChange?.("state", result.stateName || "");
 
-      // Mapeo según la estructura confirmada (result.estado, result.municipio, result.colonias)
-      if (result && result.estado) {
-        // Normalizar lista de colonias (maneja si es array de strings o de objetos)
-        const lista = result.colonias?.map(c => typeof c === 'string' ? c : c.nombre) || [];
-        setColonias(lista);
-
-        // Actualizamos Ciudad y Estado
-        onChange?.("city", result.municipio || result.ciudad || "");
-        onChange?.("state", result.estado || "");
-
-        // Auto-selección si solo hay una opción
-        if (lista.length === 1) {
-          onChange?.("neighborhood", lista[0]);
-        }
+      if ((result.colonies || []).length === 1) {
+        onChange?.("neighborhood", result.colonies[0]);
       }
     } catch (error) {
       console.error("Error crítico al consultar CP:", error);

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import InputField from "../InputField";
+import { lookupPostalCode } from "../../utils/addressLookup";
 
 export default function StepAddress({
   data,
@@ -9,9 +10,6 @@ export default function StepAddress({
 }) {
   const [colonias, setColonias] = useState([]);
   const [loadingPostal, setLoadingPostal] = useState(false);
-
-  // URL base para la API (vacío en local usa el proxy de Vite)
-  const API_BASE = import.meta.env.VITE_API_URL || "";
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -30,32 +28,18 @@ export default function StepAddress({
   const searchPostalCode = async (cp) => {
     setLoadingPostal(true);
     try {
-      const response = await fetch(`${API_BASE}/api/utils/consulta-cp/${cp}`);
-      
-      // Validación de seguridad para evitar errores de SyntaxError (HTML en lugar de JSON)
-      const contentType = response.headers.get("content-type");
-      if (!response.ok || !contentType || !contentType.includes("application/json")) {
-        const text = await response.text();
-        console.error("El servidor no respondió con JSON válido:", text.substring(0, 100));
+      const result = await lookupPostalCode(cp);
+      if (!result) {
+        setColonias([]);
         return;
       }
 
-      const result = await response.json();
+      setColonias(result.colonies || []);
+      onChange?.("city", result.city || "");
+      onChange?.("state", result.stateName || "");
 
-      // Lógica de mapeo que confirmaste que funciona:
-      if (result && result.estado) {
-        // Extraemos los nombres de las colonias del array de objetos (result.colonias)
-        const listaColonias = result.colonias?.map(c => c.nombre || c) || [];
-        setColonias(listaColonias);
-
-        // Actualizamos Ciudad y Estado en el formulario
-        onChange?.("city", result.municipio || result.ciudad || "");
-        onChange?.("state", result.estado || "");
-
-        // Si solo hay una colonia, seleccionarla por defecto
-        if (listaColonias.length === 1) {
-          onChange?.("neighborhood", listaColonias[0]);
-        }
+      if ((result.colonies || []).length === 1) {
+        onChange?.("neighborhood", result.colonies[0]);
       }
     } catch (error) {
       console.error("Error al consultar CP:", error);
