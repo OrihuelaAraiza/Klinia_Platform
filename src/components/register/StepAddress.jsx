@@ -10,6 +10,9 @@ export default function StepAddress({
   const [colonias, setColonias] = useState([]);
   const [loadingPostal, setLoadingPostal] = useState(false);
 
+  // URL base para la API (vacío en local usa el proxy de Vite)
+  const API_BASE = import.meta.env.VITE_API_URL || "";
+
   const handleChange = (event) => {
     const { name, value } = event.target;
     onChange?.(name, value);
@@ -27,24 +30,29 @@ export default function StepAddress({
   const searchPostalCode = async (cp) => {
     setLoadingPostal(true);
     try {
-      // Llamada a tu API de Azure a través de tu proxy local para evitar CORS
-      const response = await fetch(`/api/utils/consulta-cp/${cp}`);
+      const response = await fetch(`${API_BASE}/api/utils/consulta-cp/${cp}`);
       
-      if (!response.ok) throw new Error("Error en el servidor");
+      // Validación de seguridad para evitar errores de SyntaxError (HTML en lugar de JSON)
+      const contentType = response.headers.get("content-type");
+      if (!response.ok || !contentType || !contentType.includes("application/json")) {
+        const text = await response.text();
+        console.error("El servidor no respondió con JSON válido:", text.substring(0, 100));
+        return;
+      }
 
       const result = await response.json();
 
-      // Mapeo según tu nueva estructura de API (result.estado, result.municipio, result.colonias)
+      // Lógica de mapeo que confirmaste que funciona:
       if (result && result.estado) {
-        // Extraemos los nombres de las colonias del array de objetos
-        const listaColonias = result.colonias?.map(c => c.nombre) || [];
+        // Extraemos los nombres de las colonias del array de objetos (result.colonias)
+        const listaColonias = result.colonias?.map(c => c.nombre || c) || [];
         setColonias(listaColonias);
 
-        // Actualizamos Ciudad (usando el campo municipio o ciudad de tu JSON) y Estado
-        onChange?.("city", result.municipio || "");
+        // Actualizamos Ciudad y Estado en el formulario
+        onChange?.("city", result.municipio || result.ciudad || "");
         onChange?.("state", result.estado || "");
 
-        // Si solo hay una colonia, la seleccionamos por defecto
+        // Si solo hay una colonia, seleccionarla por defecto
         if (listaColonias.length === 1) {
           onChange?.("neighborhood", listaColonias[0]);
         }
@@ -109,7 +117,7 @@ export default function StepAddress({
               value={data.neighborhood || ""}
               onChange={handleChange}
               className={`role-select${errors.neighborhood ? " has-error" : ""}`}
-              style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--border)' }}
+              style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: '1px solid var(--border)' }}
               aria-invalid={Boolean(errors.neighborhood)}
               aria-describedby={describedBy}
               disabled={disabled || colonias.length === 0}
