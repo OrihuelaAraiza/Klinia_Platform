@@ -287,7 +287,7 @@ function buildPayload(form) {
         access: {
             email: sanitizeEmail(form.access.email),
             password: form.access.password,
-      confirmPassword: form.access.confirmPassword, // <-- ¡CORRECCIÓN CLAVE 1!
+            confirmPassword: form.access.confirmPassword,
         },
         identity: {
             firstName: sanitize(form.identity.firstName),
@@ -300,7 +300,9 @@ function buildPayload(form) {
         address: {
             officeName: sanitize(form.address.officeName),
             street: sanitize(form.address.street),
-            neighborhood: sanitize(form.address.neighborhood),
+            neighborhood: typeof form.address.neighborhood === 'object' 
+                ? form.address.neighborhood.nombre 
+                : sanitize(form.address.neighborhood),
             postalCode: sanitize(form.address.postalCode),
             city: sanitize(form.address.city),
             state: form.address.state,
@@ -313,14 +315,12 @@ function buildPayload(form) {
             emergencyPhoneIsVerified: form.contact.emergencyPhoneIsVerified,
         },
         documents: {
-            idOrPassportFileId: form.documents.idOrPassportFileId,
-            professionalLicenseFileId: form.documents.professionalLicenseFileId,
-            curpDocumentFileId: form.documents.curpDocumentFileId, 
-            proofOfAddressFileId: form.documents.proofOfAddressFileId,
+            idOrPassportFileId: null,
+            professionalLicenseFileId: null,
+            proofOfAddressFileId: null,
+            curpDocumentFileId: null
         },
-        face: {
-            selfieFileId: form.face.selfieFileId,
-        },
+        face: null
     };
 }
 
@@ -541,26 +541,26 @@ export default function Register() {
     };
 
     const submitRegistration = async () => {
-        const aggregated = {};
-        let firstInvalidIndex = null;
+    const aggregated = {};
+    let firstInvalidIndex = null;
 
-        STEP_FLOW.forEach((step, index) => {
-            const stepErrors = validateStep(step.id, form);
-            aggregated[step.id] = stepErrors;
-            if (firstInvalidIndex === null && Object.keys(stepErrors).length > 0) {
-                firstInvalidIndex = index;
-            }
-        });
-
-        setErrors(aggregated);
-
-        if (firstInvalidIndex !== null) {
-            moveToStep(firstInvalidIndex);
-            return;
+    STEP_FLOW.forEach((step, index) => {
+        const stepErrors = validateStep(step.id, form);
+        aggregated[step.id] = stepErrors;
+        if (firstInvalidIndex === null && Object.keys(stepErrors).length > 0) {
+            firstInvalidIndex = index;
         }
+    });
 
-        setSubmitting(true);
-        setFormError("");
+    setErrors(aggregated);
+
+    if (firstInvalidIndex !== null) {
+        moveToStep(firstInvalidIndex);
+        return;
+    }
+
+    setSubmitting(true);
+    setFormError("");
 
         const payload = buildPayload(form);
 
@@ -586,32 +586,42 @@ export default function Register() {
             clearDraftStorage();
             toast.success("Registro completado. Ahora puedes iniciar sesion.");
             navigate(ROUTES.login, { replace: true });
-        } catch (error) {
-            const message =
-                error?.message ||
-                "No pudimos completar el registro. Intenta nuevamente.";
-            setFormError(message);
-            toast.error(message);
+            } catch (error) {
+                // LOG DE SEGURIDAD: Mira esto en la consola para saber qué llega
+                console.log("DEBUG ERROR ESTRUCTURA:", {
+                    message: error.message,
+                    details: error.details
+                });
 
-            try {
-                await auditService.logAudit(
-                    "auth_register_failed",
-                    {
-                        role: ROLES.PROFESSIONAL,
-                        email: payload.access.email,
-                        code: error?.status || error?.code,
-                        message,
-                    },
-                    { auth: false }
-                );
-            } catch (auditError) {
-                if (import.meta.env?.DEV) {
-                    console.debug("[register] audit fail error", auditError);
+                let finalMessage = error.message;
+
+                // Si por alguna razón el mensaje no se formateó en el apiClient, lo hacemos aquí
+                if (!finalMessage.includes(":") && error.details && Array.isArray(error.details)) {
+                    const detailMsgs = error.details
+                        .map(d => {
+                            const field = d.path[d.path.length - 1];
+                            return `${field}: ${d.message}`;
+                        })
+                        .join(" | ");
+                    finalMessage = `Campos inválidos: ${detailMsgs}`;
                 }
+
+                // Si el mensaje sigue siendo genérico, mostramos el error crudo
+                setFormError(finalMessage);
+                toast.error(finalMessage);
+
+                // Auditoría
+                try {
+                    await auditService.logAudit("auth_register_failed", {
+                        email: payload.access.email,
+                        message: finalMessage
+                    });
+                } catch (e) {
+                    console.error("Error en auditoría:", e);
+                }
+            } finally {
+                setSubmitting(false);
             }
-        } finally {
-            setSubmitting(false);
-        }
     };
 
     const handleNext = async () => {

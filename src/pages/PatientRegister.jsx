@@ -214,7 +214,7 @@ export default function PatientRegister() {
     }
   };
 
-  const submitRegistration = async () => {
+const submitRegistration = async () => {
     setSubmitting(true);
     setFormError("");
     const payload = buildPayload(form);
@@ -224,11 +224,51 @@ export default function PatientRegister() {
         toast.success("Cuenta de paciente creada con éxito. Inicia sesión.");
         navigate(ROUTES.login, { replace: true });
     } catch (error) {
-    // Esto te dirá EXACTAMENTE qué campo de Prisma o Zod está rechazando
-    console.error("DETALLE DEL ERROR 400:", error.response?.data?.details); 
-    const message = error.response?.data?.message || "Error al crear la cuenta.";
-    setFormError(message);
-}finally {
+        let finalMessage = error.message;
+
+        if (error.details && Array.isArray(error.details)) {
+            const fieldLabels = {
+                email: "Correo electrónico",
+                password: "Contraseña",
+                firstName: "Nombre",
+                lastName: "Apellidos",
+                curp: "CURP",
+                birthDate: "Fecha de nacimiento",
+                phone: "Teléfono",
+                street: "Calle",
+                neighborhood: "Colonia",
+                city: "Ciudad/Municipio",
+                state: "Estado",
+                postalCode: "Código Postal",
+                referral: "Referencia",
+                purpose: "Motivo de consulta",
+                legalGuardianName: "Nombre del tutor",
+                legalGuardianPhone: "Teléfono del tutor"
+            };
+
+            const translateZod = (msg) => {
+                if (msg.includes("at least")) return "es muy corto o incompleto";
+                if (msg.includes("Required")) return "es obligatorio";
+                if (msg.includes("Invalid")) return "tiene un formato inválido";
+                return msg;
+            };
+
+            const detailedSummary = error.details
+                .map(d => {
+                    const field = d.path[d.path.length - 1];
+                    const label = fieldLabels[field] || field;
+                    return `${label} (${translateZod(d.message)})`;
+                })
+                .join(", ");
+            
+            finalMessage = `Revisa los siguientes datos: ${detailedSummary}`;
+        }
+        setFormError(finalMessage);
+        toast.error(finalMessage);
+
+        console.error("Error detallado del registro:", error.details || error);
+        
+    } finally {
         setSubmitting(false);
     }
   };

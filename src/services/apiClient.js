@@ -1,83 +1,34 @@
 import { getToken, clearAll } from "./storage";
 import { ROUTES } from "../utils/constants";
 
-const RAW_BASE = import.meta.env.VITE_API_BASE_URL || "/api";
+const RAW_BASE = import.meta.env.VITE_API_BASE_URL;
 
 function normalizeBaseUrl(url) {
-  if (!url) {
-    return "/api";
+  if (!url) return "/api";
+  let normalized = url.replace(/\/+$/, "");
+  if (normalized.startsWith("/")) return normalized;
+  if (/^https?:\/\//i.test(normalized)) return normalized;
+  if (normalized.includes(".") && !normalized.includes("://")) {
+    return `https://${normalized}`;
   }
-  
-  // Remove trailing slashes
-  url = url.replace(/\/+$/, "");
-  
-  // If it's a relative path, return as is
-  if (url.startsWith("/")) {
-    return url || "/api";
-  }
-  
-  // If it's already a full URL, return it (may or may not include /api)
-  if (/^https?:\/\//i.test(url)) {
-    return url;
-  }
-  
-  // If it's a domain without protocol, add https
-  if (url.includes(".") && !url.includes("://")) {
-    return `https://${url}`;
-  }
-  
-  return url;
+  return normalized;
 }
 
-const NORMALIZED_BASE = normalizeBaseUrl(RAW_BASE);
-const BASE_URL = NORMALIZED_BASE;
-
-if (import.meta.env.DEV) {
-  console.log("[API Client] RAW_BASE:", RAW_BASE);
-  console.log("[API Client] NORMALIZED_BASE:", NORMALIZED_BASE);
-  console.log("[API Client] BASE_URL:", BASE_URL);
-}
+const BASE_URL = normalizeBaseUrl(RAW_BASE);
 
 function buildUrl(path = "") {
-  // If path is already a full URL, return it
-  if (/^https?:\/\//i.test(path)) {
-    return path;
-  }
-
-  // Normalize path: ensure it starts with /
+  if (/^https?:\/\//i.test(path)) return path;
   let normalizedPath = path.startsWith("/") ? path : `/${path}`;
-  
-  let finalUrl;
-  
   if (BASE_URL.startsWith("/")) {
-    // Relative path (local development with Vite proxy)
-    // BASE_URL should be /api, path should be /api/... or just /...
-    if (normalizedPath.startsWith("/api")) {
-      finalUrl = normalizedPath;
-    } else {
-      finalUrl = `${BASE_URL}${normalizedPath}`;
-    }
+    return normalizedPath.startsWith("/api") ? normalizedPath : `${BASE_URL}${normalizedPath}`;
   } else {
-    // Absolute URL (production/Azure)
-    // BASE_URL might be https://.../api or https://...
     let base = BASE_URL;
     const baseEndsWithApi = base.endsWith("/api") || base.endsWith("/api/");
-    
-
-    
     if (!baseEndsWithApi) {
       base = base.endsWith("/") ? `${base}api` : `${base}/api`;
     }
-    
-    finalUrl = `${base}${normalizedPath}`;
+    return `${base}${normalizedPath}`;
   }
-
-  // Debug: Log en desarrollo
-  if (import.meta.env.DEV) {
-    console.log("[API Client] buildUrl:", { path, normalizedPath, BASE_URL, finalUrl });
-  }
-
-  return finalUrl;
 }
 
 async function request(path, options = {}) {
@@ -87,25 +38,16 @@ async function request(path, options = {}) {
     body,
     auth = true,
     signal,
-    skipAuthError = false, // If true, don't clear session on 401
+    skipAuthError = false,
   } = options;
 
-  const hasFormData = typeof FormData !== "undefined";
-  const hasBlob = typeof Blob !== "undefined";
-  const hasFile = typeof File !== "undefined";
-  const isFormData = hasFormData && body instanceof FormData;
-  const isBlob = hasBlob && body instanceof Blob;
-  const isFile = hasFile && body instanceof File;
-  const isArrayBuffer = body instanceof ArrayBuffer;
-  const isBodyBinary = isBlob || isArrayBuffer || isFile;
+  const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
+  const isBinary = (typeof Blob !== "undefined" && body instanceof Blob) || 
+                   (body instanceof ArrayBuffer) || 
+                   (typeof File !== "undefined" && body instanceof File);
 
   const defaultHeaders = {};
-  if (
-    body !== undefined &&
-    !isFormData &&
-    !isBodyBinary &&
-    typeof body !== "string"
-  ) {
+  if (body !== undefined && !isFormData && !isBinary && typeof body !== "string") {
     defaultHeaders["Content-Type"] = "application/json";
   }
 
@@ -121,99 +63,120 @@ async function request(path, options = {}) {
     }
   }
 
-  let response;
   let payload = body;
-
-  if (payload !== undefined) {
-    if (
-      !isFormData &&
-      !isBodyBinary &&
-      typeof payload !== "string" &&
-      !(payload instanceof URLSearchParams)
-    ) {
-      payload = JSON.stringify(payload);
-    }
+  if (payload !== undefined && !isFormData && !isBinary && typeof payload !== "string" && !(payload instanceof URLSearchParams)) {
+    payload = JSON.stringify(payload);
   }
 
   try {
-    response = await fetch(buildUrl(path), {
+    const response = await fetch(buildUrl(path), {
       method,
       headers: requestHeaders,
       body: payload,
       signal,
       credentials: "include",
     });
-  } catch (networkError) {
-    const error = new Error(
-      "No se puede conectar con el servidor. Verifica tu red o la URL del API."
-    );
-    error.code = "NETWORK_ERROR";
-    error.cause = networkError;
-    throw error;
-  }
 
-if (response.status === 401) {
-    // Only clear session and redirect if this is a critical auth error
-    // Non-critical requests (like audit logs, dashboard stats) can fail without clearing session
-    if (!skipAuthError) {
-      const token = getToken();
-      // Only clear if we actually have a token (otherwise it's a login attempt failing)
-      if (token) {
-        // In development, log for debugging but don't clear session on first 401
-        // This prevents clearing session when backend endpoints don't exist
-        if (import.meta.env.DEV) {
-          console.warn("[API Client] 401 error but keeping session (dev mode). Path:", path);
-          // In dev, only clear session if we're sure the token is invalid
-          // For now, we'll be more lenient and not clear immediately
-        } else {
-          // In production, clear session on 401
-          clearAll();
-          if (typeof window !== "undefined" && window.location.pathname !== ROUTES.login) {
-            window.location.replace(ROUTES.login);
-          }
+    // 1. Manejo de errores de Autenticación
+    if (response.status === 401) {
+      if (!skipAuthError) {
+        clearAll();
+        if (typeof window !== "undefined" && window.location.pathname !== ROUTES.login) {
+          window.location.replace(ROUTES.login);
         }
       }
-    }
-    const error = new Error("Sesión expirada o no autorizado.");
-    error.status = 401;
-    throw error;
-  }
-
-  if (response.status === 403) {
-    const error = new Error("No tienes permisos para realizar esta acción.");
-    error.status = 403;
-    throw error;
-  }
-
-  const text = await response.text();
-  let data;
-  try {
-    data = text ? JSON.parse(text) : null;
-  } catch (parseError) {
-    data = text;
-  }
-
-  if (!response.ok) {
-   if (import.meta.env.DEV) {
-      console.error("[API Client] Error detallado del servidor:", {
-        status: response.status,
-        path,
-        data: data 
-      });
+      const error = new Error("Sesión expirada.");
+      error.status = 401;
+      throw error;
     }
 
-    const error = new Error(data?.message || `Error ${response.status}`);
-    error.status = response.status;
-    error.data = data;
+    // 2. Leer la respuesta una sola vez para evitar agotar el stream
+    const text = await response.text();
+    let data = null;
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch (e) {
+      data = { message: text };
+    }
+
+    // 3. Manejo de errores (400, 403, 409, 500, etc.)
+    if (!response.ok) {
+      let errorMessage = data?.message || "Error en la petición";
+      
+      if (data?.details && Array.isArray(data.details)) {
+        // Diccionario de traducción de campos
+        const fieldLabels = {
+          email: "Correo electrónico",
+          password: "Contraseña",
+          firstName: "Nombre",
+          lastName: "Apellidos",
+          curp: "CURP",
+          birthDate: "Fecha de nacimiento",
+          phone: "Teléfono",
+          officeName: "Nombre del consultorio",
+          street: "Calle y número",
+          neighborhood: "Colonia",
+          city: "Ciudad/Municipio",
+          state: "Estado",
+          postalCode: "Código Postal",
+          emergencyName: "Contacto de emergencia",
+          emergencyPhone: "Teléfono de emergencia",
+          specialty: "Especialidad",
+          certificateFolio: "Folio de cédula",
+          referral: "Referencia",
+          purpose: "Motivo de consulta",
+          legalGuardianName: "Nombre del tutor",
+          legalGuardianPhone: "Teléfono del tutor"
+        };
+
+        // Traductor de reglas de validación (Zod)
+        const translateZod = (msg) => {
+          const lower = msg.toLowerCase();
+          if (lower.includes("at least")) {
+            const num = msg.match(/\d+/);
+            return `debe tener al menos ${num} caracteres`;
+          }
+          if (lower.includes("required") || lower.includes("invalid_type")) {
+            return "es obligatorio";
+          }
+          if (lower.includes("invalid email")) {
+            return "debe ser un correo válido";
+          }
+          if (lower.includes("invalid")) {
+            return "tiene un formato inválido";
+          }
+          return msg;
+        };
+
+        const detailsSummary = data.details
+          .map(d => {
+            const rawField = Array.isArray(d.path) ? d.path[d.path.length - 1] : "campo";
+            const label = fieldLabels[rawField] || rawField;
+            return `${label} ${translateZod(d.message)}`;
+          })
+          .join(", ");
+          
+        errorMessage = `Revisa los campos: ${detailsSummary}`;
+      }
+
+      const error = new Error(errorMessage);
+      error.status = response.status;
+      error.details = data?.details; // Pasamos el array original por si se necesita
+      throw error;
+    }
+
+    return data;
+
+  } catch (networkError) {
+    if (networkError.status) throw networkError;
+    const error = new Error("Error de conexión con el servidor.");
+    error.code = "NETWORK_ERROR";
     throw error;
   }
-  return data;
 }
 
-function withMethod(method) {
-  return (path, payload, options = {}) =>
-    request(path, { ...options, method, body: payload });
-}
+const withMethod = (method) => (path, payload, options = {}) => 
+  request(path, { ...options, method, body: payload });
 
 export const api = {
   get: (path, options) => request(path, { ...options, method: "GET" }),
