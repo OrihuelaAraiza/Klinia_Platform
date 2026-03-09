@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import InputField from "../InputField";
+import { lookupPostalCode } from "../../utils/addressLookup";
 
 export default function StepAddress({
   data,
@@ -15,7 +16,6 @@ export default function StepAddress({
     onChange?.(name, value);
   };
 
-  // Efecto que dispara la búsqueda cuando el CP tiene 5 dígitos
   useEffect(() => {
     if (data.postalCode && data.postalCode.length === 5) {
       searchPostalCode(data.postalCode);
@@ -27,30 +27,21 @@ export default function StepAddress({
   const searchPostalCode = async (cp) => {
     setLoadingPostal(true);
     try {
-      // Llamada a tu API de Azure a través de tu proxy local para evitar CORS
-      const response = await fetch(`/api/utils/consulta-cp/${cp}`);
-      
-      if (!response.ok) throw new Error("Error en el servidor");
+      const result = await lookupPostalCode(cp);
+      if (!result) {
+        setColonias([]);
+        return;
+      }
 
-      const result = await response.json();
+      setColonias(result.colonies || []);
+      onChange?.("city", result.city || "");
+      onChange?.("state", result.stateName || "");
 
-      // Mapeo según tu nueva estructura de API (result.estado, result.municipio, result.colonias)
-      if (result && result.estado) {
-        // Extraemos los nombres de las colonias del array de objetos
-        const listaColonias = result.colonias?.map(c => c.nombre) || [];
-        setColonias(listaColonias);
-
-        // Actualizamos Ciudad (usando el campo municipio o ciudad de tu JSON) y Estado
-        onChange?.("city", result.municipio || "");
-        onChange?.("state", result.estado || "");
-
-        // Si solo hay una colonia, la seleccionamos por defecto
-        if (listaColonias.length === 1) {
-          onChange?.("neighborhood", listaColonias[0]);
-        }
+      if ((result.colonies || []).length === 1) {
+        onChange?.("neighborhood", result.colonies[0]);
       }
     } catch (error) {
-      console.error("Error al consultar CP:", error);
+      console.error("Error crítico al consultar CP:", error);
     } finally {
       setLoadingPostal(false);
     }
@@ -60,7 +51,6 @@ export default function StepAddress({
     <div className="register-step">
       <div className="register-step__header">
         <h2 className="register-step__title">Domicilio</h2>
-       
       </div>
 
       <div className="register-step__body register-step__grid">
@@ -76,7 +66,7 @@ export default function StepAddress({
           placeholder="12345"
           error={errors.postalCode}
           disabled={disabled}
-          assistiveText={loadingPostal ? "Buscando ubicación..." : ""}
+          assistiveText={loadingPostal ? "Localizando..." : ""}
         />
 
         {/* Campo: Colonia (Dropdown dinámico) */}
@@ -94,7 +84,7 @@ export default function StepAddress({
               value={data.neighborhood || ""}
               onChange={handleChange}
               className={`role-select${errors.neighborhood ? " has-error" : ""}`}
-              style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--border)' }}
+              style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: '1px solid var(--border)' }}
               aria-invalid={Boolean(errors.neighborhood)}
               aria-describedby={describedBy}
               disabled={disabled || colonias.length === 0}

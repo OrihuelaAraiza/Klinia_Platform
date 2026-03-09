@@ -640,6 +640,14 @@ auditService.logAudit("patient_re_entry_client", { id });
             >
               Prescripciones
             </Button>
+            <Button
+              variant="ghost"
+              onClick={() => navigate(`/prescriptions?patientId=${id}&tab=escalas`)}
+              disabled={isAssistant || isDischarge}
+              className="clinical-link-btn"
+            >
+              Escalas clínicas
+            </Button>
             <Button variant="ghost" onClick={() => navigate(`/reports`)} className="clinical-link-btn">
               Reportes
             </Button>

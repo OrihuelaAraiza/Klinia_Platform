@@ -457,9 +457,15 @@ export default function ProfessionalProfile() {
                                             required
                                         />
                                         <InputField
+                                            label="Contraseña temporal"
+                                            name="delegatePassword"
                                             type="password"
+                                            placeholder="Mínimo 8 caracteres"
+                                            assistiveText="Esta será la contraseña inicial del asistente."
                                             value={newDelegate.password}
                                             onChange={(e) => setNewDelegate({ ...newDelegate, password: e.target.value })}
+                                            autoComplete="new-password"
+                                            required
                                         />
                                     </div>
                                     <div className="cluster justify-end">

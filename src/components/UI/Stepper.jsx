@@ -1,4 +1,4 @@
-export default function Stepper({ steps }) {
+export default function Stepper({ steps, onStepClick }) {
   const total = steps.length;
   const completed = steps.filter((step) => step.status === "completed").length;
   const progress = Math.round((completed / total) * 100);
@@ -26,13 +26,31 @@ export default function Stepper({ steps }) {
             className={`stepper__item stepper__item--${step.status}`}
             aria-current={step.status === "current" ? "step" : undefined}
           >
-            <span className="stepper__bullet" aria-hidden="true">
-              {step.status === "completed" ? "✓" : index + 1}
-            </span>
-            <span className="stepper__label">{step.label}</span>
-            {step.helper ? (
-              <span className="stepper__helper">{step.helper}</span>
-            ) : null}
+            {typeof onStepClick === "function" ? (
+              <button
+                type="button"
+                className="stepper__item-btn"
+                onClick={() => onStepClick(index)}
+              >
+                <span className="stepper__bullet" aria-hidden="true">
+                  {step.status === "completed" ? "✓" : index + 1}
+                </span>
+                <span className="stepper__label">{step.label}</span>
+                {step.helper ? (
+                  <span className="stepper__helper">{step.helper}</span>
+                ) : null}
+              </button>
+            ) : (
+              <>
+                <span className="stepper__bullet" aria-hidden="true">
+                  {step.status === "completed" ? "✓" : index + 1}
+                </span>
+                <span className="stepper__label">{step.label}</span>
+                {step.helper ? (
+                  <span className="stepper__helper">{step.helper}</span>
+                ) : null}
+              </>
+            )}
           </li>
         ))}
       </ol>

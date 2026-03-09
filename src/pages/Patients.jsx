@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useOutletContext } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion as Motion, AnimatePresence } from "framer-motion";
 // Corregir rutas de importación de componentes/servicios
 import Button from "../components/UI/Button.jsx";
 import Drawer from "../components/UI/Drawer.jsx";
@@ -36,6 +36,75 @@ const rowVariants = {
   visible: { opacity: 1, y: 0 },
 };
 
+function mapPatientSubmitError(err) {
+  const status = err?.status;
+  const backendMessage = String(err?.data?.message || err?.message || "").trim();
+  const lowerMessage = backendMessage.toLowerCase();
+
+  const mapped = {
+    message: backendMessage || "No se pudo guardar el expediente. Intenta nuevamente.",
+    fieldErrors: {},
+    status,
+  };
+
+  if (err?.code === "NETWORK_ERROR") {
+    mapped.message =
+      "No fue posible conectar con el servidor. Verifica tu conexión e inténtalo de nuevo.";
+    return mapped;
+  }
+
+  if (status === 409) {
+    const hasEmail = /correo|email/.test(lowerMessage);
+    const hasCurp = /curp/.test(lowerMessage);
+
+    if (hasEmail && hasCurp) {
+      mapped.message = "El correo y la CURP ya están registrados.";
+      mapped.fieldErrors.email = "Este correo ya está en uso.";
+      mapped.fieldErrors.curp = "Esta CURP ya está registrada.";
+      return mapped;
+    }
+
+    if (hasEmail) {
+      mapped.message = "El correo ya está registrado.";
+      mapped.fieldErrors.email = "Este correo ya está en uso.";
+      return mapped;
+    }
+
+    if (hasCurp) {
+      mapped.message = "La CURP ya está registrada.";
+      mapped.fieldErrors.curp = "Esta CURP ya está registrada.";
+      return mapped;
+    }
+
+    mapped.message =
+      backendMessage || "Ya existe un expediente con los datos proporcionados.";
+    return mapped;
+  }
+
+  if (status === 400 || status === 422) {
+    const details = err?.data?.errors;
+    if (details && typeof details === "object") {
+      Object.entries(details).forEach(([field, value]) => {
+        if (typeof value === "string" && value.trim()) {
+          mapped.fieldErrors[field] = value;
+        }
+      });
+    }
+    mapped.message =
+      backendMessage ||
+      "Hay datos inválidos en el formulario. Revisa los campos marcados.";
+    return mapped;
+  }
+
+  if (status === 403) {
+    mapped.message =
+      "No tienes permisos para realizar esta acción. Contacta al administrador.";
+    return mapped;
+  }
+
+  return mapped;
+}
+
 export default function Patients() {
   const { role } = useOutletContext() ?? {};
   const location = useLocation();
@@ -50,6 +119,7 @@ export default function Patients() {
   const [searchTerm, setSearchTerm] = useState("");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingPatient, setEditingPatient] = useState(null);
+  const [createPrefill, setCreatePrefill] = useState(null);
   const [cieModalOpen, setCieModalOpen] = useState(false);
   const [cieQuery, setCieQuery] = useState("");
   const [page] = useState(1);
@@ -119,6 +189,15 @@ export default function Patients() {
     }
   }, [location.state, patients, loading, navigate, location.pathname]);
 
+  useEffect(() => {
+    if (!location.state?.openCreate) return;
+    const prefill = location.state?.prefillPatient;
+    setEditingPatient(null);
+    setCreatePrefill(prefill && typeof prefill === "object" ? prefill : null);
+    setDrawerOpen(true);
+    navigate(location.pathname, { replace: true });
+  }, [location.state, navigate, location.pathname]);
+
   const cieResults = useMemo(() => {
     if (!cieQuery.trim()) {
       return cieCatalog;
@@ -133,17 +212,20 @@ export default function Patients() {
 
   const handleOpenCreate = () => {
     setEditingPatient(null);
+    setCreatePrefill(null);
     setDrawerOpen(true);
   };
 
   const handleOpenEdit = (patient) => {
     setEditingPatient(patient);
+    setCreatePrefill(null);
     setDrawerOpen(true);
   };
 
   const handleCloseDrawer = () => {
     setDrawerOpen(false);
     setEditingPatient(null);
+    setCreatePrefill(null);
   };
 
   const refreshList = async () => {
@@ -204,9 +286,6 @@ const handleCreateOrUpdate = async (payload) => {
       attachments: payload.attachments || [],
     };
 
-    console.log("🚀 Enviando Payload Corregido:", fullPayload);
-    
-
     try {
       if (editingPatient) {
         await updatePatient(editingPatient.id, fullPayload);
@@ -218,9 +297,14 @@ const handleCreateOrUpdate = async (payload) => {
       await refreshList();
       handleCloseDrawer();
     } catch (err) {
-      const msg = err.response?.data?.message || "Error al procesar la solicitud";
-      toast.error(msg);
-      throw err;
+      const mapped = mapPatientSubmitError(err);
+      toast.error(mapped.message);
+      const submitError = new Error(mapped.message);
+      submitError.status = mapped.status;
+      submitError.fieldErrors = mapped.fieldErrors;
+      submitError.data = err?.data;
+      submitError.cause = err;
+      throw submitError;
     }
   };
 
@@ -299,7 +383,7 @@ const handleCreateOrUpdate = async (payload) => {
             <tbody>
               <AnimatePresence initial={false}>
                 {patients.map((patient) => (
-                  <motion.tr
+                  <Motion.tr
                     key={patient.id}
                     variants={rowVariants}
                     initial="hidden"
@@ -346,7 +430,7 @@ const handleCreateOrUpdate = async (payload) => {
                         )}
                       </div>
                     </td>
-                  </motion.tr>
+                  </Motion.tr>
                 ))}
               </AnimatePresence>
             </tbody>
@@ -360,7 +444,7 @@ const handleCreateOrUpdate = async (payload) => {
         title={editingPatient ? "Editar paciente" : "Nuevo paciente"}
       >
         <PatientForm
-          initialValue={editingPatient}
+          initialValue={editingPatient || createPrefill}
           onSubmit={handleCreateOrUpdate}
           onCancel={handleCloseDrawer}
           readOnly={Boolean(isAssistant)}

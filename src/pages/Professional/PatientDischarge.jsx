@@ -4,13 +4,16 @@ import SignatureCanvas from "react-signature-canvas";
 import Button from "../../components/UI/Button";
 import InputField from "../../components/InputField";
 import Field from "../../components/UI/Field";
+import Card, { CardBody } from "../../components/UI/Card";
 import { createDischargeNote } from "../../services/patientsService";
 import { DISCHARGE_REASONS, CASE_RESULTS } from "../../utils/constants";
+import { useToast } from "../../components/UI/Toast";
 import "./DischargePrint.css"; 
 
 export default function PatientDischarge() {
   const location = useLocation();
   const navigate = useNavigate();
+  const toast = useToast();
   const patient = location.state?.patient;
   
   const sigCanvasTherapist = useRef({});
@@ -72,7 +75,7 @@ const handleSubmit = async (e) => {
     
     // Validamos si el canvas del terapeuta tiene algo escrito
     if (sigCanvasTherapist.current.isEmpty()) {
-      alert("La firma del terapeuta es obligatoria para el cierre legal.");
+      toast.error("La firma del terapeuta es obligatoria para el cierre legal.");
       return;
     }
 
@@ -93,19 +96,43 @@ const handleSubmit = async (e) => {
         patientSignature
       });
       
-      alert("Alta guardada y expediente cerrado correctamente.");
+      toast.success("Alta guardada y expediente cerrado correctamente.");
       navigate(`/patients/${patient.id}`);
     } catch (error) {
       console.error("Error al procesar el alta", error);
-      alert("Hubo un error al guardar el alta. Revisa la consola del servidor.");
+      toast.error(error?.message || "Hubo un error al guardar el alta.");
     }
   };
+
+  if (!patient?.id) {
+    return (
+      <section className="page">
+        <Card hoverable={false}>
+          <CardBody className="stack-3">
+            <p className="form-error" role="alert">
+              No se encontró información del paciente para completar el alta.
+            </p>
+            <Button variant="secondary" onClick={() => navigate("/patients")}>
+              Volver a pacientes
+            </Button>
+          </CardBody>
+        </Card>
+      </section>
+    );
+  }
 
   return (
     <div className="page discharge-container">
       <div className="no-print header-actions cluster justify-between mb-4">
-        <h1>Nota de Egreso Clínica</h1>
-        <Button variant="ghost" onClick={() => window.print()}>🖨️ Imprimir Formulario</Button>
+        <div className="cluster gap-2">
+          <Button variant="secondary" onClick={() => navigate(`/patients/${patient.id}`)}>
+            Regresar al perfil
+          </Button>
+          <h1>Nota de Egreso Clínica</h1>
+        </div>
+        <Button variant="ghost" onClick={() => window.print()}>
+          Imprimir formulario
+        </Button>
       </div>
 
       <form onSubmit={handleSubmit} className="stack-4">
@@ -190,8 +217,8 @@ const handleSubmit = async (e) => {
                 />
               </div>
               <div className="cluster no-print">
-                <Button type="button" variant="ghost" size="small" onClick={clearTherapist}>Limpiar</Button>
-                <Button type="button" variant="ghost" size="small" onClick={() => fileInputRef.current.click()}>Subir Imagen</Button>
+                <Button type="button" variant="ghost" size="sm" onClick={clearTherapist}>Limpiar</Button>
+                <Button type="button" variant="ghost" size="sm" onClick={() => fileInputRef.current.click()}>Subir Imagen</Button>
                 <input type="file" ref={fileInputRef} hidden accept="image/*" onChange={handleFileUpload} />
               </div>
             </div>
@@ -206,14 +233,14 @@ const handleSubmit = async (e) => {
                 />
               </div>
               <div className="cluster no-print">
-                <Button type="button" variant="ghost" size="small" onClick={clearPatient}>Borrar</Button>
+                <Button type="button" variant="ghost" size="sm" onClick={clearPatient}>Borrar</Button>
               </div>
             </div>
           </div>
         </section>
 
         <div className="form-actions no-print">
-          <Button type="button" variant="ghost" onClick={() => navigate(-1)}>Cancelar</Button>
+          <Button type="button" variant="ghost" onClick={() => navigate(`/patients/${patient.id}`)}>Cancelar</Button>
           <Button type="submit">Finalizar y Cerrar Expediente</Button>
         </div>
       </form>

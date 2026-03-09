@@ -164,6 +164,7 @@ async function request(path, options = {}) {
       error.details = data?.details; // Pasamos el array original por si se necesita
       throw error;
     }
+    return data;
 
     return data;
 
