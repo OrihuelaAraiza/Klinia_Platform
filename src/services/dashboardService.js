@@ -1,178 +1,123 @@
-import { api } from "./apiClient";
+import { db, delay } from "./mocks/db";
+import { getUser } from "./storage";
 
-function normalizeNumber(value, fallback = 0) {
-  const numeric = Number(value);
-  return Number.isFinite(numeric) ? numeric : fallback;
+function isToday(date) {
+  const d = new Date(date);
+  const today = new Date();
+  return (
+    d.getFullYear() === today.getFullYear() &&
+    d.getMonth() === today.getMonth() &&
+    d.getDate() === today.getDate()
+  );
 }
 
-function ensureArray(value) {
-  if (Array.isArray(value)) {
-    return value;
-  }
-  if (value === null || value === undefined) {
-    return [];
-  }
-  return Array.isArray(value.items) ? value.items : [];
+function patientName(store, patientId) {
+  const p = store.patients.find((x) => x.id === patientId);
+  return p ? `${p.firstName} ${p.lastName}` : "Paciente";
 }
 
-export async function getStats(options = {}) {
-  try {
-    const response = await api.get("/dashboard/stats", { ...options, skipAuthError: true });
-    return {
-      patientsActive: normalizeNumber(response?.patientsActive),
-      sessionsToday: normalizeNumber(response?.sessionsToday),
-      sessionsCancelledToday: normalizeNumber(response?.sessionsCancelledToday),
-      prescriptionsActive: normalizeNumber(response?.prescriptionsActive),
-      lastPrescriptionTime: response?.lastPrescriptionTime || null,
-      reportsGenerated: normalizeNumber(response?.reportsGenerated),
-      reportsProgress: normalizeNumber(response?.reportsProgress),
-    };
-  } catch (error) {
-    // If stats fail, return defaults instead of breaking the app
-    if (import.meta.env.DEV) {
-      console.warn("[Dashboard] Stats failed, using defaults:", error.message);
-    }
-    return {
-      patientsActive: 0,
-      sessionsToday: 0,
-      sessionsCancelledToday: 0,
-      prescriptionsActive: 0,
-      lastPrescriptionTime: null,
-      reportsGenerated: 0,
-      reportsProgress: 0,
-    };
-  }
+function currentProfId() {
+  const u = getUser();
+  return u?.role === "PROFESSIONAL" ? u.id : null;
 }
 
-export async function getTodaySessions(options = {}) {
-  try {
-    const response = await api.get("/dashboard/sessions/today", { ...options, skipAuthError: true });
-    return ensureArray(response).map((item) => ({
-      id: item?.id ?? item?.sessionId ?? null,
-      time: item?.time || item?.scheduledAt || null,
-      patientName: item?.patientName || item?.patient || "Paciente",
-      status: item?.status || null,
+export async function getStats() {
+  await delay();
+  const store = db();
+  const profId = currentProfId();
+  const patients = profId
+    ? store.patients.filter((p) => p.professionalId === profId)
+    : store.patients;
+  const sessions = profId
+    ? store.sessions.filter((s) => s.professionalId === profId)
+    : store.sessions;
+  const sessionsToday = sessions.filter((s) => isToday(s.scheduledAt));
+  const cancelledToday = sessionsToday.filter((s) => s.status === "CANCELLED");
+  const rxActive = store.prescriptions.filter(
+    (r) => r.status === "ACTIVE" && (!profId || r.professionalId === profId)
+  );
+  const lastRx = [...store.prescriptions]
+    .filter((r) => !profId || r.professionalId === profId)
+    .sort((a, b) => (b.signedAt || "").localeCompare(a.signedAt || ""))[0];
+  const reportsAll = store.reports.filter((r) => !profId || r.professionalId === profId);
+  return {
+    patientsActive: patients.filter((p) => p.status === "ACTIVE").length,
+    sessionsToday: sessionsToday.length,
+    sessionsCancelledToday: cancelledToday.length,
+    prescriptionsActive: rxActive.length,
+    lastPrescriptionTime: lastRx?.signedAt || null,
+    reportsGenerated: reportsAll.filter((r) => r.status === "LOCKED").length,
+    reportsProgress: reportsAll.filter((r) => r.status !== "LOCKED").length,
+  };
+}
+
+export async function getTodaySessions() {
+  await delay();
+  const store = db();
+  const profId = currentProfId();
+  return store.sessions
+    .filter((s) => isToday(s.scheduledAt) && (!profId || s.professionalId === profId))
+    .sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt))
+    .map((s) => ({
+      id: s.id,
+      time: s.scheduledAt,
+      patientName: s.patientName || patientName(store, s.patientId),
+      status: s.status,
     }));
-  } catch (error) {
-    if (import.meta.env.DEV) {
-      console.warn("[Dashboard] Today sessions failed:", error.message);
-    }
-    return [];
-  }
 }
 
-export async function getRecentNotes(options = {}) {
-  try {
-    const response = await api.get("/dashboard/notes/recent", { ...options, skipAuthError: true });
-    return ensureArray(response).map((item) => ({
-      id: item?.id ?? item?.noteId ?? null,
-      patientId: item?.patientId ?? null,
-      patientName: item?.patientName || "Paciente",
-      closedAt: item?.closedAt || item?.updatedAt || null,
+export async function getRecentNotes() {
+  await delay();
+  const store = db();
+  const profId = currentProfId();
+  return store.notes
+    .filter((n) => n.status === "CLOSED" && (!profId || n.professionalId === profId))
+    .sort((a, b) => (b.closedAt || "").localeCompare(a.closedAt || ""))
+    .slice(0, 5)
+    .map((n) => ({
+      id: n.id,
+      patientId: n.patientId,
+      patientName: patientName(store, n.patientId),
+      closedAt: n.closedAt,
     }));
-  } catch (error) {
-    if (import.meta.env.DEV) {
-      console.warn("[Dashboard] Recent notes failed:", error.message);
-    }
-    return [];
-  }
 }
 
-export async function getRecentPrescriptions(options = {}) {
-  try {
-    const response = await api.get("/dashboard/prescriptions/recent", { ...options, skipAuthError: true });
-    return ensureArray(response).map((item) => ({
-      id: item?.id ?? item?.prescriptionId ?? null,
-      patientId: item?.patientId ?? null,
-      patientName: item?.patientName || "Paciente",
-      folio: item?.folio || item?.serial || null,
-      signedAt: item?.signedAt || item?.issuedAt || null,
+export async function getRecentPrescriptions() {
+  await delay();
+  const store = db();
+  const profId = currentProfId();
+  return store.prescriptions
+    .filter((r) => !profId || r.professionalId === profId)
+    .sort((a, b) => (b.signedAt || "").localeCompare(a.signedAt || ""))
+    .slice(0, 5)
+    .map((r) => ({
+      id: r.id,
+      patientId: r.patientId,
+      patientName: r.patientName || patientName(store, r.patientId),
+      folio: r.folio,
+      signedAt: r.signedAt,
     }));
-  } catch (error) {
-    if (import.meta.env.DEV) {
-      console.warn("[Dashboard] Recent prescriptions failed:", error.message);
-    }
-    return [];
-  }
 }
 
-export async function getIncompleteHistories(options = {}) {
-  try {
-    const response = await api.get("/dashboard/histories/incomplete", { ...options, skipAuthError: true });
-    return ensureArray(response).map((item) => ({
-      id: item?.id ?? item?.patientId ?? null,
-      patientId: item?.patientId ?? null,
-      patientName: item?.patientName || "Paciente",
-      completionPercentage: item?.completionPercentage ?? 0,
-      missingFieldsCount: item?.missingFieldsCount ?? 0,
-      lastUpdated: item?.lastUpdated || item?.updatedAt || null,
+export async function getIncompleteHistories() {
+  await delay();
+  const store = db();
+  const profId = currentProfId();
+  return Object.values(store.histories || {})
+    .filter(
+      (h) =>
+        (h.completionPercentage || 0) < 100 && (!profId || h.professionalId === profId)
+    )
+    .map((h) => ({
+      id: h.patientId,
+      patientId: h.patientId,
+      patientName:
+        `${h.firstName || ""} ${h.lastName || ""}`.trim() ||
+        patientName(store, h.patientId),
+      completionPercentage: h.completionPercentage || 0,
+      missingFieldsCount: h.missingFieldsCount || 0,
+      lastUpdated: h.updatedAt || null,
     }));
-  } catch (error) {
-    // If endpoint doesn't exist, fallback to client-side validation
-    if (error.status === 404) {
-      return getIncompleteHistoriesFallback(options);
-    }
-    // For any other error (including 401), return empty array instead of throwing
-    if (import.meta.env.DEV) {
-      console.warn("[Dashboard] Incomplete histories failed:", error.message);
-    }
-    return [];
-  }
-}
-
-/**
- * Fallback: Get incomplete histories by checking all patients
- * This is used when the backend endpoint doesn't exist yet
- */
-async function getIncompleteHistoriesFallback(options = {}) {
-  try {
-    const { listPatients } = await import("./patientsService");
-    const { getClinicalHistory } = await import("./clinicalHistoryService");
-    const { isClinicalHistoryIncomplete, validateClinicalHistory } = await import("../utils/clinicalHistoryValidator");
-    
-    // Get all patients (or a reasonable subset)
-    const patientsResponse = await listPatients({ page: 1, size: 100 }, options);
-    const patients = ensureArray(patientsResponse.items || patientsResponse);
-    
-    const incomplete = [];
-    
-    // Check each patient's history
-    for (const patient of patients.slice(0, 20)) { // Limit to 20 for performance
-      try {
-        const history = await getClinicalHistory(patient.id);
-        
-        if (!history || isClinicalHistoryIncomplete(history)) {
-          const validation = validateClinicalHistory(history || {});
-          incomplete.push({
-            id: patient.id,
-            patientId: patient.id,
-            patientName: `${patient.firstName || ""} ${patient.lastName || ""}`.trim() || "Paciente",
-            completionPercentage: validation.completionPercentage || 0,
-            missingFieldsCount: validation.missingFields?.length || 0,
-            lastUpdated: history?.updatedAt || patient.updatedAt || null,
-          });
-        }
-      } catch (err) {
-        // If no history exists, it's incomplete
-        if (err.status === 404 || err.message?.includes("404")) {
-          const validation = validateClinicalHistory({});
-          incomplete.push({
-            id: patient.id,
-            patientId: patient.id,
-            patientName: `${patient.firstName || ""} ${patient.lastName || ""}`.trim() || "Paciente",
-            completionPercentage: validation.completionPercentage || 0,
-            missingFieldsCount: validation.missingFields?.length || 0,
-            lastUpdated: patient.updatedAt || null,
-          });
-        }
-      }
-    }
-    
-    return incomplete;
-  } catch (error) {
-    console.warn("[Dashboard] Error fetching incomplete histories:", error);
-    return [];
-  }
 }
 
 export default {

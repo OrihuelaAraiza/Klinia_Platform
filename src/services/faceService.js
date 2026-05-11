@@ -1,28 +1,18 @@
-import { api } from "./apiClient";
+import { delay } from "./mocks/db";
 
-const VERIFY_ENDPOINT = "/verify/face";
-
-export async function verifyFace(blob, options = {}) {
+export async function verifyFace(blob) {
   if (typeof Blob === "undefined") {
     throw new Error("Captura facial no soportada.");
   }
-
   if (!(blob instanceof Blob)) {
     throw new Error("Imagen de rostro inválida.");
   }
-
-  const formData = new FormData();
-  const fileName =
-    blob instanceof File && blob.name ? blob.name : "selfie.jpg";
-
-  formData.append("file", blob, fileName);
-
-  return api.request(VERIFY_ENDPOINT, {
-    method: "POST",
-    body: formData,
-    auth: false,
-    ...options,
-  });
+  await delay(400);
+  return {
+    verified: true,
+    confidence: 0.96,
+    match: true,
+  };
 }
 
 export default {

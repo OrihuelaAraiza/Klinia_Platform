@@ -1,182 +1,140 @@
-import { getToken, clearAll } from "./storage";
-import { ROUTES } from "../utils/constants";
+import { db, persist, uid, delay, nowIso } from "./mocks/db";
+import {
+  getUser,
+  setToken,
+  setRefreshToken,
+  setUser,
+  setRole,
+} from "./storage";
 
-const RAW_BASE = import.meta.env.VITE_API_BASE_URL;
-
-function normalizeBaseUrl(url) {
-  if (!url) return "/api";
-  let normalized = url.replace(/\/+$/, "");
-  if (normalized.startsWith("/")) return normalized;
-  if (/^https?:\/\//i.test(normalized)) return normalized;
-  if (normalized.includes(".") && !normalized.includes("://")) {
-    return `https://${normalized}`;
-  }
-  return normalized;
+function makeToken(userId) {
+  return `mock.${userId}.${Date.now().toString(36)}`;
 }
 
-const BASE_URL = normalizeBaseUrl(RAW_BASE);
+function persistSession(user) {
+  const access = makeToken(user.id);
+  const refresh = `refresh.${user.id}`;
+  setToken(access);
+  setRefreshToken(refresh);
+  const publicUser = { ...user };
+  delete publicUser.password;
+  setUser(publicUser);
+  setRole(publicUser.role);
+  return { token: access, accessToken: access, refreshToken: refresh, user: publicUser };
+}
 
-function buildUrl(path = "") {
-  if (/^https?:\/\//i.test(path)) return path;
-  let normalizedPath = path.startsWith("/") ? path : `/${path}`;
-  if (BASE_URL.startsWith("/")) {
-    return normalizedPath.startsWith("/api") ? normalizedPath : `${BASE_URL}${normalizedPath}`;
-  } else {
-    let base = BASE_URL;
-    const baseEndsWithApi = base.endsWith("/api") || base.endsWith("/api/");
-    if (!baseEndsWithApi) {
-      base = base.endsWith("/") ? `${base}api` : `${base}/api`;
-    }
-    return `${base}${normalizedPath}`;
+async function handle(method, path, body) {
+  await delay(80);
+  const store = db();
+
+  // Auth endpoints
+  if (path === "/auth/forgot-password" && method === "POST") {
+    return { ok: true, sent: true, debugMessage: "Correo de recuperación enviado (mock)." };
   }
+  if (path === "/auth/reset-password" && method === "POST") {
+    return { ok: true, reset: true };
+  }
+  if (path === "/auth/register/patient" && method === "POST") {
+    const email = (body?.email || `paciente+${Date.now()}@demo.com`).toLowerCase();
+    if (store.users.find((u) => u.email.toLowerCase() === email)) {
+      const err = new Error("Ya existe una cuenta con ese correo.");
+      err.status = 409;
+      throw err;
+    }
+    const user = {
+      id: uid("user"),
+      email,
+      password: body?.password || "demo1234",
+      firstName: body?.firstName || "Paciente",
+      lastName: body?.lastName || "Nuevo",
+      name: `${body?.firstName || "Paciente"} ${body?.lastName || "Nuevo"}`.trim(),
+      role: "PATIENT",
+      phone: body?.phone || "",
+      verified: true,
+    };
+    store.users.push(user);
+    const patient = {
+      id: uid("pat"),
+      userId: user.id,
+      professionalId: body?.professionalId || "prof_demo_1",
+      firstName: user.firstName,
+      lastName: user.lastName,
+      curp: body?.curp || "",
+      email,
+      phone: user.phone,
+      birthDate: body?.birthDate || "",
+      status: "ACTIVE",
+      createdAt: nowIso(),
+      updatedAt: nowIso(),
+      attachments: [],
+      ...body,
+    };
+    store.patients.push(patient);
+    user.patientId = patient.id;
+    persist();
+    return persistSession(user);
+  }
+  if (path === "/auth/refresh" && method === "POST") {
+    const user = getUser();
+    if (!user) return null;
+    return persistSession(user);
+  }
+  if (path === "/auth/logout" && method === "POST") {
+    return { ok: true };
+  }
+
+  // Patient profile shortcuts
+  if (path === "/patient/profile" && method === "PUT") {
+    const user = getUser();
+    const patient = store.patients.find(
+      (p) => p.userId === user?.id || p.id === user?.patientId
+    );
+    if (patient) {
+      Object.assign(patient, body, { updatedAt: nowIso() });
+      persist();
+      return patient;
+    }
+    return body;
+  }
+  if (path === "/patient/profile" && method === "GET") {
+    const user = getUser();
+    return (
+      store.patients.find((p) => p.userId === user?.id || p.id === user?.patientId) ||
+      null
+    );
+  }
+
+  // Postal code lookup
+  if (path.startsWith("/utils/consulta-cp/")) {
+    const cp = path.split("/").pop();
+    return {
+      cp,
+      municipio: "Ciudad de México",
+      estado: "CDMX",
+      colonias: ["Centro", "Roma Norte", "Condesa", "Polanco"],
+    };
+  }
+
+  // Default: empty
+  if (import.meta.env?.DEV) {
+    console.warn(`[mock apiClient] ${method} ${path} not handled, returning null`);
+  }
+  return null;
 }
 
 async function request(path, options = {}) {
-  const {
-    method = "GET",
-    headers = {},
-    body,
-    auth = true,
-    signal,
-    skipAuthError = false,
-  } = options;
-
-  const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
-  const isBinary = (typeof Blob !== "undefined" && body instanceof Blob) || 
-                   (body instanceof ArrayBuffer) || 
-                   (typeof File !== "undefined" && body instanceof File);
-
-  const defaultHeaders = {};
-  if (body !== undefined && !isFormData && !isBinary && typeof body !== "string") {
-    defaultHeaders["Content-Type"] = "application/json";
-  }
-
-  const requestHeaders = {
-    ...defaultHeaders,
-    ...headers,
-  };
-
-  if (auth) {
-    const token = getToken();
-    if (token) {
-      requestHeaders.Authorization = `Bearer ${token}`;
-    }
-  }
-
-  let payload = body;
-  if (payload !== undefined && !isFormData && !isBinary && typeof payload !== "string" && !(payload instanceof URLSearchParams)) {
-    payload = JSON.stringify(payload);
-  }
-
+  const { method = "GET", body } = options;
   try {
-    const response = await fetch(buildUrl(path), {
-      method,
-      headers: requestHeaders,
-      body: payload,
-      signal,
-      credentials: "include",
-    });
-
-    // 1. Manejo de errores de Autenticación
-    if (response.status === 401) {
-      if (!skipAuthError) {
-        clearAll();
-        if (typeof window !== "undefined" && window.location.pathname !== ROUTES.login) {
-          window.location.replace(ROUTES.login);
-        }
-      }
-      const error = new Error("Sesión expirada.");
-      error.status = 401;
-      throw error;
+    return await handle(method, path, body);
+  } catch (err) {
+    if (!err.status) {
+      err.code = err.code || "NETWORK_ERROR";
     }
-
-    // 2. Leer la respuesta una sola vez para evitar agotar el stream
-    const text = await response.text();
-    let data = null;
-    try {
-      data = text ? JSON.parse(text) : null;
-    } catch (e) {
-      data = { message: text };
-    }
-
-    // 3. Manejo de errores (400, 403, 409, 500, etc.)
-    if (!response.ok) {
-      let errorMessage = data?.message || "Error en la petición";
-      
-      if (data?.details && Array.isArray(data.details)) {
-        // Diccionario de traducción de campos
-        const fieldLabels = {
-          email: "Correo electrónico",
-          password: "Contraseña",
-          firstName: "Nombre",
-          lastName: "Apellidos",
-          curp: "CURP",
-          birthDate: "Fecha de nacimiento",
-          phone: "Teléfono",
-          officeName: "Nombre del consultorio",
-          street: "Calle y número",
-          neighborhood: "Colonia",
-          city: "Ciudad/Municipio",
-          state: "Estado",
-          postalCode: "Código Postal",
-          emergencyName: "Contacto de emergencia",
-          emergencyPhone: "Teléfono de emergencia",
-          specialty: "Especialidad",
-          certificateFolio: "Folio de cédula",
-          referral: "Referencia",
-          purpose: "Motivo de consulta",
-          legalGuardianName: "Nombre del tutor",
-          legalGuardianPhone: "Teléfono del tutor"
-        };
-
-        // Traductor de reglas de validación (Zod)
-        const translateZod = (msg) => {
-          const lower = msg.toLowerCase();
-          if (lower.includes("at least")) {
-            const num = msg.match(/\d+/);
-            return `debe tener al menos ${num} caracteres`;
-          }
-          if (lower.includes("required") || lower.includes("invalid_type")) {
-            return "es obligatorio";
-          }
-          if (lower.includes("invalid email")) {
-            return "debe ser un correo válido";
-          }
-          if (lower.includes("invalid")) {
-            return "tiene un formato inválido";
-          }
-          return msg;
-        };
-
-        const detailsSummary = data.details
-          .map(d => {
-            const rawField = Array.isArray(d.path) ? d.path[d.path.length - 1] : "campo";
-            const label = fieldLabels[rawField] || rawField;
-            return `${label} ${translateZod(d.message)}`;
-          })
-          .join(", ");
-          
-        errorMessage = `Revisa los campos: ${detailsSummary}`;
-      }
-
-      const error = new Error(errorMessage);
-      error.status = response.status;
-      error.details = data?.details; // Pasamos el array original por si se necesita
-      throw error;
-    }
-    return data;
-
-    return data;
-
-  } catch (networkError) {
-    if (networkError.status) throw networkError;
-    const error = new Error("Error de conexión con el servidor.");
-    error.code = "NETWORK_ERROR";
-    throw error;
+    throw err;
   }
 }
 
-const withMethod = (method) => (path, payload, options = {}) => 
+const withMethod = (method) => (path, payload, options = {}) =>
   request(path, { ...options, method, body: payload });
 
 export const api = {

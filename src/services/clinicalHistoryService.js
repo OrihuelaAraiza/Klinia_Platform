@@ -1,81 +1,54 @@
-import { api } from "./apiClient";
-import auditService from "./auditService";
+import { db, persist, delay, nowIso } from "./mocks/db";
+import { getUser } from "./storage";
 
-/**
- * Obtiene la historia clínica de un paciente.
- * Soporta tanto PatientId (Médicos) como UserId (Pacientes).
- * @param {string} patientId - ID del paciente o usuario.
- * @param {object} options - Debe incluir { params: { professionalId } }.
- */
 export async function getClinicalHistory(patientId, options = {}) {
-  try {
-    const profId = options.params?.professionalId;
-    const url = profId 
-      ? `/histories/patient/${patientId}?professionalId=${profId}`
-      : `/histories/patient/${patientId}`;
-
-    const response = await api.get(url, { auth: true });
-
-    if (!response) return null;
-
-    // Auditoría silenciosa
-    auditService.logAudit("hc_view", { patientId }).catch(() => {});
-
-    // El backend ya debería enviar los datos listos, 
-    // pero aseguramos valores por defecto para el Wizard
-    return {
-      ...response,
-      firstName: response.patient?.firstName || "",
-      lastName: response.patient?.lastName || "",
-      diagnoses: Array.isArray(response.diagnoses) ? response.diagnoses : [],
-    };
-  } catch (error) {
-    if (error.status === 404) return null;
-    throw error;
+  await delay();
+  const store = db();
+  const profId = options.params?.professionalId;
+  const history = store.histories[patientId];
+  if (!history) return null;
+  if (profId && history.professionalId && history.professionalId !== profId) {
+    return null;
   }
+  const patient = store.patients.find((p) => p.id === patientId);
+  return {
+    ...history,
+    firstName: history.firstName || patient?.firstName || "",
+    lastName: history.lastName || patient?.lastName || "",
+    diagnoses: Array.isArray(history.diagnoses) ? history.diagnoses : [],
+    patient: patient || null,
+  };
 }
 
-/**
- * Normaliza valores yesno a booleanos
- */
-function normalizeYesNo(value) {
-  if (value === "SI" || value === "SÍ" || value === true) return true;
-  if (value === "NO" || value === false) return false;
-  return false; // Default seguro
-}
-
-/**
- * Crea o actualiza la historia clínica.
- */
 export async function saveClinicalHistory(patientId, payload) {
-  try {
-    if (!payload || Object.keys(payload).length === 0) {
-      throw new Error("El formulario está vacío.");
-    }
-
-    const dataToSend = { ...payload };
-
-    const blackList = ['expediente', 'nombreCompleto', 'curp', 'sexo', 'nacionalidad'];
-    blackList.forEach(key => delete dataToSend[key]);
-
-    const response = await api.post(`/histories/patient/${patientId}`, dataToSend, { auth: true });
-    
-    await auditService.logAudit("hc_save", { patientId });
-    return response;
-
-  } catch (error) {
-    console.error('Error en saveClinicalHistory:', error);
-    throw error;
+  await delay();
+  if (!payload || Object.keys(payload).length === 0) {
+    throw new Error("El formulario está vacío.");
   }
+  const dataToSend = { ...payload };
+  const blackList = ["expediente", "nombreCompleto", "curp", "sexo", "nacionalidad"];
+  blackList.forEach((key) => delete dataToSend[key]);
+  const store = db();
+  const user = getUser();
+  const existing = store.histories[patientId] || {};
+  store.histories[patientId] = {
+    ...existing,
+    ...dataToSend,
+    patientId,
+    professionalId: user?.id || existing.professionalId || "prof_demo_1",
+    updatedAt: nowIso(),
+    createdAt: existing.createdAt || nowIso(),
+  };
+  persist();
+  return store.histories[patientId];
 }
+
 export async function getPatientHistory(patientId, professionalId) {
-  return api.get(`/histories/patient/${patientId}?professionalId=${professionalId}`, { 
-    auth: true 
-  });
+  return getClinicalHistory(patientId, { params: { professionalId } });
 }
 
 export default {
   getClinicalHistory,
   saveClinicalHistory,
-  getPatientHistory
+  getPatientHistory,
 };

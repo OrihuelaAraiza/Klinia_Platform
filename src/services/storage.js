@@ -1,4 +1,5 @@
 const TOKEN_KEY = "brevemente.token";
+const REFRESH_TOKEN_KEY = "brevemente.refresh_token";
 const ROLE_KEY = "brevemente.role";
 const USER_KEY = "brevemente.user";
 const PARTIAL_TOKEN_KEY = "brevemente.partial_token";
@@ -75,6 +76,20 @@ export function clearToken() {
   safeRemove(TOKEN_KEY);
 }
 
+export function setRefreshToken(token) {
+  if (!token) {
+    safeRemove(REFRESH_TOKEN_KEY);
+    return;
+  }
+  safeSet(REFRESH_TOKEN_KEY, token);
+}
+export function getRefreshToken() {
+  return safeGet(REFRESH_TOKEN_KEY);
+}
+export function clearRefreshToken() {
+  safeRemove(REFRESH_TOKEN_KEY);
+}
+
 export function setRole(role) {
   safeSet(ROLE_KEY, role);
 }
@@ -124,15 +139,19 @@ export function clearPartialToken() {
 
 export function clearAll() {
   clearToken();
+  clearRefreshToken();
   clearRole();
   clearUser();
-  clearPartialToken(); 
+  clearPartialToken();
 }
 
 export default {
   setToken,
   getToken,
   clearToken,
+  setRefreshToken,
+  getRefreshToken,
+  clearRefreshToken,
   setRole,
   getRole,
   clearRole,

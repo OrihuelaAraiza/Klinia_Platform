@@ -1,8 +1,7 @@
-import { api } from "./apiClient";
-import auditService from "./auditService"; // Ajusta el path según tu proyecto
+import { db, persist, uid, delay, nowIso } from "./mocks/db";
+import { getUser } from "./storage";
 
-// Cambiamos el nombre para que sea claro que validamos el registro del paciente
-function ensurePatientRecordId(id) {
+function ensureId(id) {
   const normalized = String(id || "").trim();
   if (!normalized || normalized === "undefined") {
     throw new Error("Selecciona un paciente válido antes de continuar.");
@@ -10,62 +9,90 @@ function ensurePatientRecordId(id) {
   return normalized;
 }
 
-function ensureId(id) {
-  const normalized = String(id || "").trim();
-  if (!normalized) {
-    throw new Error("Identificador de registro clínico inválido.");
-  }
-  return normalized;
+function nextFolio(store) {
+  const year = new Date().getFullYear();
+  const count =
+    store.prescriptions.filter((r) => (r.folio || "").startsWith(`RX-${year}`)).length + 1;
+  return `RX-${year}-${String(count).padStart(4, "0")}`;
 }
 
-function buildAuditMeta(record = {}) {
-  return {
-    patientRecordId: record.patientRecordId,
-    prescriptionId: record.id,
-    folio: record.folio,
-  };
+function patientName(store, patientId) {
+  const p = store.patients.find((x) => x.id === patientId);
+  return p ? `${p.firstName} ${p.lastName}` : "Paciente";
 }
 
 export async function create(payload) {
-  // 1. Validamos que venga el ID bajo la llave correcta: patientRecordId
-  const normalizedId = ensurePatientRecordId(payload?.patientRecordId);
-  
-  // 2. Enviamos el payload tal cual (ya procesado con px_data y escalas en el form)
-  const response = await api.post(
-    "/prescriptions",
-    payload, 
-    { auth: true }
-  );
-
-  await auditService.logAudit("prescription_create", buildAuditMeta(response));
-  return response;
+  await delay();
+  const store = db();
+  const user = getUser();
+  const patientId = ensureId(payload?.patientRecordId || payload?.patientId);
+  const rx = {
+    id: uid("rx"),
+    patientRecordId: patientId,
+    patientId,
+    patientName: patientName(store, patientId),
+    professionalId: user?.id || "prof_demo_1",
+    folio: nextFolio(store),
+    status: "ACTIVE",
+    medications: payload?.medications || [],
+    indications: payload?.indications || "",
+    signedAt: nowIso(),
+    createdAt: nowIso(),
+    ...payload,
+  };
+  store.prescriptions.push(rx);
+  persist();
+  return rx;
 }
 
 export async function listByPatient(patientRecordId) {
-  const normalizedId = ensurePatientRecordId(patientRecordId);
-  // Nota: Asegúrate de que tu backend tenga esta ruta o usa query params
-  const response = await api.get(`/prescriptions?id=${normalizedId}`, { auth: true });
-  await auditService.logAudit("prescription_list_patient", { patientRecordId: normalizedId });
-  return Array.isArray(response) ? response : [];
+  await delay();
+  const id = ensureId(patientRecordId);
+  const store = db();
+  return store.prescriptions
+    .filter((r) => r.patientRecordId === id || r.patientId === id)
+    .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
 }
 
 export async function listMyPrescriptions() {
-  const response = await api.get(`/prescriptions/my-prescriptions`, { auth: true });
-  await auditService.logAudit("prescription_list_my", {});
-  return Array.isArray(response) ? response : [];
+  await delay();
+  const store = db();
+  const user = getUser();
+  if (!user) return [];
+  const patient = store.patients.find(
+    (p) => p.userId === user.id || p.id === user.patientId
+  );
+  if (!patient) return [];
+  return store.prescriptions
+    .filter((r) => r.patientId === patient.id)
+    .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
 }
 
-export function getOne(id) {
-  const normalizedId = ensureId(id);
-  return api.get(`/prescriptions/detail/${normalizedId}`, { auth: true });
+export async function getOne(id) {
+  await delay();
+  const store = db();
+  const rx = store.prescriptions.find((r) => r.id === id);
+  if (!rx) {
+    const err = new Error("Receta no encontrada.");
+    err.status = 404;
+    throw err;
+  }
+  return rx;
 }
 
 export async function suspend(id) {
-  const normalizedId = ensureId(id);
-  // Ajustado a la ruta de tu controlador: /detail/:id/suspend
-  const response = await api.post(`/prescriptions/detail/${normalizedId}/suspend`, {}, { auth: true });
-  await auditService.logAudit("prescription_suspend", buildAuditMeta(response));
-  return response;
+  await delay();
+  const store = db();
+  const rx = store.prescriptions.find((r) => r.id === id);
+  if (!rx) {
+    const err = new Error("Receta no encontrada.");
+    err.status = 404;
+    throw err;
+  }
+  rx.status = "SUSPENDED";
+  rx.suspendedAt = nowIso();
+  persist();
+  return rx;
 }
 
 export default {

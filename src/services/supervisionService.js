@@ -1,28 +1,64 @@
-import { api } from "./apiClient";
+import { db, persist, uid, delay, nowIso } from "./mocks/db";
+import { getUser } from "./storage";
 
-// Listar todas las bitácoras
+function currentProfId() {
+  const u = getUser();
+  return u?.role === "PROFESSIONAL" ? u.id : null;
+}
+
 export async function listSupervisionLogs() {
-    return api.get("/supervision", { auth: true });
+  await delay();
+  const store = db();
+  const profId = currentProfId();
+  return store.supervision
+    .filter((s) => !profId || s.professionalId === profId)
+    .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
 }
 
-// Obtener una bitácora por ID
 export async function getSupervisionLog(id) {
-    return api.get(`/supervision/${id}`, { auth: true });
+  await delay();
+  const store = db();
+  const log = store.supervision.find((s) => s.id === id);
+  if (!log) {
+    const err = new Error("Bitácora no encontrada.");
+    err.status = 404;
+    throw err;
+  }
+  return log;
 }
 
-// Crear bitácora
 export async function createSupervisionLog(payload) {
-    return api.post("/supervision", payload, { auth: true });
+  await delay();
+  const store = db();
+  const user = getUser();
+  const log = {
+    id: uid("sup"),
+    professionalId: user?.id || "prof_demo_1",
+    createdAt: nowIso(),
+    ...payload,
+  };
+  store.supervision.unshift(log);
+  persist();
+  return log;
 }
 
-// Eliminar bitácora
 export async function deleteSupervisionLog(id) {
-    return api.del(`/supervision/${id}`, { auth: true });
+  await delay();
+  const store = db();
+  const idx = store.supervision.findIndex((s) => s.id === id);
+  if (idx === -1) {
+    const err = new Error("Bitácora no encontrada.");
+    err.status = 404;
+    throw err;
+  }
+  store.supervision.splice(idx, 1);
+  persist();
+  return { ok: true };
 }
 
 export default {
-    listSupervisionLogs,
-    getSupervisionLog,
-    createSupervisionLog,
-    deleteSupervisionLog,
+  listSupervisionLogs,
+  getSupervisionLog,
+  createSupervisionLog,
+  deleteSupervisionLog,
 };

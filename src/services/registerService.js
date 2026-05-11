@@ -1,16 +1,10 @@
-import { api } from "./apiClient";
+import { registerComplete } from "./authService";
 
-const COMPLETE_ENDPOINT = "/auth/register/complete";
-
-export async function complete(payload, options = {}) {
+export async function complete(payload) {
   if (!payload) {
     throw new Error("Payload de registro inválido.");
   }
-
-  return api.post(COMPLETE_ENDPOINT, payload, {
-    auth: false,
-    ...options,
-  });
+  return registerComplete(payload);
 }
 
 export default {
