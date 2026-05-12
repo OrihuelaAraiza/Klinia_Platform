@@ -1,8 +1,8 @@
-const TOKEN_KEY = "brevemente.token";
-const REFRESH_TOKEN_KEY = "brevemente.refresh_token";
-const ROLE_KEY = "brevemente.role";
-const USER_KEY = "brevemente.user";
-const PARTIAL_TOKEN_KEY = "brevemente.partial_token";
+const TOKEN_KEY = "romimente.token";
+const REFRESH_TOKEN_KEY = "romimente.refresh_token";
+const ROLE_KEY = "romimente.role";
+const USER_KEY = "romimente.user";
+const PARTIAL_TOKEN_KEY = "romimente.partial_token";
 
 
 const isBrowser = () => typeof window !== "undefined";

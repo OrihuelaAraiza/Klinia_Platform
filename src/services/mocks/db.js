@@ -1,4 +1,4 @@
-const DB_KEY = "brevemente.mockdb.v1";
+const DB_KEY = "romimente.mockdb.v1";
 
 const isBrowser = () => typeof window !== "undefined";
 
@@ -36,7 +36,7 @@ function seed() {
       phone: "+52 555 111 2222",
       specialty: "Psicología Clínica",
       certificateFolio: "PSI-12345",
-      officeName: "Consultorio Brevemente Centro",
+      officeName: "Consultorio Romimente Centro",
       address: {
         street: "Av. Reforma 123",
         neighborhood: "Centro",
@@ -489,7 +489,7 @@ export function delay(ms = 120) {
 }
 
 if (isBrowser()) {
-  window.__brevementeMockDb = {
+  window.__romimenteMockDb = {
     db: () => load(),
     reset: () => resetDb(),
     persist,

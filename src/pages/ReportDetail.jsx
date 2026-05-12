@@ -198,7 +198,7 @@ export default function ReportDetail() {
                         <div className="stack-2">
                             <h3>Profesional tratante</h3>
                             <p>
-                                <strong>Nombre:</strong> {user?.name || "Profesional BreveMente"}
+                                <strong>Nombre:</strong> {user?.name || "Profesional RomiMente"}
                             </p>
                             {user?.license && (
                                 <p>

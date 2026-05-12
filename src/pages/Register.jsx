@@ -26,7 +26,7 @@ import {
 import { useToast } from "../components/UI/Toast";
 import Logo from "../components/Brand/Logo";
 
-const DRAFT_STORAGE_KEY = "brevemente.register.draft";
+const DRAFT_STORAGE_KEY = "romimente.register.draft";
 const REGISTER_ASIDE_IMAGE = null;
 
 const STEP_FLOW = [
@@ -681,14 +681,14 @@ export default function Register() {
                         variant="horizontal"
                         size="lg"
                         theme="auto"
-                        alt="BreveMente"
+                        alt="RomiMente"
                         className="register-logo"
                     />
                     <div className="register-heading">
                         <h1>Registro profesional</h1>
                         <p>
                             Completa los pasos para habilitar tu acceso como profesional de
-                            la salud en BreveMente.
+                            la salud en RomiMente.
                         </p>
                     </div>
                 </header>

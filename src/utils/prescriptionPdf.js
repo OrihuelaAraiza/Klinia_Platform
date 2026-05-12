@@ -80,7 +80,7 @@ export async function generatePrescriptionPdf({
     color: rgb(0.54, 0.79, 0.05),
   });
 
-  page.drawText("BreveMente — Prescripción electrónica", {
+  page.drawText("RomiMente — Prescripción electrónica", {
     x: MARGIN,
     y: height - 35,
     font: fontBold,
@@ -109,7 +109,7 @@ export async function generatePrescriptionPdf({
     size: 13,
   });
   cursorY -= LINE;
-  page.drawText(`Nombre: ${professional?.name || "Profesional BreveMente"}`, {
+  page.drawText(`Nombre: ${professional?.name || "Profesional RomiMente"}`, {
     x: MARGIN,
     y: cursorY,
     font: fontRegular,
@@ -179,7 +179,7 @@ export async function generatePrescriptionPdf({
   const hashFull = await sha256(canonicalize(hashPayload));
   const hashShort = hashFull.slice(0, 10).toUpperCase();
 
-  page.drawText("Documento generado digitalmente por BreveMente.", {
+  page.drawText("Documento generado digitalmente por RomiMente.", {
     x: MARGIN,
     y: 60,
     font: fontRegular,
@@ -200,7 +200,7 @@ export async function generatePrescriptionPdf({
 
 export async function downloadPrescriptionPdf(config) {
   const blob = await generatePrescriptionPdf(config);
-  const filename = `prescripcion_${config?.prescription?.folio || "brevemente"}.pdf`;
+  const filename = `prescripcion_${config?.prescription?.folio || "romimente"}.pdf`;
   triggerDownload(blob, filename);
   return blob;
 }

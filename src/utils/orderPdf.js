@@ -79,7 +79,7 @@ export async function generateOrderPdf({
     color: rgb(0.54, 0.79, 0.05),
   });
 
-  page.drawText("BreveMente — Orden clínica", {
+  page.drawText("RomiMente — Orden clínica", {
     x: MARGIN,
     y: height - 35,
     font: fontBold,
@@ -108,7 +108,7 @@ export async function generateOrderPdf({
     size: 13,
   });
   cursorY -= LINE;
-  page.drawText(`Nombre: ${professional?.name || "Profesional BreveMente"}`, {
+  page.drawText(`Nombre: ${professional?.name || "Profesional RomiMente"}`, {
     x: MARGIN,
     y: cursorY,
     font: fontRegular,
@@ -152,7 +152,7 @@ export async function generateOrderPdf({
     cursorY -= LINE * 0.5;
   }
 
-  page.drawText("Documento generado digitalmente por BreveMente. Uso clínico exclusivo.", {
+  page.drawText("Documento generado digitalmente por RomiMente. Uso clínico exclusivo.", {
     x: MARGIN,
     y: 60,
     font: fontRegular,
@@ -166,7 +166,7 @@ export async function generateOrderPdf({
 
 export async function downloadOrderPdf(config) {
   const blob = await generateOrderPdf(config);
-  const filename = `orden_${config?.order?.folio || "brevemente"}.pdf`;
+  const filename = `orden_${config?.order?.folio || "romimente"}.pdf`;
   triggerDownload(blob, filename);
   return blob;
 }

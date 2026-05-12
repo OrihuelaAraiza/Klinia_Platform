@@ -79,7 +79,7 @@ export default function PatientNavSidebar({
           variant="horizontal"
           size="md"
           theme="dark"
-          alt="BreveMente"
+          alt="RomiMente"
           className="sidebar__logo"
         />
       </div>

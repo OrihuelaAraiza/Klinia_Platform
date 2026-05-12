@@ -123,7 +123,7 @@ export async function exportIcs(id) {
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
     "BEGIN:VEVENT",
-    `UID:${session.id}@brevemente.mock`,
+    `UID:${session.id}@romimente.mock`,
     `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d+/, "")}`,
     `DTSTART:${new Date(session.scheduledAt).toISOString().replace(/[-:]/g, "").replace(/\.\d+/, "")}`,
     `SUMMARY:Sesión con ${session.patientName}`,

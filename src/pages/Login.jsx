@@ -216,7 +216,7 @@ export default function Login() {
               variant="horizontal"
               size="lg"
               theme="auto"
-              alt="BreveMente"
+              alt="RomiMente"
               className="login-logo"
             />
             <ThemeToggle className="login-theme-toggle" />
@@ -257,7 +257,7 @@ export default function Login() {
               name="email"
               autoComplete="email"
               required
-              placeholder="profesional@brevemente.mx"
+              placeholder="profesional@romimente.mx"
               error={errors.email}
             />
 
@@ -338,7 +338,7 @@ export default function Login() {
             >
               <p style={{ margin: 0 }}>
                 {userType === "professional"
-                  ? "¿Eres nuevo en BreveMente?"
+                  ? "¿Eres nuevo en RomiMente?"
                   : "¿Primera vez aquí?"}
               </p>
 
@@ -366,7 +366,7 @@ export default function Login() {
         >
           <img
             src={doctorImg}
-            alt="Profesional de salud usando la plataforma BreveMente"
+            alt="Profesional de salud usando la plataforma RomiMente"
             className="login-hero__image"
           />
         </Motion.aside>

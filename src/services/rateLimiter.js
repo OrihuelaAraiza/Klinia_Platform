@@ -1,4 +1,4 @@
-const STORAGE_KEY = "brevemente.rateLimiter";
+const STORAGE_KEY = "romimente.rateLimiter";
 const DEFAULT_OPTIONS = {
   max: 5,
   windowMs: 600_000,

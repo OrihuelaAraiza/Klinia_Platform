@@ -36,7 +36,7 @@ export default function Home() {
     <div className="home-page">
       <section className="home-hero">
         <div className="home-hero__content">
-          <p className="home-eyebrow">BreveMente Platform</p>
+          <p className="home-eyebrow">RomiMente Platform</p>
           <h1 className="home-title">Gestión clínica integrada para equipos modernos</h1>
           <p className="home-description">
             Centraliza tus procesos de admisión, sesiones y seguimiento terapéutico con trazabilidad
@@ -55,7 +55,7 @@ export default function Home() {
         <div className="home-hero__media">
           <img
             src={doctorImg}
-            alt="Profesional clínico consultando la plataforma BreveMente"
+            alt="Profesional clínico consultando la plataforma RomiMente"
             className="home-hero__image"
           />
         </div>

@@ -79,7 +79,7 @@ function buildPreRegisteredPatientPayload(candidate = {}, professionalId = "") {
     const firstName = candidate.firstName?.trim() || "Paciente";
     const lastName = candidate.lastName?.trim() || "Por Registrar";
     const phone = candidate.phone?.trim() || "0000000000";
-    const fallbackEmail = `preregistro+${Date.now()}@brevemente.local`;
+    const fallbackEmail = `preregistro+${Date.now()}@romimente.local`;
 
     return {
         firstName,
@@ -130,7 +130,7 @@ export default function Sessions() {
     const professional = useMemo(
         () => ({
             id: professionalId,
-            name: user?.name || "Profesional BreveMente",
+            name: user?.name || "Profesional RomiMente",
             license: user?.license,
         }),
         [user, professionalId]
