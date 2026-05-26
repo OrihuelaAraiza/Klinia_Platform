@@ -12,7 +12,7 @@ import { Folder, Download, FileText, Calendar } from "lucide-react";
 export default function PatientDocuments() {
   const { user } = useOutletContext() ?? {};
   const toast = useToast();
-  const patientId = user?.id;
+  const patientId = user?.patientId || user?.id;
 
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);

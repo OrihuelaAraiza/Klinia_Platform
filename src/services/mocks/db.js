@@ -1,4 +1,4 @@
-const DB_KEY = "romimente.mockdb.v1";
+const DB_KEY = "romimente.mockdb.v6";
 
 const isBrowser = () => typeof window !== "undefined";
 
@@ -18,11 +18,15 @@ export function uid(prefix = "id") {
 
 function seed() {
   const profId = "prof_demo_1";
+  const psicId = "prof_demo_2";
   const adminId = "admin_demo_1";
+  const assistantId = "asst_demo_1";
   const patient1Id = "pat_demo_1";
   const patient2Id = "pat_demo_2";
   const patient3Id = "pat_demo_3";
+  const patient4Id = "pat_demo_4";
   const patientUserId = "user_pat_1";
+  const patient4UserId = "user_pat_4";
 
   const users = [
     {
@@ -33,8 +37,9 @@ function seed() {
       lastName: "García",
       name: "Dra. Ana García",
       role: "PROFESSIONAL",
+      specialty: "PSIQUIATRA",
+      specialtyName: "Psiquiatría Clínica",
       phone: "+52 555 111 2222",
-      specialty: "Psicología Clínica",
       certificateFolio: "PSI-12345",
       officeName: "Consultorio Romimente Centro",
       address: {
@@ -44,6 +49,68 @@ function seed() {
         state: "CDMX",
         postalCode: "06000",
       },
+      bio: "Psiquiatra con enfoque integrativo en trastornos del ánimo y ansiedad. Acompaño a personas adultas en procesos farmacoterapéuticos y de psicoterapia breve.",
+      yearsExperience: 12,
+      languages: ["Español", "Inglés"],
+      focusAreas: ["Depresión", "Trastornos de ansiedad", "Insomnio", "TDAH adulto"],
+      modality: "MIXTA",
+      publicProfile: true,
+      verified: true,
+    },
+    {
+      id: psicId,
+      email: "psicologo@demo.com",
+      password: "demo1234",
+      firstName: "Sofía",
+      lastName: "Reyes",
+      name: "Lic. Sofía Reyes",
+      role: "PROFESSIONAL",
+      specialty: "PSICOLOGO",
+      specialtyName: "Psicología Clínica",
+      phone: "+52 555 222 3333",
+      certificateFolio: "PSI-67890",
+      officeName: "Consultorio Romimente Polanco",
+      address: {
+        street: "Av. Presidente Masaryk 100",
+        neighborhood: "Polanco",
+        city: "Ciudad de México",
+        state: "CDMX",
+        postalCode: "11550",
+      },
+      bio: "Psicóloga clínica enfocada en terapia cognitivo-conductual y manejo del estrés laboral. Trabajo con adolescentes y adultos jóvenes.",
+      yearsExperience: 8,
+      languages: ["Español"],
+      focusAreas: ["Estrés laboral", "Ansiedad", "Duelo", "Terapia de pareja"],
+      modality: "VIRTUAL",
+      publicProfile: true,
+      verified: true,
+    },
+    {
+      id: "prof_demo_3",
+      email: "psicoterapeuta@demo.com",
+      password: "demo1234",
+      firstName: "Mateo",
+      lastName: "Hernández",
+      name: "Mtro. Mateo Hernández",
+      role: "PROFESSIONAL",
+      specialty: "PSICOTERAPEUTA",
+      specialtyName: "Psicoterapia humanista",
+      phone: "+52 555 444 5555",
+      certificateFolio: "PSI-44321",
+      officeName: "Espacio Terapéutico Roma Norte",
+      address: {
+        street: "Calle Orizaba 99",
+        neighborhood: "Roma Norte",
+        city: "Ciudad de México",
+        state: "CDMX",
+        postalCode: "06700",
+      },
+      bio: "Psicoterapeuta humanista con posgrado en enfoque gestalt. Trabajo con duelo, identidad y procesos de autoconocimiento en personas adultas.",
+      yearsExperience: 15,
+      languages: ["Español", "Portugués"],
+      focusAreas: ["Duelo", "Identidad", "Crecimiento personal", "Vínculos"],
+      modality: "PRESENCIAL",
+      publicProfile: true,
       verified: true,
     },
     {
@@ -66,6 +133,30 @@ function seed() {
       role: "PATIENT",
       phone: "+52 555 333 4444",
       patientId: patient1Id,
+      verified: true,
+    },
+    {
+      id: assistantId,
+      email: "asistente@demo.com",
+      password: "demo1234",
+      firstName: "Daniela",
+      lastName: "Ortiz",
+      name: "Daniela Ortiz",
+      role: "ASSISTANT",
+      phone: "+52 555 666 7777",
+      professionalId: profId,
+      verified: true,
+    },
+    {
+      id: patient4UserId,
+      email: "paciente2@demo.com",
+      password: "demo1234",
+      firstName: "Andrés",
+      lastName: "Castillo",
+      name: "Andrés Castillo",
+      role: "PATIENT",
+      phone: "+52 555 888 9999",
+      patientId: patient4Id,
       verified: true,
     },
   ];
@@ -160,6 +251,37 @@ function seed() {
       status: "ACTIVE",
       createdAt: daysFromNow(-200),
       updatedAt: daysFromNow(-15),
+      attachments: [],
+    },
+    {
+      id: patient4Id,
+      userId: patient4UserId,
+      professionalId: profId,
+      firstName: "Andrés",
+      lastName: "Castillo Romero",
+      curp: "CARA920305HDFSMN08",
+      email: "paciente2@demo.com",
+      phone: "+52 555 888 9999",
+      birthDate: "1992-03-05",
+      gender: "M",
+      civilStatus: "SOLTERO",
+      occupation: "Arquitecto",
+      education: "LICENCIATURA",
+      religion: "NINGUNA",
+      address: {
+        street: "Av. Universidad 1500",
+        neighborhood: "Coyoacán",
+        city: "Ciudad de México",
+        state: "CDMX",
+        postalCode: "04510",
+      },
+      emergencyName: "Lucía Castillo",
+      emergencyPhone: "+52 555 111 0000",
+      referral: "Redes sociales",
+      purpose: "Insomnio crónico y rumiación nocturna",
+      status: "ACTIVE",
+      createdAt: daysFromNow(-30),
+      updatedAt: daysFromNow(-1),
       attachments: [],
     },
   ];
@@ -299,13 +421,18 @@ function seed() {
       patientId: patient1Id,
       professionalId: profId,
       folio: "REP-2025-0001",
-      title: "Reporte trimestral de avance",
-      content:
-        "Paciente muestra evolución favorable. Reducción de síntomas ansiosos en escala GAD-7 de 16 a 8 puntos.",
-      status: "LOCKED",
-      progress: 100,
+      template: "LIBRE",
+      data: {
+        title: "Reporte trimestral de avance",
+        content:
+          "Paciente muestra evolución favorable. Reducción de síntomas ansiosos en escala GAD-7 de 16 a 8 puntos.",
+      },
+      status: "FIRMADO",
+      pdfHash: "demo_hash_001",
+      verificationCode: "REP-2025-0001",
       createdAt: daysFromNow(-20),
-      lockedAt: daysFromNow(-18),
+      updatedAt: daysFromNow(-18),
+      signedAt: daysFromNow(-18),
     },
   ];
 
@@ -407,8 +534,60 @@ function seed() {
     },
   ];
 
-  const delegates = [];
+  const delegates = [
+    {
+      id: assistantId,
+      professionalId: profId,
+      email: "asistente@demo.com",
+      name: "Daniela Ortiz",
+      createdAt: daysFromNow(-45),
+    },
+  ];
   const auditLog = [];
+
+  // Solicitudes de cita: paciente pide nueva sesión a su terapeuta.
+  // Status: PENDING / ACCEPTED / DECLINED / CANCELLED.
+  // Al aceptar, el terapeuta crea la sesión real y deja el id en sessionId.
+  const appointmentRequests = [
+    {
+      id: uid("apt"),
+      patientId: patient1Id,
+      patientName: "María López Hernández",
+      patientEmail: "paciente@demo.com",
+      professionalId: profId,
+      professionalName: "Dra. Ana García",
+      requestedAt: daysFromNow(5),
+      modality: "PRESENCIAL",
+      reason: "Quisiera revisar mi ajuste de medicación, he sentido mucho sueño durante el día.",
+      status: "PENDING",
+      responseMessage: "",
+      sessionId: null,
+      createdAt: daysFromNow(-1),
+      respondedAt: null,
+    },
+  ];
+
+  // Solicitudes de vinculación paciente → terapeuta.
+  // Las crea el paciente al registrarse desde la landing pública con
+  // su(s) terapeuta(s) elegido(s). El terapeuta las acepta/rechaza
+  // desde /solicitudes en su panel.
+  const linkageRequests = [
+    {
+      id: uid("link"),
+      patientId: patient2Id,
+      patientName: "Juan Ramírez Soto",
+      patientEmail: "juan.ramirez@example.com",
+      professionalId: profId,
+      professionalName: "Dra. Ana García",
+      professionalSpecialty: "PSIQUIATRA",
+      priority: "primary",
+      reason: "Necesito apoyo para manejo de ansiedad y crisis de pánico recientes.",
+      status: "PENDING",
+      responseMessage: "",
+      createdAt: daysFromNow(-2),
+      respondedAt: null,
+    },
+  ];
 
   return {
     users,
@@ -422,6 +601,8 @@ function seed() {
     histories,
     supervision,
     delegates,
+    linkageRequests,
+    appointmentRequests,
     auditLog,
     currentUserId: null,
   };

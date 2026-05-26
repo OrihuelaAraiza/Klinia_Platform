@@ -1,3 +1,12 @@
+/**
+ * Resuelve la fecha-hora de una sesión soportando las distintas convenciones
+ * que usa la app: la seed usa `scheduledAt`/`time`, otros lados `datetime`.
+ */
+export function sessionDate(session) {
+  if (!session) return null;
+  return session.datetime || session.scheduledAt || session.time || null;
+}
+
 export function formatDateISOToHuman(value) {
   if (!value) {
     return "";

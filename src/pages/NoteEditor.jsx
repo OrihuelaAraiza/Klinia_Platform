@@ -237,6 +237,21 @@ export default function NoteEditor() {
         </div>
       </div>
 
+      <div className="brifi-callout" role="note">
+        <div className="brifi-callout__icon" aria-hidden="true">✦</div>
+        <div className="brifi-callout__content">
+          <div className="cluster gap-2 align-center" style={{ flexWrap: "wrap" }}>
+            <strong>Brifi</strong>
+            <span className="brifi-callout__chip">Próximamente</span>
+          </div>
+          <p className="helper-text" style={{ margin: "0.25rem 0 0" }}>
+            Tu copiloto clínico de IA podrá sugerir resúmenes y autollenado de esta nota a partir
+            del audio o texto de la sesión. La sugerencia siempre tendrá que ser validada por ti
+            antes de firmarse.
+          </p>
+        </div>
+      </div>
+
       <Card hoverable={false}>
         <CardHeader>
           <h2>{isNew ? "Crear nota" : "Editar nota"}</h2>

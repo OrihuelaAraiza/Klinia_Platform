@@ -1,256 +1,314 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
+import { FileText, Pill, FileSignature, Search, X, Download, Eye, Lock } from "lucide-react";
 import Card, { CardBody, CardHeader } from "../components/UI/Card";
 import Button from "../components/UI/Button";
 import Badge from "../components/UI/Badge";
-import Breadcrumbs from "../components/UI/Breadcrumbs";
+import EmptyState from "../components/UI/EmptyState";
+import { SkeletonList } from "../components/UI/Skeleton";
 import { useToast } from "../components/UI/Toast";
-import InputField from "../components/InputField";
-import Modal from "../components/UI/Modal";
-import { globalSearch, reingressPatient } from "../services/patientsService";
-import { exportPatientRecordJson, exportHistoryPdf } from "../services/reportsService"; 
+import { listAll } from "../services/reportsService";
+import * as patientsService from "../services/patientsService";
+import { TEMPLATE_PICKER_OPTIONS, getTemplateLabel, TBE_TEMPLATE_ID } from "../config/clinicalSchemas/reports";
 import { formatDateISOToHuman } from "../utils/formatters";
-import { ROUTES } from "../utils/constants";
+import { downloadReportPdf } from "../utils/export/pdf/reportPdf";
+import { canUseTemplate, getSpecialtyLabel } from "../utils/permissions";
+import { SPECIALTY_LABELS } from "../utils/constants";
+import auditService from "../services/auditService";
 
-const STORAGE_KEY_LOG = "reports_activity_log";
+const STATUS_OPTIONS = [
+    { value: "", label: "Todos" },
+    { value: "DRAFT", label: "Borrador" },
+    { value: "FIRMADO", label: "Firmado" },
+    { value: "ENTREGADO", label: "Entregado" },
+];
+
+function statusVariant(status) {
+    switch (status) {
+        case "FIRMADO": return "success";
+        case "ENTREGADO": return "info";
+        case "DRAFT":
+        default: return "neutral";
+    }
+}
+
+function statusLabel(status) {
+    return STATUS_OPTIONS.find((s) => s.value === status)?.label || "Borrador";
+}
 
 export default function Reports() {
     const navigate = useNavigate();
     const toast = useToast();
-    
-    // --- ESTADOS ---
-    const [searchQuery, setSearchQuery] = useState("");
-    const [isSearching, setIsSearching] = useState(false);
-    const [results, setResults] = useState([]);
-    const [actionLoading, setActionLoading] = useState("");
-    
-    // Estado para el modal de vinculación
-    const [linkModal, setLinkModal] = useState({ open: false, patient: null, reason: "" });
+    const { user } = useOutletContext() ?? {};
 
-    // Log de actividad (Persiste en la sesión)
-    const [activityLog, setActivityLog] = useState(() => {
+    const [items, setItems] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [filters, setFilters] = useState({ q: "", template: "", status: "" });
+    const [downloadingId, setDownloadingId] = useState("");
+
+    const loadReports = useCallback(async (current) => {
+        setLoading(true);
         try {
-            const stored = localStorage.getItem(STORAGE_KEY_LOG);
-            return stored ? JSON.parse(stored) : [];
-        } catch { return []; }
-    });
+            const response = await listAll({
+                q: current.q,
+                template: current.template,
+                status: current.status,
+                size: 100,
+            });
+            const list = Array.isArray(response?.items) ? response.items : response;
+            setItems(list || []);
+        } catch (err) {
+            toast.error(err?.message || "No pudimos cargar los reportes.");
+            setItems([]);
+        } finally {
+            setLoading(false);
+        }
+    }, [toast]);
 
     useEffect(() => {
-        localStorage.setItem(STORAGE_KEY_LOG, JSON.stringify(activityLog.slice(0, 10)));
-    }, [activityLog]);
+        const timer = setTimeout(() => loadReports(filters), 250);
+        return () => clearTimeout(timer);
+    }, [filters, loadReports]);
 
-    const pushLog = (type, patientName) => {
-        setActivityLog((prev) => {
-            const next = [{ id: crypto.randomUUID(), type, patientName, at: new Date().toISOString() }, ...prev];
-            return next.slice(0, 10);
-        });
-    };
-
-    // --- BÚSQUEDA GLOBAL (Conecta con router.get("/global/search")) ---
-    const handleSearch = async (e) => {
-        e.preventDefault();
-        if (searchQuery.trim().length < 3) {
-            return toast.info("Escribe al menos 3 caracteres para buscar en toda la base de datos.");
-        }
-
-        setIsSearching(true);
+    const handleDownload = async (report) => {
+        setDownloadingId(report.id);
         try {
-            const data = await globalSearch(searchQuery);
-            setResults(data || []);
+            const patient = await patientsService.getPatient(report.patientId);
+            await downloadReportPdf({ report, patient });
+            auditService.logAudit("report_pdf_downloaded", { reportId: report.id, folio: report.folio });
         } catch (err) {
-            toast.error("Error al realizar la búsqueda global.");
+            toast.error(err?.message || "No pudimos generar el PDF.");
         } finally {
-            setIsSearching(false);
+            setDownloadingId("");
         }
     };
 
-    // --- VINCULACIÓN Y REINGRESO ---
-    const handleLinkPatient = async () => {
-        if (!linkModal.reason.trim()) {
-            return toast.error("El motivo es obligatorio para vincular el expediente.");
-        }
-
-        setActionLoading("linking");
-        try {
-            // Llama al endpoint de re-entry que cambia status a ACTIVE y vincula al terapeuta
-            await reingressPatient(linkModal.patient.id, linkModal.reason);
-            
-            toast.success(`${linkModal.patient.firstName} ha sido vinculado y activado.`);
-            pushLog("Vinculación", `${linkModal.patient.firstName} ${linkModal.patient.lastName}`);
-
-            // Actualizamos la tabla localmente para mostrar el cambio de estado e icono
-            setResults(prev => prev.map(p => 
-                p.id === linkModal.patient.id ? { ...p, status: 'ACTIVE', isLinked: true } : p
-            ));
-            
-            setLinkModal({ open: false, patient: null, reason: "" });
-        } catch (err) {
-            toast.error("No se pudo completar la vinculación.");
-        } finally {
-            setActionLoading("");
-        }
+    const handleStartTemplate = (templateId) => {
+        navigate(`/reports/new?template=${templateId}`);
     };
 
-    const handleExportJson = async (patient) => {
-        setActionLoading(`json-${patient.id}`);
-        try {
-            await exportPatientRecordJson(patient.id, { patient });
-            pushLog("Exportación JSON", `${patient.firstName} ${patient.lastName}`);
-            toast.success("Expediente exportado.");
-        } catch (err) {
-            toast.error("Error al exportar.");
-        } finally { setActionLoading(""); }
-    };
+    const counts = useMemo(() => {
+        const total = items.length;
+        const draft = items.filter((r) => r.status === "DRAFT").length;
+        const signed = items.filter((r) => r.status === "FIRMADO").length;
+        return { total, draft, signed };
+    }, [items]);
+
+    const showEmpty = !loading && items.length === 0;
 
     return (
         <section className="page stack-5">
-            <Breadcrumbs items={[{ to: "/dashboard", label: "Dashboard" }, { label: "Reportes" }]} />
-            
-            <div className="page-header">
-                <h1>Buscador Global de Expedientes</h1>
-                <p className="helper-text">Consulta y vincula pacientes de toda la red o exporta documentos clínicos.</p>
-            </div>
-
-            <div className="reports-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: '2rem', alignItems: 'start' }}>
-                <div className="stack-4">
-                    {/* Card de Búsqueda */}
-                    <Card>
-                        <CardBody>
-                            <form onSubmit={handleSearch} className="cluster align-end gap-3">
-                                <div style={{ flexGrow: 1 }}>
-                                    <InputField 
-                                        label="Buscar en toda la base de datos (Nombre o CURP)" 
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
-                                        placeholder="Ej: Juan Pérez..."
-                                    />
-                                </div>
-                                <Button type="submit" variant="primary" loading={isSearching}>
-                                    Buscar Global
-                                </Button>
-                            </form>
-                        </CardBody>
-                    </Card>
-
-                    {/* Tabla de Resultados Globales */}
-                    <Card>
-                        <CardHeader><h2>Resultados encontrados</h2></CardHeader>
-                        <CardBody>
-                            {results.length === 0 ? (
-                                <div style={{ textAlign: 'center', padding: '2rem' }}>
-                                    <p className="helper-text">Ingresa un nombre para buscar pacientes registrados.</p>
-                                </div>
-                            ) : (
-                                <div className="table-container">
-                                    <table className="table">
-                                        <thead>
-                                            <tr>
-                                                <th>Paciente</th>
-                                                <th>Estado</th>
-                                                <th className="text-right">Acciones</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {results.map(p => (
-                                                <tr key={p.id}>
-                                                    <td>
-                                                        <div className="stack-0">
-                                                            <strong>{p.firstName} {p.lastName}</strong>
-                                                            <small className="helper-text">{p.curp || 'Sin CURP'}</small>
-                                                        </div>
-                                                    </td>
-                                                    <td>
-                                                        <Badge variant={p.status === 'ACTIVE' ? 'success' : 'danger'}>
-                                                            {p.status}
-                                                        </Badge>
-                                                    </td>
-                                                    <td className="text-right">
-                                                        <div className="cluster justify-end gap-2">
-                                                            {p.isLinked ? (
-                                                                <Button 
-                                                                    variant="ghost" 
-                                                                    size="sm"
-                                                                    onClick={() => navigate(`${ROUTES.patients}/${p.id}`)}
-                                                                >
-                                                                    Ver Ficha
-                                                                </Button>
-                                                            ) : (
-                                                                <Button 
-                                                                    variant="secondary" 
-                                                                    size="sm"
-                                                                    onClick={() => setLinkModal({ open: true, patient: p, reason: "" })}
-                                                                >
-                                                                    Vincular
-                                                                </Button>
-                                                            )}
-                                                            <Button 
-                                                                variant="ghost" 
-                                                                size="sm" 
-                                                                onClick={() => handleExportJson(p)}
-                                                                loading={actionLoading === `json-${p.id}`}
-                                                            >
-                                                                JSON
-                                                            </Button>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            )}
-                        </CardBody>
-                    </Card>
+            <header className="page-header">
+                <div className="stack-1">
+                    <h1>Reportes y constancias</h1>
+                    <p className="helper-text">
+                        Genera documentos clínicos auditables (NOM-004) firmables con sello digital.
+                    </p>
                 </div>
+            </header>
 
-                {/* Sidebar: Actividad */}
-                <aside>
-                    <Card>
-                        <CardHeader><h3>Actividad</h3></CardHeader>
-                        <CardBody>
-                            <ul className="stack-3">
-                                {activityLog.map(log => (
-                                    <li key={log.id} style={{ fontSize: '0.85rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>
-                                        <div className="cluster justify-between">
-                                            <span style={{ fontWeight: 'bold', color: 'var(--color-primary-600)' }}>{log.type}</span>
-                                            <small className="helper-text">{new Date(log.at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</small>
-                                        </div>
-                                        <div>{log.patientName}</div>
-                                    </li>
-                                ))}
-                                {activityLog.length === 0 && <p className="helper-text">Sin actividad reciente.</p>}
-                            </ul>
-                        </CardBody>
-                    </Card>
-                </aside>
+            {/* Acción cards: nuevos reportes */}
+            <div className="reports-templates">
+                {TEMPLATE_PICKER_OPTIONS.map((tpl) => {
+                    const icon = tpl.id === TBE_TEMPLATE_ID
+                        ? FileSignature
+                        : tpl.id === "PSIQUIATRICO" ? Pill : FileText;
+                    const Icon = icon;
+                    const allowedBySpecialty = canUseTemplate(user, tpl);
+                    const isLocked = tpl.available && !allowedBySpecialty;
+                    const isClickable = tpl.available && allowedBySpecialty;
+                    const lockReason = tpl.requiredSpecialty
+                        ? `Requiere especialidad: ${SPECIALTY_LABELS[tpl.requiredSpecialty]}`
+                        : "No disponible para tu rol";
+                    return (
+                        <button
+                            key={tpl.id}
+                            type="button"
+                            className={`reports-template-card${isClickable ? "" : " is-disabled"}`}
+                            onClick={isClickable ? () => handleStartTemplate(tpl.id) : undefined}
+                            disabled={!isClickable}
+                            title={isLocked ? lockReason : undefined}
+                        >
+                            <span className="reports-template-card__icon">
+                                {isLocked ? <Lock size={20} aria-hidden="true" /> : <Icon size={22} aria-hidden="true" />}
+                            </span>
+                            <div className="stack-1" style={{ flex: 1 }}>
+                                <span className="reports-template-card__title">{tpl.label}</span>
+                                <span className="reports-template-card__desc">{tpl.description}</span>
+                                {isLocked ? (
+                                    <span className="reports-template-card__lock">🔒 {lockReason}</span>
+                                ) : null}
+                            </div>
+                            {tpl.comingSoon ? (
+                                <Badge variant="neutral">Próximamente</Badge>
+                            ) : isClickable ? (
+                                <span className="reports-template-card__cta">Crear →</span>
+                            ) : null}
+                        </button>
+                    );
+                })}
             </div>
 
-            {/* Modal de Vinculación */}
-            <Modal
-                open={linkModal.open}
-                onClose={() => setLinkModal({ open: false, patient: null, reason: "" })}
-                title="Vincular y Activar Expediente"
-                footer={
-                    <div className="cluster">
-                        <Button variant="ghost" onClick={() => setLinkModal({ open: false, patient: null, reason: "" })}>Cancelar</Button>
-                        <Button variant="primary" onClick={handleLinkPatient} loading={actionLoading === "linking"}>Confirmar</Button>
+            {getSpecialtyLabel(user) ? (
+                <p className="helper-text" style={{ marginTop: "-0.5rem" }}>
+                    Sesión activa como <strong>{getSpecialtyLabel(user)}</strong>. Las plantillas restringidas se muestran bloqueadas.
+                </p>
+            ) : null}
+
+            {/* KPIs y filtros */}
+            <Card hoverable={false}>
+                <CardBody className="stack-3">
+                    <div className="reports-stats">
+                        <div className="reports-stat">
+                            <span className="reports-stat__value">{counts.total}</span>
+                            <span className="reports-stat__label">Reportes emitidos</span>
+                        </div>
+                        <div className="reports-stat">
+                            <span className="reports-stat__value">{counts.signed}</span>
+                            <span className="reports-stat__label">Firmados</span>
+                        </div>
+                        <div className="reports-stat">
+                            <span className="reports-stat__value">{counts.draft}</span>
+                            <span className="reports-stat__label">En borrador</span>
+                        </div>
                     </div>
-                }
-            >
-                <div className="stack-3">
-                    <p>Estás vinculando a <strong>{linkModal.patient?.firstName} {linkModal.patient?.lastName}</strong> a tu perfil. Esto activará su expediente si estaba dado de alta.</p>
-                    <div className="stack-1">
-                        <label className="ui-field__label">Motivo de vinculación/reingreso *</label>
-                        <textarea 
-                            className="ui-field__input"
-                            rows={4}
-                            value={linkModal.reason}
-                            onChange={(e) => setLinkModal(prev => ({ ...prev, reason: e.target.value }))}
-                            placeholder="Ej: El paciente inicia nuevo proceso terapéutico..."
+                    <div className="reports-filters">
+                        <div className="search-bar" style={{ flex: 1 }}>
+                            <Search size={18} className="search-bar__icon" aria-hidden="true" />
+                            <input
+                                type="search"
+                                className="search-bar__input"
+                                placeholder="Folio, paciente o CURP…"
+                                value={filters.q}
+                                onChange={(e) => setFilters((f) => ({ ...f, q: e.target.value }))}
+                                aria-label="Buscar reporte"
+                            />
+                            {filters.q ? (
+                                <button
+                                    type="button"
+                                    className="search-bar__clear"
+                                    aria-label="Limpiar búsqueda"
+                                    onClick={() => setFilters((f) => ({ ...f, q: "" }))}
+                                >
+                                    <X size={16} aria-hidden="true" />
+                                </button>
+                            ) : null}
+                        </div>
+                        <select
+                            className="reports-filters__select"
+                            value={filters.template}
+                            onChange={(e) => setFilters((f) => ({ ...f, template: e.target.value }))}
+                            aria-label="Filtrar por tipo"
+                        >
+                            <option value="">Todos los tipos</option>
+                            {TEMPLATE_PICKER_OPTIONS.filter((o) => o.available).map((tpl) => (
+                                <option key={tpl.id} value={tpl.id}>{tpl.label}</option>
+                            ))}
+                        </select>
+                        <select
+                            className="reports-filters__select"
+                            value={filters.status}
+                            onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))}
+                            aria-label="Filtrar por estado"
+                        >
+                            {STATUS_OPTIONS.map((s) => (
+                                <option key={s.value} value={s.value}>{s.label}</option>
+                            ))}
+                        </select>
+                    </div>
+                </CardBody>
+            </Card>
+
+            {/* Tabla global */}
+            <Card hoverable={false}>
+                <CardHeader>
+                    <h2>Reportes recientes</h2>
+                </CardHeader>
+                <CardBody>
+                    {loading ? (
+                        <SkeletonList items={5} />
+                    ) : showEmpty ? (
+                        <EmptyState
+                            icon={FileText}
+                            title={filters.q || filters.template || filters.status ? "Sin coincidencias" : "Aún no hay reportes"}
+                            message={
+                                filters.q || filters.template || filters.status
+                                    ? "Ajusta los filtros o limpia la búsqueda."
+                                    : "Empieza creando tu primera constancia desde las opciones de arriba."
+                            }
+                            action={
+                                filters.q || filters.template || filters.status ? (
+                                    <Button variant="ghost" size="sm" onClick={() => setFilters({ q: "", template: "", status: "" })}>
+                                        Limpiar filtros
+                                    </Button>
+                                ) : (
+                                    <Button onClick={() => handleStartTemplate(TBE_TEMPLATE_ID)}>
+                                        Crear primera constancia TBE
+                                    </Button>
+                                )
+                            }
                         />
-                    </div>
-                </div>
-            </Modal>
+                    ) : (
+                        <div className="table-container">
+                            <table className="table">
+                                <thead>
+                                    <tr>
+                                        <th>Folio</th>
+                                        <th>Paciente</th>
+                                        <th>Tipo</th>
+                                        <th>Fecha</th>
+                                        <th>Estado</th>
+                                        <th className="align-right">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {items.map((r) => (
+                                        <tr key={r.id}>
+                                            <td><strong>{r.folio}</strong></td>
+                                            <td>
+                                                <div className="stack-0">
+                                                    <span>{r.patientName}</span>
+                                                    {r.patientCurp ? (
+                                                        <span className="helper-text">{r.patientCurp}</span>
+                                                    ) : null}
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <Badge variant="info">{getTemplateLabel(r.template)}</Badge>
+                                            </td>
+                                            <td>{formatDateISOToHuman(r.signedAt || r.createdAt)}</td>
+                                            <td>
+                                                <Badge variant={statusVariant(r.status)}>{statusLabel(r.status)}</Badge>
+                                            </td>
+                                            <td className="align-right">
+                                                <div className="cluster gap-2 justify-end">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => navigate(`/reports/${r.id}`)}
+                                                    >
+                                                        <Eye size={14} aria-hidden="true" style={{ marginRight: 4 }} />
+                                                        Ver
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => handleDownload(r)}
+                                                        loading={downloadingId === r.id}
+                                                    >
+                                                        <Download size={14} aria-hidden="true" style={{ marginRight: 4 }} />
+                                                        PDF
+                                                    </Button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </CardBody>
+            </Card>
         </section>
     );
 }

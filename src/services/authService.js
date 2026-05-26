@@ -1,6 +1,7 @@
 import {
   setToken,
   setRefreshToken,
+  getRefreshToken,
   setUser,
   setRole,
   clearAll,
@@ -8,29 +9,28 @@ import {
   getRole,
   clearPartialToken,
 } from "./storage";
-import { db, persist, uid, delay } from "./mocks/db";
+import { api } from "./apiClient";
 
-function makeToken(userId) {
-  return `mock.${userId}.${Date.now().toString(36)}`;
-}
+/**
+ * Servicio de auth contra klinia-api (real, ya no mock).
+ * Persiste tokens y user en localStorage para que el resto de la app los lea.
+ */
 
-function persistSession(user) {
-  const access = makeToken(user.id);
-  const refresh = `refresh.${user.id}`;
-  setToken(access);
-  setRefreshToken(refresh);
-  const publicUser = { ...user };
-  delete publicUser.password;
-  setUser(publicUser);
-  setRole(publicUser.role);
-  const data = db();
-  data.currentUserId = user.id;
-  persist();
+function persistSession(response) {
+  const accessToken = response.token || response.accessToken;
+  const refreshToken = response.refreshToken;
+  const user = response.user;
+  if (accessToken) setToken(accessToken);
+  if (refreshToken) setRefreshToken(refreshToken);
+  if (user) {
+    setUser(user);
+    if (user.role) setRole(user.role);
+  }
   return {
-    token: access,
-    accessToken: access,
-    refreshToken: refresh,
-    user: publicUser,
+    token: accessToken,
+    accessToken,
+    refreshToken,
+    user,
   };
 }
 
@@ -38,56 +38,34 @@ export async function loginEmail({ email, password }) {
   if (!email || !password) {
     throw new Error("Ingresa correo y contraseña.");
   }
-  await delay();
-  const data = db();
-  const normalized = email.trim().toLowerCase();
-  const user = data.users.find(
-    (u) => u.email.toLowerCase() === normalized && u.password === password
-  );
-  if (!user) {
-    const err = new Error("Credenciales incorrectas. Usa doctor@demo.com / demo1234 o paciente@demo.com / demo1234");
-    err.status = 401;
-    throw err;
-  }
-  return persistSession(user);
+  const response = await api.post("/auth/login", { email, password }, { auth: false });
+  return persistSession(response);
 }
 
 export async function loginMicrosoft(idToken) {
   if (!idToken) {
     throw new Error("Token de Microsoft inválido.");
   }
-  await delay();
-  const data = db();
-  const user = data.users.find((u) => u.role === "PROFESSIONAL");
+  const response = await api.post("/auth/microsoft", { idToken }, { auth: false });
+  if (response.status === "REGISTRATION_REQUIRED") {
+    return response; // El caller maneja el partialToken
+  }
   clearPartialToken();
-  const session = persistSession(user);
-  return { status: "LOGIN_SUCCESS", ...session };
+  return persistSession(response);
 }
 
 export async function registerComplete(payload) {
-  await delay();
-  const data = db();
-  const role = payload?.role || "PROFESSIONAL";
-  const newUser = {
-    id: uid("user"),
-    email: (payload?.email || `nuevo+${Date.now()}@demo.com`).toLowerCase(),
-    password: payload?.password || "demo1234",
-    firstName: payload?.firstName || payload?.name || "Usuario",
-    lastName: payload?.lastName || "Demo",
-    name: payload?.name || `${payload?.firstName || ""} ${payload?.lastName || ""}`.trim(),
-    role,
-    phone: payload?.phone || "",
-    verified: true,
-    ...payload,
-  };
-  delete newUser.acceptPolicies;
-  data.users.push(newUser);
-  persist();
-  return persistSession(newUser);
+  const response = await api.post("/auth/register/complete", payload, { auth: false });
+  return persistSession(response);
 }
 
-export async function registerCompleteMsal(payload /*, partialToken */) {
-  return registerComplete(payload);
+export async function registerCompleteMsal(payload, partialToken) {
+  const response = await api.post(
+    "/auth/register-msal",
+    { ...payload, partialToken },
+    { auth: false }
+  );
+  return persistSession(response);
 }
 
 export async function register({ name, email, password, role, acceptPolicies }) {
@@ -97,31 +75,19 @@ export async function register({ name, email, password, role, acceptPolicies }) 
   if (!acceptPolicies) {
     throw new Error("Debes aceptar el Aviso de Privacidad y Términos.");
   }
-  await delay();
-  const data = db();
-  const normalized = email.trim().toLowerCase();
-  if (data.users.find((u) => u.email.toLowerCase() === normalized)) {
-    const err = new Error("Ya existe una cuenta con ese correo.");
-    err.status = 409;
-    throw err;
-  }
-  return registerComplete({
-    name: name.trim(),
-    firstName: name.trim().split(" ")[0],
-    lastName: name.trim().split(" ").slice(1).join(" ") || "Demo",
-    email: normalized,
-    password,
-    role,
-  });
+  const response = await api.post(
+    "/auth/register",
+    { name: name.trim(), email: email.trim().toLowerCase(), password, role, acceptPolicies },
+    { auth: false }
+  );
+  return persistSession(response);
 }
 
 export async function logout() {
   try {
-    const data = db();
-    data.currentUserId = null;
-    persist();
+    await api.post("/auth/logout", {});
   } catch {
-    /* noop */
+    // Si el server cayó, igualmente limpiamos el storage local
   } finally {
     clearAll();
   }
@@ -139,6 +105,32 @@ export function clearSession() {
   clearAll();
 }
 
+/**
+ * Re-hidrata la sesión: pide al backend el user actual y refresca cache.
+ * Si el token expiró, apiClient hace refresh automático. Si todo falla,
+ * limpia la sesión.
+ */
+export async function hydrateSession() {
+  try {
+    const cached = getUser();
+    if (!cached?.id) return null;
+    const refreshToken = getRefreshToken();
+    if (!refreshToken) return cached;
+    // Reusamos /auth/refresh para revalidar y traer user fresco
+    const refreshed = await api.post("/auth/refresh", { refreshToken }, { auth: false });
+    if (refreshed?.user) {
+      setUser(refreshed.user);
+      if (refreshed.user.role) setRole(refreshed.user.role);
+      if (refreshed.token || refreshed.accessToken) setToken(refreshed.token || refreshed.accessToken);
+      if (refreshed.refreshToken) setRefreshToken(refreshed.refreshToken);
+      return refreshed.user;
+    }
+    return cached;
+  } catch {
+    return getUser();
+  }
+}
+
 export default {
   loginEmail,
   loginMicrosoft,
@@ -149,4 +141,5 @@ export default {
   currentUser,
   currentRole,
   clearSession,
+  hydrateSession,
 };

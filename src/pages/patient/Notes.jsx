@@ -17,7 +17,7 @@ import "./pdf.css";
 export default function PatientNotes() {
   const { user } = useOutletContext() ?? {};
   const toast = useToast();
-  const patientId = user?.id;
+  const patientId = user?.patientId || user?.id;
 
   const [notes, setNotes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -68,7 +68,7 @@ export default function PatientNotes() {
       <div className="show-only-print">
         <div style={{ textAlign: 'center', borderBottom: '2px solid #000', paddingBottom: '1rem', marginBottom: '2rem' }}>
           <h1 style={{ fontSize: '22pt', margin: 0 }}>RESUMEN DE NOTAS DE EVOLUCIÓN</h1>
-          <p style={{ color: '#666' }}>Plataforma Clínica RomiMente</p>
+          <p style={{ color: '#666' }}>Plataforma Clínica ROMI TBE</p>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
           <span><strong>Paciente:</strong> {user?.firstName} {user?.lastName}</span>

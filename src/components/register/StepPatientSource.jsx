@@ -7,25 +7,18 @@ export default function StepPatientSource({ data, onChange, errors, disabled }) 
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    async function fetchTerapists() {
+    async function fetchProfessionals() {
       setIsLoading(true);
       try {
         const list = await getProfessionalsList();
-        
-        // Filtramos para omitir a los Psiquiatras
-        // Si no tiene especialidad (null), lo dejamos pasar para que tome el default abajo
-        const filtered = (list || []).filter(
-          (pro) => pro.specialty !== "PSIQUIATRA"
-        );
-        
-        setProfessionals(filtered);
+        setProfessionals(list || []);
       } catch (err) {
-        console.error("No se pudieron cargar los terapeutas");
+        console.error("No se pudieron cargar los especialistas", err);
       } finally {
         setIsLoading(false);
       }
     }
-    fetchTerapists();
+    fetchProfessionals();
   }, []);
 
   const handleChange = (e) => {
@@ -62,11 +55,11 @@ export default function StepPatientSource({ data, onChange, errors, disabled }) 
 
       <div className="register-step__body register-step__grid">
         
-        <Field 
-            label="Selecciona tu terapeuta" 
-            required 
+        <Field
+            label="Selecciona tu especialista"
+            required
             error={errors.professionalInChargeId}
-            hint={isLoading ? "Cargando especialistas..." : ""}
+            hint={isLoading ? "Cargando especialistas..." : "Psiquiatras, psicólogos y psicoterapeutas disponibles."}
         >
           <select
             name="professionalInChargeId"
@@ -78,8 +71,6 @@ export default function StepPatientSource({ data, onChange, errors, disabled }) 
             <option value="">-- Elige un profesional --</option>
             {professionals.map((pro) => (
               <option key={pro.id} value={pro.id}>
-                {/* Aquí aplicamos el default: pro.specialty || "PSICOTERAPEUTA" no es necesario 
-                    porque la función formatSpecialty ya lo maneja */}
                 {pro.name} — ({formatSpecialty(pro.specialty)})
               </option>
             ))}

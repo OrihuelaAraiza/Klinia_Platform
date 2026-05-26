@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Stepper from "../components/UI/Stepper";
 import StepAccess from "../components/register/StepAccess";
@@ -9,10 +9,14 @@ import StepPatientSource from "../components/register/StepPatientSource";
 import ButtonPrimary from "../components/ButtonPrimary";
 import { useToast } from "../components/UI/Toast";
 import Logo from "../components/Brand/Logo";
+import { ShieldCheck, FileCheck2, Lock } from "lucide-react";
 import { ROUTES } from "../utils/constants";
 import apiClient from "../services/apiClient";
 import { isValidEmail, isValidPassword, minLength, required, isValidMXPhone, isValidCURP } from "../utils/validators";
 import StepAddress from "../components/register/StepAddressPAT";
+import SelectionFlag from "../components/landing/SelectionFlag";
+import selectionStorage from "../services/selectionStorage";
+import linkageRequestsService from "../services/linkageRequestsService";
 
 // --- CONSTANTES ---
 const STEP_FLOW = [
@@ -186,6 +190,17 @@ export default function PatientRegister() {
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState("");
+  const [linkageReason, setLinkageReason] = useState("");
+  const [selection, setSelection] = useState(() => selectionStorage.getSelection());
+
+  useEffect(() => {
+    const handler = () => setSelection(selectionStorage.getSelection());
+    window.addEventListener("therapist-selection-change", handler);
+    return () => window.removeEventListener("therapist-selection-change", handler);
+  }, []);
+
+  const hasTherapistSelection = Boolean(selection?.primary?.id);
+  const isLastStep = currentStep === STEP_FLOW.length - 1;
 
   const activeStep = STEP_FLOW[currentStep];
   const ActiveComponent = activeStep.component;
@@ -218,10 +233,60 @@ const submitRegistration = async () => {
     setSubmitting(true);
     setFormError("");
     const payload = buildPayload(form);
-    
+
     try {
-        await apiClient.post('/auth/register/patient', payload); 
-        toast.success("Cuenta de paciente creada con éxito. Inicia sesión.");
+        const session = await apiClient.post('/auth/register/patient', payload);
+
+        // Si el visitante eligió terapeutas desde la landing, creamos las
+        // solicitudes de vinculación con el patientId recién emitido.
+        // La sesión ya quedó persistida por el endpoint, así que el
+        // linkageRequestsService.create() leerá al usuario actual del storage.
+        const currentSelection = selectionStorage.getSelection();
+        const newPatientId = session?.user?.patientId || session?.user?.id;
+        const newPatientName = session?.user?.name
+            || [session?.user?.firstName, session?.user?.lastName].filter(Boolean).join(" ").trim()
+            || form?.identity?.firstName;
+        const newPatientEmail = session?.user?.email || form?.access?.email;
+
+        const requests = [];
+        if (currentSelection?.primary?.id) {
+            requests.push({
+                ...currentSelection.primary,
+                priority: "primary",
+            });
+        }
+        if (currentSelection?.backup?.id) {
+            requests.push({
+                ...currentSelection.backup,
+                priority: "backup",
+            });
+        }
+
+        const createdRequests = [];
+        for (const t of requests) {
+            try {
+                const req = await linkageRequestsService.create({
+                    professionalId: t.id,
+                    professionalName: t.name,
+                    professionalSpecialty: t.specialty,
+                    priority: t.priority,
+                    reason: linkageReason,
+                    patientId: newPatientId,
+                    patientName: newPatientName,
+                    patientEmail: newPatientEmail,
+                });
+                createdRequests.push(req);
+            } catch (linkErr) {
+                console.warn("[register] No pudimos crear solicitud de vinculación", linkErr);
+            }
+        }
+
+        if (createdRequests.length > 0) {
+            selectionStorage.clearAll();
+            toast.success(`Cuenta creada. Enviamos ${createdRequests.length === 1 ? "tu solicitud" : `${createdRequests.length} solicitudes`} de vinculación.`);
+        } else {
+            toast.success("Cuenta de paciente creada con éxito. Inicia sesión.");
+        }
         navigate(ROUTES.login, { replace: true });
     } catch (error) {
         let finalMessage = error.message;
@@ -288,25 +353,47 @@ const submitRegistration = async () => {
   }
 
   return (
-    <div className="register-page">
+    <>
+      <SelectionFlag ctaLabel="Continuar registro" ctaTo="/register/patient" />
+      <div className="register-page">
       <section className="register-main">
         <header className="register-header">
-          <Logo variant="horizontal" size="lg" theme="auto" className="register-logo" />
+          <Logo variant="horizontal" size="md" theme="auto" className="register-logo" />
           <div className="register-heading">
+            <span className="register-eyebrow">ROMI TBE</span>
             <h1>Registro de Paciente</h1>
             <p>Completa tu información para generar tu expediente digital.</p>
           </div>
         </header>
 
         <Stepper steps={STEP_FLOW.map((s, i) => ({
-            id: s.id, 
-            label: s.label, 
+            id: s.id,
+            label: s.label,
             status: i === currentStep ? 'current' : i < currentStep ? 'completed' : 'pending'
         }))} />
 
         <section className="register-card">
           <ActiveComponent {...stepProps} />
         </section>
+
+        {hasTherapistSelection && isLastStep ? (
+          <section className="register-card linkage-reason-card">
+            <h3 style={{ marginTop: 0 }}>Motivo de la solicitud</h3>
+            <p className="helper-text">
+              Cuéntale brevemente a tu terapeuta por qué te quieres vincular. Esto le ayudará a evaluar
+              si puede acompañarte. (Opcional pero recomendado.)
+            </p>
+            <textarea
+              className="input-field__input"
+              rows={4}
+              placeholder="Ej. Estoy buscando apoyo para manejo de ansiedad y crisis de pánico recientes."
+              value={linkageReason}
+              onChange={(e) => setLinkageReason(e.target.value)}
+              maxLength={500}
+            />
+            <p className="helper-text" style={{ textAlign: "right" }}>{linkageReason.length}/500</p>
+          </section>
+        ) : null}
 
         <div className="register-actions">
           <ButtonPrimary 
@@ -329,11 +416,39 @@ const submitRegistration = async () => {
       </section>
       
       <aside className="register-aside">
-          <div className="register-summary">
-              <h2>Seguridad</h2>
-              <p>Tus datos clínicos están encriptados y protegidos bajo normas internacionales de privacidad.</p>
-          </div>
+        <div className="register-summary">
+          <span className="register-summary__eyebrow">Seguridad y cumplimiento</span>
+          <h2>Tus datos protegidos desde el primer paso</h2>
+          <ul className="register-security-list">
+            <li>
+              <ShieldCheck size={18} aria-hidden="true" />
+              <div>
+                <strong>Cifrado en tránsito y reposo</strong>
+                <span>Tu información viaja y se almacena cifrada con estándares TLS y AES-256.</span>
+              </div>
+            </li>
+            <li>
+              <FileCheck2 size={18} aria-hidden="true" />
+              <div>
+                <strong>Cumplimiento NOM-004 / NOM-024</strong>
+                <span>Tu expediente clínico se construye con folios, sellos SHA-256 y trazabilidad auditable.</span>
+              </div>
+            </li>
+            <li>
+              <Lock size={18} aria-hidden="true" />
+              <div>
+                <strong>Privacidad LFPDPPP</strong>
+                <span>Tus datos sensibles tienen las medidas reforzadas que exige la ley mexicana.</span>
+              </div>
+            </li>
+          </ul>
+          <p className="register-summary__hint">
+            Al continuar aceptas el <Link className="link" to="/aviso-privacidad">Aviso de Privacidad</Link>
+            {" "}y los <Link className="link" to="/terminos">Términos y Condiciones</Link>.
+          </p>
+        </div>
       </aside>
-    </div>
+      </div>
+    </>
   );
 }

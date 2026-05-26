@@ -10,6 +10,7 @@ import SessionForm from "../components/SessionForm";
 import SessionRowActions from "../components/SessionRowActions";
 import LinkNoteDialog from "../components/LinkNoteDialog";
 import { useToast } from "../components/UI/Toast";
+import { useBreadcrumbLabel } from "../context/breadcrumb-context";
 import auditService from "../services/auditService";
 import { getPatient } from "../services/patientsService";
 import {
@@ -42,7 +43,7 @@ export default function PatientSessions() {
   const professional = useMemo(
     () => ({
       id: user?.id || "user",
-      name: user?.name || "Profesional RomiMente",
+      name: user?.name || "Profesional ROMI TBE",
       license: user?.license,
     }),
     [user]
@@ -139,6 +140,8 @@ export default function PatientSessions() {
 
   const patientName = patient ? `${patient.firstName || ""} ${patient.lastName || ""}`.trim() || patient.curp : "Paciente";
 
+  useBreadcrumbLabel(id, patient ? patientName : null);
+
   return (
     <section className="page stack-5">
       <Card hoverable={false}>
@@ -188,7 +191,7 @@ export default function PatientSessions() {
                 return (
                   <tr key={session.id}>
                     <td>
-                      <p className="sessions-table__primary">{formatDateTime(session.datetime)}</p>
+                      <p className="sessions-table__primary">{formatDateTime(session.datetime || session.scheduledAt || session.time)}</p>
                       <p className="sessions-table__meta">{formatSessionModality(session)}</p>
                     </td>
                     <td>{session.durationMin ? `${session.durationMin} min` : "—"}</td>

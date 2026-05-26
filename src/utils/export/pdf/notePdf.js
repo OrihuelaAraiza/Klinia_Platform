@@ -86,7 +86,7 @@ export async function generateNotePdf({ patient, note, generatedAt = new Date().
     color: rgb(0.77, 0.96, 0.24),
   });
 
-  page.drawText("RomiMente — Nota de evolución", {
+  page.drawText("ROMI TBE — Nota de evolución", {
     x: MARGIN,
     y: height - 32,
     font: fontBold,
@@ -161,7 +161,7 @@ export async function generateNotePdf({ patient, note, generatedAt = new Date().
     );
   }
 
-  page.drawText("Documento generado por RomiMente (PMV) — No sustituye firma autógrafa.", {
+  page.drawText("Documento generado por ROMI TBE (PMV) — No sustituye firma autógrafa.", {
     x: MARGIN,
     y: 32,
     font: fontRegular,

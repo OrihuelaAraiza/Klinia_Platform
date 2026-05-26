@@ -69,8 +69,8 @@ export default function PatientClinicalHistory() {
       setHistoryLoading(true);
       try {
         // Forzamos el envío del professionalId en el objeto de opciones
-        const response = await getClinicalHistory(user.id, { 
-          params: { professionalId: selectedTherapistId } 
+        const response = await getClinicalHistory(user.patientId || user.id, {
+          params: { professionalId: selectedTherapistId }
         });
         
         if (alive) {

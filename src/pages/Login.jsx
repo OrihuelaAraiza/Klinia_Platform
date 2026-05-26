@@ -22,6 +22,7 @@ import { isValidEmail, isValidPassword } from "../utils/validators";
 import { useToast } from "../components/UI/Toast";
 import doctorImg from "../assets/hero/doctor-login.jpg";
 import Logo from "../components/Brand/Logo";
+import SelectionFlag from "../components/landing/SelectionFlag";
 const INITIAL_FORM = {
   email: "",
   password: "",
@@ -209,6 +210,7 @@ export default function Login() {
 
   return (
     <div className="login-page">
+      <SelectionFlag ctaLabel="Crear cuenta paciente" ctaTo="/register/patient" />
       <div className="login-layout">
         <section className="login-card">
           <header className="login-card__header">
@@ -216,7 +218,7 @@ export default function Login() {
               variant="horizontal"
               size="lg"
               theme="auto"
-              alt="RomiMente"
+              alt="ROMI TBE"
               className="login-logo"
             />
             <ThemeToggle className="login-theme-toggle" />
@@ -257,7 +259,7 @@ export default function Login() {
               name="email"
               autoComplete="email"
               required
-              placeholder="profesional@romimente.mx"
+              placeholder="tu@correo.com"
               error={errors.email}
             />
 
@@ -338,7 +340,7 @@ export default function Login() {
             >
               <p style={{ margin: 0 }}>
                 {userType === "professional"
-                  ? "¿Eres nuevo en RomiMente?"
+                  ? "¿Eres nuevo en ROMI TBE?"
                   : "¿Primera vez aquí?"}
               </p>
 
@@ -366,7 +368,7 @@ export default function Login() {
         >
           <img
             src={doctorImg}
-            alt="Profesional de salud usando la plataforma RomiMente"
+            alt="Profesional de salud usando la plataforma ROMI TBE"
             className="login-hero__image"
           />
         </Motion.aside>

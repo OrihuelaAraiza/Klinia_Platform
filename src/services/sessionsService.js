@@ -1,156 +1,66 @@
-import { db, persist, uid, delay, paginate, nowIso } from "./mocks/db";
-import { getUser } from "./storage";
+import { api } from "./apiClient";
 
-function isSameDay(a, b) {
-  const x = new Date(a);
-  const y = new Date(b);
-  return (
-    x.getFullYear() === y.getFullYear() &&
-    x.getMonth() === y.getMonth() &&
-    x.getDate() === y.getDate()
-  );
-}
-
-function patientName(store, patientId) {
-  const p = store.patients.find((x) => x.id === patientId);
-  return p ? `${p.firstName} ${p.lastName}` : "Paciente";
-}
-
-export async function listSessions({
-  q = "",
-  from,
-  to,
-  status,
-  professionalId,
-  page = 1,
-  size = 10,
-} = {}) {
-  await delay();
-  const store = db();
-  let items = [...store.sessions];
-  if (professionalId) items = items.filter((s) => s.professionalId === professionalId);
-  if (status) items = items.filter((s) => s.status === status);
-  if (from) items = items.filter((s) => new Date(s.scheduledAt) >= new Date(from));
-  if (to) items = items.filter((s) => new Date(s.scheduledAt) <= new Date(to));
-  if (q?.trim()) {
-    const needle = q.toLowerCase();
-    items = items.filter((s) => (s.patientName || "").toLowerCase().includes(needle));
-  }
-  items.sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt));
-  return paginate(items, { page, size });
+export async function listSessions({ q = "", from, to, status, professionalId, page = 1, size = 10 } = {}) {
+  const params = new URLSearchParams();
+  if (q) params.set("q", q);
+  if (from) params.set("from", from);
+  if (to) params.set("to", to);
+  if (status) params.set("status", status);
+  if (professionalId) params.set("professionalId", professionalId);
+  if (page) params.set("page", String(page));
+  if (size) params.set("size", String(size));
+  const qs = params.toString();
+  return api.get(`/sessions${qs ? `?${qs}` : ""}`);
 }
 
 export async function listSessionsByPatient(patientId, { page = 1, size = 10 } = {}) {
-  await delay();
-  const store = db();
-  const items = store.sessions
-    .filter((s) => s.patientId === patientId)
-    .sort((a, b) => new Date(b.scheduledAt) - new Date(a.scheduledAt))
-    .map((s) => ({
-      ...s,
-      professionalName:
-        store.users.find((u) => u.id === s.professionalId)?.name || "Especialista",
-    }));
-  return paginate(items, { page, size });
+  if (!patientId) return { items: [], total: 0, page, size };
+  const params = new URLSearchParams();
+  if (page) params.set("page", String(page));
+  if (size) params.set("size", String(size));
+  const qs = params.toString();
+  return api.get(`/patients/${patientId}/sessions${qs ? `?${qs}` : ""}`);
 }
 
 export const listByPatient = listSessionsByPatient;
 
 export async function createSession(payload) {
-  await delay();
-  const store = db();
-  const user = getUser();
-  const session = {
-    id: uid("ses"),
-    patientId: payload?.patientId,
-    patientName: payload?.patientName || patientName(store, payload?.patientId),
-    professionalId: payload?.professionalId || user?.id || "prof_demo_1",
-    scheduledAt: payload?.scheduledAt || payload?.time || nowIso(),
-    time: payload?.scheduledAt || payload?.time || nowIso(),
-    duration: payload?.duration || 60,
-    modality: payload?.modality || "PRESENCIAL",
-    status: payload?.status || "SCHEDULED",
-    notes: payload?.notes || "",
-    noteId: null,
-    createdAt: nowIso(),
-    ...payload,
-  };
-  store.sessions.push(session);
-  persist();
-  return session;
+  if (payload?.patientId) {
+    return api.post(`/patients/${payload.patientId}/sessions`, payload);
+  }
+  return api.post("/sessions", payload);
 }
 
 export async function updateSession(id, payload) {
-  await delay();
-  const store = db();
-  const idx = store.sessions.findIndex((s) => s.id === id);
-  if (idx === -1) {
-    const err = new Error("Sesión no encontrada.");
-    err.status = 404;
-    throw err;
-  }
-  store.sessions[idx] = { ...store.sessions[idx], ...payload, id };
-  persist();
-  return store.sessions[idx];
+  return api.put(`/sessions/${id}`, payload);
 }
 
-export async function changeStatus(id, payload) {
-  return updateSession(id, { status: payload?.status || payload });
+export async function changeStatus(id, statusOrPayload) {
+  const body = typeof statusOrPayload === "string"
+    ? { status: statusOrPayload }
+    : { status: statusOrPayload?.status || statusOrPayload };
+  return api.post(`/sessions/${id}/status`, body);
 }
 
 export async function linkNote(id, noteId) {
-  return updateSession(id, { noteId });
+  return api.post(`/sessions/${id}/link-note`, { noteId });
 }
 
 export async function getTodayCounts() {
-  await delay();
-  const store = db();
-  const today = new Date();
-  const todays = store.sessions.filter((s) => isSameDay(s.scheduledAt, today));
-  return {
-    total: todays.length,
-    scheduled: todays.filter((s) => s.status === "SCHEDULED").length,
-    completed: todays.filter((s) => s.status === "COMPLETED").length,
-    cancelled: todays.filter((s) => s.status === "CANCELLED").length,
-  };
+  return api.get("/sessions/today-counts");
 }
 
 export async function exportIcs(id) {
-  const store = db();
-  const session = store.sessions.find((s) => s.id === id);
-  if (!session) return;
-  const ics = [
-    "BEGIN:VCALENDAR",
-    "VERSION:2.0",
-    "BEGIN:VEVENT",
-    `UID:${session.id}@romimente.mock`,
-    `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d+/, "")}`,
-    `DTSTART:${new Date(session.scheduledAt).toISOString().replace(/[-:]/g, "").replace(/\.\d+/, "")}`,
-    `SUMMARY:Sesión con ${session.patientName}`,
-    "END:VEVENT",
-    "END:VCALENDAR",
-  ].join("\r\n");
-  const blob = new Blob([ics], { type: "text/calendar;charset=utf-8" });
-  const url = window.URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `sesion-${id}.ics`;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  window.URL.revokeObjectURL(url);
+  // El endpoint devuelve text/calendar; el browser lo descarga
+  if (typeof window === "undefined") return;
+  window.open(
+    `${(import.meta.env.VITE_API_URL || "http://localhost:4000/api")}/sessions/${id}/ics`,
+    "_blank"
+  );
 }
 
 export async function getOne(id) {
-  await delay();
-  const store = db();
-  const session = store.sessions.find((s) => s.id === id);
-  if (!session) {
-    const err = new Error("Sesión no encontrada.");
-    err.status = 404;
-    throw err;
-  }
-  return session;
+  return api.get(`/sessions/${id}`);
 }
 
 export default {

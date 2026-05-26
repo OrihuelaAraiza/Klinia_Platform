@@ -681,14 +681,14 @@ export default function Register() {
                         variant="horizontal"
                         size="lg"
                         theme="auto"
-                        alt="RomiMente"
+                        alt="ROMI TBE"
                         className="register-logo"
                     />
                     <div className="register-heading">
                         <h1>Registro profesional</h1>
                         <p>
                             Completa los pasos para habilitar tu acceso como profesional de
-                            la salud en RomiMente.
+                            la salud en ROMI TBE.
                         </p>
                     </div>
                 </header>

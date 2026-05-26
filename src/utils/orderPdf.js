@@ -79,7 +79,7 @@ export async function generateOrderPdf({
     color: rgb(0.54, 0.79, 0.05),
   });
 
-  page.drawText("RomiMente — Orden clínica", {
+  page.drawText("ROMI TBE — Orden clínica", {
     x: MARGIN,
     y: height - 35,
     font: fontBold,
@@ -108,7 +108,7 @@ export async function generateOrderPdf({
     size: 13,
   });
   cursorY -= LINE;
-  page.drawText(`Nombre: ${professional?.name || "Profesional RomiMente"}`, {
+  page.drawText(`Nombre: ${professional?.name || "Profesional ROMI TBE"}`, {
     x: MARGIN,
     y: cursorY,
     font: fontRegular,
@@ -152,7 +152,7 @@ export async function generateOrderPdf({
     cursorY -= LINE * 0.5;
   }
 
-  page.drawText("Documento generado digitalmente por RomiMente. Uso clínico exclusivo.", {
+  page.drawText("Documento generado digitalmente por ROMI TBE. Uso clínico exclusivo.", {
     x: MARGIN,
     y: 60,
     font: fontRegular,

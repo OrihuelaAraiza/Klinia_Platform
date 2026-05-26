@@ -24,7 +24,7 @@ export default function Logo({
     variant = "horizontal",
     size = "md",
     theme = "auto",
-    alt = "RomiMente",
+    alt = "ROMI TBE",
     className = "",
 }) {
     const { theme: systemTheme } = useTheme();

@@ -16,7 +16,7 @@ export default function StepAccess({
       <div className="register-step__header">
         <h2 className="register-step__title">Acceso</h2>
         <p className="register-step__subtitle">
-          Crea las credenciales que usarás para acceder a RomiMente.
+          Crea las credenciales que usarás para acceder a ROMI TBE.
         </p>
       </div>
 
@@ -29,7 +29,7 @@ export default function StepAccess({
           onChange={handleChange}
           required
           autoComplete="email"
-          placeholder="profesional@romimente.mx"
+          placeholder="tu@correo.com"
           error={errors.email}
           disabled={disabled}
         />

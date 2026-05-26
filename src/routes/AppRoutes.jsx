@@ -3,8 +3,10 @@ import {
   BrowserRouter,
   Routes,
   Route,
+  Navigate,
   useLocation,
   useNavigate,
+  useParams,
 } from "react-router-dom";
 import ProtectedRoute from "../components/ProtectedRoute";
 import ErrorBoundary from "../components/ErrorBoundary";
@@ -42,17 +44,32 @@ const SessionsCalendar = lazy(() => import("../pages/SessionsCalendar"));
 const Consents = lazy(() => import("../pages/Consents"));
 const Prescriptions = lazy(() => import("../pages/Prescriptions"));
 const PrescriptionDetail = lazy(() => import("../pages/PrescriptionDetail"));
+const PatientPrescriptions = lazy(() => import("../pages/PatientPrescriptions"));
 const Reports = lazy(() => import("../pages/Reports"));
+const Expedientes = lazy(() => import("../pages/Expedientes"));
+const Solicitudes = lazy(() => import("../pages/Solicitudes"));
 const OrderForm = lazy(() => import("../pages/OrderForm"));
 const OrderDetail = lazy(() => import("../pages/OrderDetail"));
-const ReportForm = lazy(() => import("../pages/ReportForm"));
+const ReportNew = lazy(() => import("../pages/ReportNew"));
 const ReportDetail = lazy(() => import("../pages/ReportDetail"));
 const NotFound = lazy(() => import("../pages/NotFound"));
+const PrivacyPolicy = lazy(() => import("../pages/legal/PrivacyPolicy"));
+const TermsConditions = lazy(() => import("../pages/legal/TermsConditions"));
 const PatientReportsList = lazy(() => import("../components/PatientReportList"));
 const PatientDocuments = lazy(() => import("../pages/PatientDocument"));
 const ProfileProfessional = lazy(() => import("../pages/Professional/ProfessionalProfile"));
 const DisblePatient = lazy(()=> import("../pages/Professional/PatientDischarge"))
 const SupervisionLog = lazy(() => import("../pages/SupervisionLog"));
+
+function LegacyReportNewRedirect() {
+  const { patientId } = useParams();
+  return <Navigate to={`/reports/new?patientId=${patientId}`} replace />;
+}
+
+function LegacyReportDetailRedirect() {
+  const { reportId } = useParams();
+  return <Navigate to={`/reports/${reportId}`} replace />;
+}
 
 function RouteAuditor() {
   const location = useLocation();
@@ -96,6 +113,8 @@ export default function AppRoutes() {
           <Route path={ROUTES.register} element={<Register />} />
           <Route path="/register/patient" element={<PatientRegister />} />
           <Route path="/health" element={<Health />} />
+          <Route path="/aviso-privacidad" element={<PrivacyPolicy />} />
+          <Route path="/terminos" element={<TermsConditions />} />
 
           {/* RESET PASSWORD */}
           <Route path={ROUTES.forgotPassword} element={<ForgotPassword />} />
@@ -162,18 +181,20 @@ export default function AppRoutes() {
             <Route path={ROUTES.prescriptions} element={<Prescriptions />} />
             <Route path={ROUTES.prescriptionsNew} element={<Prescriptions />} />
             <Route path="/prescriptions/:id" element={<PrescriptionDetail />} />
+            <Route path="/patients/:id/prescriptions" element={<PatientPrescriptions />} />
             <Route path={ROUTES.orderNew} element={<OrderForm />} />
             <Route path={ROUTES.orderDetail} element={<OrderDetail />} />
 
             {/* Alta de Paciente */}
             <Route path={ROUTES.DisblePatient} element={<DisblePatient />} />
             
-            {/* Gestión de Reportes y Documentos */}
+            {/* Gestión de Reportes y Documentos — modelo unificado */}
+            <Route path="/reports/new" element={<ReportNew />} />
+            <Route path="/reports/:id" element={<ReportDetail />} />
             <Route path="/patients/:patientId/reports" element={<PatientReportsList />} />
-            <Route path="/patients/:patientId/reports/:reportId" element={<ReportForm />} />
+            <Route path={ROUTES.reportNew} element={<LegacyReportNewRedirect />} />
+            <Route path={ROUTES.reportDetail} element={<LegacyReportDetailRedirect />} />
             <Route path="/patients/:id/documents" element={<PatientDocuments />} />
-            <Route path={ROUTES.reportNew} element={<ReportForm />} />
-            <Route path={ROUTES.reportDetail} element={<ReportDetail />} />
 
             {/* Dashboard médico base */}
             <Route path={ROUTES.dashboard} element={<Dashboard />} />
@@ -186,6 +207,8 @@ export default function AppRoutes() {
             }
           >
              <Route path="/ProfileProfessional" element={<ProfileProfessional/>} />
+             <Route path={ROUTES.expedientes} element={<Expedientes />} />
+             <Route path={ROUTES.solicitudes} element={<Solicitudes />} />
              {/* Si tuvieras una página de gestión de suscripción o finanzas, iría aquí */}
           </Route>
 

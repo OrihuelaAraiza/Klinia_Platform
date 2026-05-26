@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useOutletContext, useNavigate } from 'react-router-dom';
+import { useOutletContext } from 'react-router-dom';
 import Card, { CardBody, CardHeader } from '../../components/UI/Card';
 import Button from '../../components/UI/Button';
 import ButtonPrimary from '../../components/ButtonPrimary';
 import Badge from '../../components/UI/Badge';
 import InputField from '../../components/InputField';
 import Field from "../../components/UI/Field";
-import { ROLES_LABEL } from '../../utils/constants';
+import { ROLES_LABEL, SPECIALTY_OPTIONS, SPECIALTY_LABELS, SPECIALTY_DESCRIPTIONS } from '../../utils/constants';
 import Modal from '../../components/UI/Modal';
 import { useToast } from '../../components/UI/Toast';
 import { PhoneVerificationModal } from '../../components/register/PhoneVerificationModal';
@@ -19,6 +19,64 @@ import api from '../../services/apiClient';
 const MAX_DELEGATES = 5;
 const MAX_GALLERY_PHOTOS = 6;
 
+const MODALITY_OPTIONS = [
+    { value: "PRESENCIAL", label: "Presencial" },
+    { value: "VIRTUAL", label: "Virtual" },
+    { value: "MIXTA", label: "Mixta (presencial + virtual)" },
+];
+
+function ChipInput({ values = [], onChange, placeholder, disabled }) {
+    const [draft, setDraft] = useState("");
+
+    const addChip = () => {
+        const trimmed = draft.trim();
+        if (trimmed && !values.includes(trimmed)) {
+            onChange([...values, trimmed]);
+        }
+        setDraft("");
+    };
+
+    const removeChip = (chip) => onChange(values.filter((c) => c !== chip));
+
+    const handleKey = (e) => {
+        if (e.key === "Enter" || e.key === ",") {
+            e.preventDefault();
+            addChip();
+        } else if (e.key === "Backspace" && !draft && values.length) {
+            onChange(values.slice(0, -1));
+        }
+    };
+
+    return (
+        <div className="chip-input">
+            <div className="chip-input__chips">
+                {values.map((chip) => (
+                    <span key={chip} className="chip-input__chip">
+                        {chip}
+                        <button
+                            type="button"
+                            onClick={() => removeChip(chip)}
+                            aria-label={`Quitar ${chip}`}
+                            disabled={disabled}
+                        >
+                            <X size={12} aria-hidden="true" />
+                        </button>
+                    </span>
+                ))}
+            </div>
+            <input
+                className="input-field__input"
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={handleKey}
+                onBlur={addChip}
+                placeholder={placeholder}
+                disabled={disabled}
+            />
+        </div>
+    );
+}
+
 const cleanValue = (value) => {
     if (value === "" || value === null) return undefined;
     return value;
@@ -27,15 +85,15 @@ const cleanValue = (value) => {
 export default function ProfessionalProfile() {
     const context = useOutletContext() ?? {};
     const { user, role, onLogout, setUser } = context;
-    const navigate = useNavigate();
     const { success, error } = useToast() || {};
 
     // --- DATOS DEL PERFIL ---
     const name = user?.name ?? "Usuario";
     const roleLabel = ROLES_LABEL[role] ?? role ?? "N/D";
-    const license = user?.license || user?.kycRecord?.certificateFolio || "N/D";
+    const license = user?.license || user?.kycRecord?.certificateFolio || user?.certificateFolio || "N/D";
     const profileData = user?.professionalProfile || {};
     const kycData = user?.kycRecord || {};
+    const specialtyLabel = user?.specialty ? SPECIALTY_LABELS[user.specialty] : null;
     // --- NUEVO ASISTENTE ---
     const [newDelegate, setNewDelegate] = useState({ email: '', password: '', name: '' });
     const [isCreatingDelegate, setIsCreatingDelegate] = useState(false);
@@ -64,8 +122,20 @@ export default function ProfessionalProfile() {
 
     // --- FORMULARIO ---
     const [generalForm, setGeneralForm] = useState({
-        description: profileData.description || '',
-        phone: kycData.phone || '',
+        bio: user?.bio || profileData.description || '',
+        specialty: user?.specialty || '',
+        yearsExperience: user?.yearsExperience ?? '',
+        modality: user?.modality || '',
+        officeName: user?.officeName || '',
+        street: user?.address?.street || '',
+        neighborhood: user?.address?.neighborhood || '',
+        city: user?.address?.city || '',
+        state: user?.address?.state || '',
+        postalCode: user?.address?.postalCode || '',
+        languages: user?.languages || [],
+        focusAreas: user?.focusAreas || [],
+        publicProfile: user?.publicProfile !== false,
+        phone: kycData.phone || user?.phone || '',
         emergencyContactName: kycData.emergencyName || '',
         emergencyContactPhone: kycData.emergencyPhone || '',
         newEmail: user?.email || '',
@@ -95,6 +165,9 @@ export default function ProfessionalProfile() {
                 .catch(() => error("No se pudo cargar el historial."))
                 .finally(() => setIsAuditLoading(false));
         }
+        // loadDelegates es estable dentro de este render; no añadirlo a deps
+        // para evitar loops y mantener el comportamiento original.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeSection, error]);
 
     useEffect(() => {
@@ -102,8 +175,20 @@ export default function ProfessionalProfile() {
         const currentKycData = user?.kycRecord || {};
         setGeneralForm(prev => ({
             ...prev,
-            description: currentProfileData.description || '',
-            phone: currentKycData.phone || '',
+            bio: user?.bio || currentProfileData.description || '',
+            specialty: user?.specialty || '',
+            yearsExperience: user?.yearsExperience ?? '',
+            modality: user?.modality || '',
+            officeName: user?.officeName || '',
+            street: user?.address?.street || '',
+            neighborhood: user?.address?.neighborhood || '',
+            city: user?.address?.city || '',
+            state: user?.address?.state || '',
+            postalCode: user?.address?.postalCode || '',
+            languages: user?.languages || [],
+            focusAreas: user?.focusAreas || [],
+            publicProfile: user?.publicProfile !== false,
+            phone: currentKycData.phone || user?.phone || '',
             emergencyContactName: currentKycData.emergencyName || '',
             emergencyContactPhone: currentKycData.emergencyPhone || '',
             newEmail: user?.email || '',
@@ -130,8 +215,9 @@ export default function ProfessionalProfile() {
         setIsUploading(true);
         try {
             const response = await api.post("/uploads/profile-asset", formData);
-            // El back devuelve blobName (para guardar) y previewUrl (para mostrar)
-            const { blobName, previewUrl } = response;
+            // El back devuelve previewUrl (para mostrar); blobName se ignora aquí
+            // porque la galería trabaja con la URL firmada directamente.
+            const { previewUrl } = response;
 
             if (isGallery) {
                 // Para galería guardamos el objeto con preview para verlo ya
@@ -146,7 +232,7 @@ export default function ProfessionalProfile() {
                 }));
             }
             success("Previsualización lista. Guarda los cambios para confirmar.");
-        } catch (err) {
+        } catch {
             error("Error al subir archivo al servidor.");
         } finally {
             setIsUploading(false);
@@ -167,7 +253,7 @@ export default function ProfessionalProfile() {
             const data = await professionalService.listDelegates();
             setDelegates(data);
             setDelegatesCount(data.length);
-        } catch (e) {
+        } catch {
             error("Error al cargar asistentes.");
         } finally {
             setDelegatesLoading(false);
@@ -206,7 +292,7 @@ export default function ProfessionalProfile() {
             await professionalService.deleteDelegate(id);
             success("Asistente eliminado.");
             loadDelegates();
-        } catch (err) {
+        } catch {
             error("No se pudo eliminar.");
         }
     };
@@ -241,7 +327,7 @@ export default function ProfessionalProfile() {
             setUploadedDocuments(prev => [...prev, finalDoc]);
             setDocumentModalOpen(false);
             success("Documento cargado correctamente.");
-        } catch (err) {
+        } catch {
             error("Error al subir el documento.");
         } finally {
             setIsUploading(false);
@@ -267,8 +353,26 @@ export default function ProfessionalProfile() {
         }
 
         setIsSaving(true);
+        const yearsExperienceRaw = generalForm.yearsExperience;
+        const yearsExperience = yearsExperienceRaw === '' || yearsExperienceRaw === null
+            ? undefined
+            : Number(yearsExperienceRaw);
         const payload = {
-            description: cleanValue(generalForm.description),
+            bio: cleanValue(generalForm.bio),
+            specialty: cleanValue(generalForm.specialty),
+            yearsExperience,
+            modality: cleanValue(generalForm.modality),
+            officeName: cleanValue(generalForm.officeName),
+            address: {
+                street: cleanValue(generalForm.street),
+                neighborhood: cleanValue(generalForm.neighborhood),
+                city: cleanValue(generalForm.city),
+                state: cleanValue(generalForm.state),
+                postalCode: cleanValue(generalForm.postalCode),
+            },
+            languages: generalForm.languages,
+            focusAreas: generalForm.focusAreas,
+            publicProfile: !!generalForm.publicProfile,
             phone: cleanValue(generalForm.phone),
             emergencyContactName: cleanValue(generalForm.emergencyContactName),
             emergencyContactPhone: cleanValue(generalForm.emergencyContactPhone),
@@ -284,7 +388,11 @@ export default function ProfessionalProfile() {
         try {
             const result = await professionalService.updateProfile(payload);
             success("Perfil guardado con éxito.");
-            if (setUser) setUser(result.user);
+            // El service devuelve directamente el publicUser. Refrescamos el contexto
+            // si está disponible para que el topbar muestre la nueva especialidad
+            // sin requerir reload.
+            const updatedUser = result?.user || result;
+            if (setUser && updatedUser) setUser(updatedUser);
             setGeneralForm(prev => ({ ...prev, currentPassword: '', newPassword: '' }));
         } catch (err) {
             error(err?.message || "Error al actualizar.");
@@ -319,7 +427,35 @@ export default function ProfessionalProfile() {
                                     <div><strong>Nombre</strong><span>{name}</span></div>
                                     <div><strong>Rol</strong><span><Badge variant="neutral">{roleLabel}</Badge></span></div>
                                     <div><strong>Cédula</strong><span>{license}</span></div>
+                                    <div>
+                                        <strong>Especialidad</strong>
+                                        <span>
+                                            {specialtyLabel ? (
+                                                <Badge variant="info">{specialtyLabel}</Badge>
+                                            ) : (
+                                                <Badge variant="warning">Sin definir</Badge>
+                                            )}
+                                        </span>
+                                    </div>
                                 </div>
+                                <hr />
+                                <Field label="Especialidad clínica" hint="Determina los permisos para emitir recetas y reportes restringidos.">
+                                    <select
+                                        className="input-field__input"
+                                        value={generalForm.specialty}
+                                        onChange={(e) => handleGeneralFormChange('specialty', e.target.value)}
+                                    >
+                                        <option value="">Selecciona tu especialidad…</option>
+                                        {SPECIALTY_OPTIONS.map((opt) => (
+                                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                        ))}
+                                    </select>
+                                    {generalForm.specialty ? (
+                                        <p className="helper-text" style={{ marginTop: 6 }}>
+                                            {SPECIALTY_DESCRIPTIONS[generalForm.specialty]}
+                                        </p>
+                                    ) : null}
+                                </Field>
                                 <hr />
                                 <div className="stack-2">
                                     <label className="ui-field__label">Foto de Perfil Profesional</label>
@@ -348,9 +484,102 @@ export default function ProfessionalProfile() {
                                     <input type="file" hidden ref={galleryInputRef} accept="image/*" onChange={(e) => handleUploadImage(e, true)} />
                                 </div>
                                 <hr />
-                                <Field label="Descripción / Bio Professional">
-                                    <textarea className="textarea" value={generalForm.description} onChange={(e) => handleGeneralFormChange('description', e.target.value)} rows={4} />
+                                <Field label="Bio profesional" hint="Aparece en tu perfil del directorio público.">
+                                    <textarea
+                                        className="textarea"
+                                        value={generalForm.bio}
+                                        onChange={(e) => handleGeneralFormChange('bio', e.target.value)}
+                                        rows={4}
+                                        placeholder="Cuéntale a tus futuros pacientes tu enfoque y a quién acompañas."
+                                    />
                                 </Field>
+                                <div className="form-grid">
+                                    <Field label="Modalidad de atención">
+                                        <select
+                                            className="input-field__input"
+                                            value={generalForm.modality}
+                                            onChange={(e) => handleGeneralFormChange('modality', e.target.value)}
+                                        >
+                                            <option value="">Selecciona…</option>
+                                            {MODALITY_OPTIONS.map((opt) => (
+                                                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                            ))}
+                                        </select>
+                                    </Field>
+                                    <InputField
+                                        label="Años de experiencia"
+                                        type="number"
+                                        min="0"
+                                        max="80"
+                                        value={generalForm.yearsExperience}
+                                        onChange={(e) => handleGeneralFormChange('yearsExperience', e.target.value)}
+                                    />
+                                </div>
+                                <Field label="Idiomas" hint="Presiona Enter o coma para agregar. Ejemplo: Español, Inglés.">
+                                    <ChipInput
+                                        values={generalForm.languages}
+                                        onChange={(arr) => handleGeneralFormChange('languages', arr)}
+                                        placeholder="Agrega un idioma…"
+                                    />
+                                </Field>
+                                <Field label="Áreas de enfoque clínico" hint="Temas en los que más te especializas (mostrados como chips en tu tarjeta pública).">
+                                    <ChipInput
+                                        values={generalForm.focusAreas}
+                                        onChange={(arr) => handleGeneralFormChange('focusAreas', arr)}
+                                        placeholder="Ej. Ansiedad, Duelo, Insomnio…"
+                                    />
+                                </Field>
+                                <label className="profile-toggle">
+                                    <input
+                                        type="checkbox"
+                                        checked={!!generalForm.publicProfile}
+                                        onChange={(e) => handleGeneralFormChange('publicProfile', e.target.checked)}
+                                    />
+                                    <span>
+                                        <strong>Aparecer en el directorio público</strong>
+                                        <small>Si lo desactivas, no estarás visible para nuevos pacientes en la landing.</small>
+                                    </span>
+                                </label>
+                                <hr />
+                                <h4 style={{ margin: 0 }}>Consultorio</h4>
+                                <InputField
+                                    label="Nombre del consultorio"
+                                    placeholder="Ej. Consultorio Roma Norte"
+                                    value={generalForm.officeName}
+                                    onChange={(e) => handleGeneralFormChange('officeName', e.target.value)}
+                                />
+                                <div className="form-grid">
+                                    <InputField
+                                        label="Calle y número"
+                                        value={generalForm.street}
+                                        onChange={(e) => handleGeneralFormChange('street', e.target.value)}
+                                    />
+                                    <InputField
+                                        label="Código Postal"
+                                        value={generalForm.postalCode}
+                                        onChange={(e) => handleGeneralFormChange('postalCode', e.target.value)}
+                                        maxLength={5}
+                                    />
+                                </div>
+                                <div className="form-grid">
+                                    <InputField
+                                        label="Colonia"
+                                        value={generalForm.neighborhood}
+                                        onChange={(e) => handleGeneralFormChange('neighborhood', e.target.value)}
+                                    />
+                                    <InputField
+                                        label="Ciudad / Municipio"
+                                        value={generalForm.city}
+                                        onChange={(e) => handleGeneralFormChange('city', e.target.value)}
+                                    />
+                                    <InputField
+                                        label="Estado"
+                                        value={generalForm.state}
+                                        onChange={(e) => handleGeneralFormChange('state', e.target.value)}
+                                    />
+                                </div>
+                                <hr />
+                                <h4 style={{ margin: 0 }}>Contacto</h4>
                                 <div className="form-grid">
                                     <InputField label="Email" value={generalForm.newEmail} onChange={(e) => handleGeneralFormChange('newEmail', e.target.value)} error={securityErrors.newEmail} />
                                     <Field label="Teléfono">
@@ -451,7 +680,7 @@ export default function ProfessionalProfile() {
                                         <InputField
                                             label="Correo Electrónico"
                                             type="email"
-                                            placeholder="asistente@romimente.mx"
+                                            placeholder="asistente@tudominio.com"
                                             value={newDelegate.email}
                                             onChange={e => setNewDelegate({ ...newDelegate, email: e.target.value })}
                                             required

@@ -1,7 +1,7 @@
 /**
  * ClinicalHistoryWizard
  * Componente wizard con navegación por pasos para historia clínica
- * Basado en el prototipo RomiMente con navegación tipo breadcrumbs/pasos
+ * Basado en el prototipo ROMI TBE con navegación tipo breadcrumbs/pasos
  */
 
 import { useState, useMemo, useEffect } from "react";

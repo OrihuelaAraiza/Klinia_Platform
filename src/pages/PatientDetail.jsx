@@ -5,7 +5,6 @@ import Card, { CardBody, CardHeader } from "../components/UI/Card";
 import Button from "../components/UI/Button";
 import Badge from "../components/UI/Badge";
 import Modal from "../components/UI/Modal";
-import Breadcrumbs from "../components/UI/Breadcrumbs";
 import ConsentBadge from "../components/ConsentBadge";
 import auditService from "../services/auditService";
 import { getPatient, updatePatient } from "../services/patientsService";
@@ -19,6 +18,8 @@ import { useToast } from "../components/UI/Toast";
 import ExportMenu from "../components/ExportMenu";
 import patientsService from "../services/patientsService";
 import { reingressPatient } from "../services/patientsService";
+import { useBreadcrumbLabel } from "../context/breadcrumb-context";
+import { canPrescribe, whyCannotPrescribe } from "../utils/permissions";
 
 const CONSENT_TYPES = [
   { type: "attention", label: "Consentimiento de atención" },
@@ -202,6 +203,11 @@ export default function PatientDetail() {
     return map;
   }, [consents]);
 
+  const breadcrumbName = patient
+    ? `${patient.firstName || ""} ${patient.lastName || ""}`.trim() || patient.curp
+    : null;
+  useBreadcrumbLabel(id, breadcrumbName);
+
   const ensureConsentEntry = (patientId, type, base = {}) => {
     const existing = consents.find((item) => item.type === type);
     if (existing) {
@@ -235,7 +241,7 @@ export default function PatientDetail() {
     try {
       if (action === "sign") {
         const response = await signConsent(id, type, {
-          professional: user?.name ?? "Profesional RomiMente",
+          professional: user?.name ?? "Profesional ROMI TBE",
         });
         setConsents((prev) => {
           const next = prev.filter((item) => item.type !== type);
@@ -247,7 +253,7 @@ export default function PatientDetail() {
       } else if (action === "revoke") {
         const consent = ensureConsentEntry(id, type);
         const response = await revokeConsent(id, consent.id, {
-          professional: consent.professional || user?.name || "Profesional RomiMente",
+          professional: consent.professional || user?.name || "Profesional ROMI TBE",
         });
         setConsents((prev) => prev.map((item) => (item.id === response.id ? response : item)));
         toast.warn("Consentimiento revocado");
@@ -398,12 +404,10 @@ auditService.logAudit("patient_re_entry_client", { id });
   }
 
   const name = `${patient.firstName} ${patient.lastName}`.trim();
-  const breadcrumbs = [
-    { to: "/patients", label: "Pacientes" },
-    { label: name || "Paciente" },
-  ];
 
   const isDischarge = patient?.status === "DISCHARGED";
+  const userCanPrescribe = canPrescribe(user);
+  const rxBlockReason = !userCanPrescribe ? whyCannotPrescribe(user) : null;
 
   return (
     <section className="page stack-5">
@@ -435,7 +439,6 @@ auditService.logAudit("patient_re_entry_client", { id });
       </div>
 
       <div className="page-header">
-        <Breadcrumbs items={breadcrumbs} />
         <div className="cluster patient-detail__header">
           <div className="stack-1">
             <h1>{name || "Paciente"}</h1>
@@ -634,11 +637,12 @@ auditService.logAudit("patient_re_entry_client", { id });
             </Button>
             <Button
               variant="ghost"
-              onClick={() => navigate(`/prescriptions`)}
+              onClick={() => navigate(`/patients/${id}/prescriptions`)}
               disabled={isAssistant || isDischarge}
               className="clinical-link-btn"
+              title={!userCanPrescribe ? `${rxBlockReason} (puedes ver el historial)` : undefined}
             >
-              Prescripciones
+              Prescripciones {!userCanPrescribe ? "🔒" : ""}
             </Button>
             <Button
               variant="ghost"
@@ -648,10 +652,10 @@ auditService.logAudit("patient_re_entry_client", { id });
             >
               Escalas clínicas
             </Button>
-            <Button variant="ghost" onClick={() => navigate(`/reports`)} className="clinical-link-btn">
+            <Button variant="ghost" onClick={() => navigate(`/patients/${id}/reports`)} className="clinical-link-btn">
               Reportes
             </Button>
-            <Button variant="ghost" onClick={() => navigate(`/sessions`)} className="clinical-link-btn">
+            <Button variant="ghost" onClick={() => navigate(`/patients/${id}/sessions`)} className="clinical-link-btn">
               Agenda
             </Button>
             {/* Botón Alta — ocultar si ya está dado de alta */}
@@ -679,9 +683,10 @@ auditService.logAudit("patient_re_entry_client", { id });
             <Button
               variant="secondary"
               onClick={() => navigate(`${ROUTES.prescriptionsNew}?patientId=${id}`)}
-              disabled={isAssistant || isDischarge}
+              disabled={isAssistant || isDischarge || !userCanPrescribe}
+              title={!userCanPrescribe ? rxBlockReason : undefined}
             >
-              Emitir prescripción
+              Emitir prescripción {!userCanPrescribe ? "🔒" : ""}
             </Button>
           </CardHeader>
           <CardBody className="stack-2">

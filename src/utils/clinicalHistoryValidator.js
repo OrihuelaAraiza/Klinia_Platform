@@ -165,6 +165,32 @@ export function isClinicalHistoryIncomplete(historyData = {}) {
   return !validation.isValid;
 }
 
+/**
+ * Pre-carga campos de la historia clínica con datos que ya conocemos del
+ * paciente (ficha de registro). Esto evita que el clínico re-capture
+ * domicilio, estado civil, escolaridad, ocupación o religión que ya
+ * existen en el expediente base.
+ *
+ * Los nombres de campos siguen el HC_SCHEMA (config/clinicalSchemas/hc.schema.js).
+ */
+export function mapPatientToHistoryForm(patient) {
+  if (!patient) return {};
+  const addr = patient.address || {};
+  return {
+    estadoCivil: patient.civilStatus || "",
+    escolaridad: patient.education || "",
+    ocupacion: patient.occupation || "",
+    religion: patient.religion || "",
+    calleNumero: addr.street || "",
+    colonia: addr.neighborhood || "",
+    codigoPostal: addr.postalCode || "",
+    municipioDelegacion: addr.city || "",
+    estadoDomicilio: addr.state || "",
+    lugarNacimiento: patient.birthPlace || "",
+    genderIdentity: patient.genderIdentity || patient.gender || "",
+  };
+}
+
 export function mapHistoryToForm(history) {
   if (!history) return {};
   return {

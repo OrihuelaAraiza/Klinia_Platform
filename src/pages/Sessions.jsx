@@ -130,7 +130,7 @@ export default function Sessions() {
     const professional = useMemo(
         () => ({
             id: professionalId,
-            name: user?.name || "Profesional RomiMente",
+            name: user?.name || "Profesional ROMI TBE",
             license: user?.license,
         }),
         [user, professionalId]
@@ -490,7 +490,7 @@ export default function Sessions() {
                                     onClick={() => setSelectedSessionId(session.id)}
                                 >
                                     <div className="sessions-today-card__time">
-                                        <span>{formatTime(session.datetime)}</span>
+                                        <span>{formatTime(session.datetime || session.scheduledAt || session.time)}</span>
                                         <Badge variant={badgeVariant}>{SESSION_STATUS_LABEL[session.status] || session.status}</Badge>
                                     </div>
                                     <h3 className="sessions-today-card__title">{getFullName(session)}</h3>
@@ -646,7 +646,7 @@ export default function Sessions() {
                                     className="cursor-pointer"
                                 >
                                     <td>
-                                        <p className="sessions-table__primary">{formatDateTime(session.datetime)}</p>
+                                        <p className="sessions-table__primary">{formatDateTime(session.datetime || session.scheduledAt || session.time)}</p>
                                         <p className="sessions-table__meta">{formatSessionModality(session)}</p>
                                     </td>
                                     <td>{patientFullName}</td>

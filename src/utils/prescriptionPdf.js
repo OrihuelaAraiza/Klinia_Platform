@@ -80,7 +80,7 @@ export async function generatePrescriptionPdf({
     color: rgb(0.54, 0.79, 0.05),
   });
 
-  page.drawText("RomiMente — Prescripción electrónica", {
+  page.drawText("ROMI TBE — Prescripción electrónica", {
     x: MARGIN,
     y: height - 35,
     font: fontBold,
@@ -109,7 +109,7 @@ export async function generatePrescriptionPdf({
     size: 13,
   });
   cursorY -= LINE;
-  page.drawText(`Nombre: ${professional?.name || "Profesional RomiMente"}`, {
+  page.drawText(`Nombre: ${professional?.name || "Profesional ROMI TBE"}`, {
     x: MARGIN,
     y: cursorY,
     font: fontRegular,
@@ -179,7 +179,7 @@ export async function generatePrescriptionPdf({
   const hashFull = await sha256(canonicalize(hashPayload));
   const hashShort = hashFull.slice(0, 10).toUpperCase();
 
-  page.drawText("Documento generado digitalmente por RomiMente.", {
+  page.drawText("Documento generado digitalmente por ROMI TBE.", {
     x: MARGIN,
     y: 60,
     font: fontRegular,

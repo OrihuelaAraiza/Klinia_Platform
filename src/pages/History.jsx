@@ -9,7 +9,7 @@ import { getClinicalHistory, saveClinicalHistory } from "../services/clinicalHis
 import { getPatient } from "../services/patientsService";
 import { useToast } from "../components/UI/Toast";
 import { ROLES } from "../utils/constants"
-import { mapHistoryToForm } from "../utils/clinicalHistoryValidator";
+import { mapHistoryToForm, mapPatientToHistoryForm } from "../utils/clinicalHistoryValidator";
 
 export default function History() {
   const { id } = useParams();
@@ -72,9 +72,15 @@ export default function History() {
     { label: "Historia clínica" },
   ], [id, patientName]);
 
+  // Si ya existe historia clínica, la usamos como base. Si no, pre-llenamos los
+  // campos compartidos (estado civil, escolaridad, ocupación, religión, domicilio)
+  // desde la ficha del paciente para que el clínico no recapture lo que ya existe.
   const initialWizardData = useMemo(
-    () => mapHistoryToForm(history),
-    [history]
+    () => {
+      if (history) return mapHistoryToForm(history);
+      return mapPatientToHistoryForm(patient);
+    },
+    [history, patient]
   );
 
   const context = useMemo(() => ({

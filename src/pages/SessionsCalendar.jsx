@@ -10,6 +10,7 @@ import { useToast } from "../components/UI/Toast";
 import auditService from "../services/auditService";
 import { listSessions } from "../services/sessionsService";
 import { ROUTES, SESSION_STATUS_LABEL, SESSION_STATUS_VARIANT } from "../utils/constants";
+import { sessionDate } from "../utils/formatters";
 import {
     formatSessionModality,
     getSessionPatientName,
@@ -144,18 +145,18 @@ export default function SessionsCalendar() {
 
             
             return monthSessions.filter((session) => {
-                const dt = session.datetime ? new Date(session.datetime) : null;
+                const raw = sessionDate(session);
+                const dt = raw ? new Date(raw) : null;
                 if (!dt || Number.isNaN(dt.getTime())) {
                     return false;
                 }
-                
                 return dt >= weekStart && dt <= weekEnd;
-            }).sort((a, b) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime()); 
+            }).sort((a, b) => new Date(sessionDate(a)).getTime() - new Date(sessionDate(b)).getTime());
         }
 
         return monthSessions.filter(
-            (session) => toLocalDateKey(session.datetime) === selectedDate
-        ).sort((a, b) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime()); 
+            (session) => toLocalDateKey(sessionDate(session)) === selectedDate
+        ).sort((a, b) => new Date(sessionDate(a)).getTime() - new Date(sessionDate(b)).getTime());
     }, [monthSessions, viewMode, selectedDate]);
 
 
@@ -260,7 +261,7 @@ export default function SessionsCalendar() {
                                             onClick={() => setSelectedSessionId(session.id)}
                                         >
                                             <td>
-                                                <p className="sessions-table__primary">{formatDateTime(session.datetime)}</p>
+                                                <p className="sessions-table__primary">{formatDateTime(sessionDate(session))}</p>
                                                 <p className="sessions-table__meta">{formatSessionModality(session)}</p>
                                             </td>
                                             <td>{getSessionPatientName(session)}</td>

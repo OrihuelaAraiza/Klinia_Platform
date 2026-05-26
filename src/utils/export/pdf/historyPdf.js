@@ -92,7 +92,7 @@ export async function generateHistoryPdf({
     color: rgb(0.77, 0.96, 0.24),
   });
 
-  page.drawText("RomiMente — Historia Clínica", {
+  page.drawText("ROMI TBE — Historia Clínica", {
     x: PAGE_MARGIN,
     y: height - 40,
     font: fontBold,
@@ -227,7 +227,7 @@ export async function generateHistoryPdf({
     cursorY -= LINE_HEIGHT;
   }
 
-  page.drawText("Documento generado por RomiMente (PMV) — No sustituye firma autógrafa.", {
+  page.drawText("Documento generado por ROMI TBE (PMV) — No sustituye firma autógrafa.", {
     x: PAGE_MARGIN,
     y: 32,
     font: fontRegular,

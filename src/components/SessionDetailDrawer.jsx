@@ -191,7 +191,7 @@ export default function SessionDetailDrawer({ sessionId, onClose, onUpdate, isAs
                 <CardBody className="detail-grid">
                     <div className="stack-1">
                         <p><strong>Paciente:</strong> {patientName}</p> 
-                        <p><strong>Fecha/Hora:</strong> {formatDateTime(session.datetime)}</p>
+                        <p><strong>Fecha/Hora:</strong> {formatDateTime(session.datetime || session.scheduledAt || session.time)}</p>
                         <p><strong>Duración:</strong> {session.durationMinutes} minutos</p>
                         <p><strong>Modalidad:</strong> {formatSessionModality(session)}</p>
                     </div>
@@ -305,7 +305,7 @@ export default function SessionDetailDrawer({ sessionId, onClose, onUpdate, isAs
                 open={true} 
                 onClose={() => { if (mode === 'view') onClose(); }}
                 title={`Sesión de ${patientName}`} 
-                subtitle={mode === 'view' ? formatDateTime(session.datetime) : 'Modificando datos'}
+                subtitle={mode === 'view' ? formatDateTime(session.datetime || session.scheduledAt || session.time) : 'Modificando datos'}
             >
                 {mode === 'edit' ? renderEditView() : renderDetailView()}
             </Drawer>

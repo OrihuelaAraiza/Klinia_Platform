@@ -80,7 +80,7 @@ export async function generateReportPdf({
     color: rgb(0.54, 0.79, 0.05),
   });
 
-  page.drawText("RomiMente — Informe clínico", {
+  page.drawText("ROMI TBE — Informe clínico", {
     x: MARGIN,
     y: height - 35,
     font: fontBold,
@@ -112,7 +112,7 @@ export async function generateReportPdf({
     size: 13,
   });
   cursorY -= LINE;
-  page.drawText(`Nombre: ${professional?.name || "Profesional RomiMente"}`, {
+  page.drawText(`Nombre: ${professional?.name || "Profesional ROMI TBE"}`, {
     x: MARGIN,
     y: cursorY,
     font: fontRegular,
@@ -159,7 +159,7 @@ export async function generateReportPdf({
   const hashFull = await sha256(canonicalize(hashPayload));
   const hashShort = hashFull.slice(0, 10).toUpperCase();
 
-  page.drawText("Documento generado digitalmente por RomiMente.", {
+  page.drawText("Documento generado digitalmente por ROMI TBE.", {
     x: MARGIN,
     y: 60,
     font: fontRegular,

@@ -1,18 +1,18 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate, useOutletContext } from "react-router-dom";
-import { Search, User, Calendar, FileText } from "lucide-react";
+import { Search, User, FileText, UserSearch, X, ShieldAlert } from "lucide-react";
 import Card, { CardBody, CardHeader } from "../components/UI/Card";
 import Button from "../components/UI/Button";
+import Badge from "../components/UI/Badge";
 import ButtonPrimary from "../components/ButtonPrimary";
-import InputField from "../components/InputField";
-import { useToast } from "../components/UI/Toast";
-import { SkeletonCard, SkeletonList } from "../components/UI/Skeleton";
 import EmptyState from "../components/UI/EmptyState";
-import { PRESCRIPTION_FIELDS, ROLES, ROUTES } from "../utils/constants";
+import { useToast } from "../components/UI/Toast";
+import { SkeletonList } from "../components/UI/Skeleton";
+import { ROLES, ROUTES } from "../utils/constants";
+import { canPrescribe, whyCannotPrescribe, getSpecialtyLabel } from "../utils/permissions";
 import auditService from "../services/auditService";
 import * as patientsService from "../services/patientsService";
 import * as prescriptionsService from "../services/prescriptionsService";
-import { formatDateISOToHuman } from "../utils/formatters";
 import uploadService from "../services/uploadService";
 
 // IMPORTA TUS SECCIONES AQUÍ
@@ -254,6 +254,11 @@ export default function Prescriptions() {
     const handleSubmit = async (event) => {
         event.preventDefault();
 
+        if (!canPrescribe(user)) {
+            error(whyCannotPrescribe(user));
+            return;
+        }
+
         if (!form.motivoConsulta || !selectedPatientId) {
             error("El motivo de consulta y la selección del paciente son obligatorios.");
             return;
@@ -308,61 +313,165 @@ export default function Prescriptions() {
         }
     };
 
+    const trimmedQuery = searchQuery.trim();
+    const showSearchHint = trimmedQuery.length > 0 && trimmedQuery.length < 2;
+    const noResults = !searchLoading && !showSearchHint && searchResults.length === 0;
+
+    const userCanPrescribe = canPrescribe(user);
+    const prescribeReason = !userCanPrescribe ? whyCannotPrescribe(user) : null;
+    const specialtyLabel = getSpecialtyLabel(user);
+
     return (
         <section className="page stack-5">
-            <header className="page__header">
-                <h1>Prescripciones y Registro Clínico</h1>
-                <Button variant="secondary" onClick={() => navigate(selectedPatientId ? `/patients/${selectedPatientId}` : ROUTES.patients)}>
-                    Regresar
+            <header className="page-header cluster justify-between align-center wrap gap-3">
+                <div className="stack-1">
+                    <h1>Prescripciones y registro clínico</h1>
+                    <p className="helper-text">
+                        {userCanPrescribe
+                            ? "Selecciona un paciente para iniciar o continuar su expediente terapéutico."
+                            : "Vista de solo lectura: tu especialidad actual no autoriza emitir recetas."}
+                    </p>
+                </div>
+                <Button variant="ghost" onClick={() => navigate(selectedPatientId ? `/patients/${selectedPatientId}` : ROUTES.patients)}>
+                    {selectedPatientId ? "Volver al expediente" : "Volver a Pacientes"}
                 </Button>
             </header>
 
-            {!selectedPatientId ? (
-                <Card>
-                    <CardBody className="stack-3">
-                        <InputField 
-                            label="Buscar paciente para iniciar registro" 
-                            placeholder="Nombre, apellido o CURP..."
-                            value={searchQuery} 
-                            onChange={(e) => setSearchQuery(e.target.value)} 
-                        />
-                        {searchLoading && <SkeletonList items={3} />}
-                        <div className="grid-3 gap-2">
-                            {searchResults.map(p => (
-                                <Button key={p.id} variant="secondary" onClick={() => selectPatient(p)}>
-                                    <User size={16} className="mr-2" /> {p.firstName} {p.lastName}
-                                </Button>
-                            ))}
+            {!userCanPrescribe ? (
+                <Card hoverable={false} className="rx-permission-banner">
+                    <CardBody>
+                        <div className="cluster gap-3 align-center wrap">
+                            <ShieldAlert size={26} aria-hidden="true" style={{ color: "var(--warning, #d97706)", flexShrink: 0 }} />
+                            <div className="stack-1" style={{ flex: 1 }}>
+                                <strong>Prescripción restringida</strong>
+                                <p className="helper-text" style={{ margin: 0 }}>{prescribeReason}</p>
+                            </div>
+                            {specialtyLabel ? (
+                                <Badge variant="info">{specialtyLabel}</Badge>
+                            ) : null}
                         </div>
                     </CardBody>
                 </Card>
+            ) : null}
+
+            {!selectedPatientId ? (
+                <Card hoverable={false}>
+                    <CardBody className="stack-4">
+                        <div className="search-bar">
+                            <Search size={18} className="search-bar__icon" aria-hidden="true" />
+                            <input
+                                type="search"
+                                className="search-bar__input"
+                                placeholder="Busca por nombre, apellido o CURP…"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                aria-label="Buscar paciente"
+                                autoFocus
+                            />
+                            {searchQuery ? (
+                                <button
+                                    type="button"
+                                    className="search-bar__clear"
+                                    aria-label="Limpiar búsqueda"
+                                    onClick={() => setSearchQuery("")}
+                                >
+                                    <X size={16} aria-hidden="true" />
+                                </button>
+                            ) : null}
+                        </div>
+
+                        {showSearchHint ? (
+                            <p className="helper-text">Escribe al menos 2 caracteres para buscar.</p>
+                        ) : null}
+
+                        {searchLoading ? (
+                            <SkeletonList items={3} />
+                        ) : noResults ? (
+                            <EmptyState
+                                icon={UserSearch}
+                                title={trimmedQuery ? "Sin coincidencias" : "Aún no hay pacientes"}
+                                message={
+                                    trimmedQuery
+                                        ? `No encontramos pacientes para "${trimmedQuery}". Intenta con otro nombre o CURP.`
+                                        : "Cuando registres pacientes aparecerán aquí para iniciar su expediente clínico."
+                                }
+                                action={trimmedQuery ? (
+                                    <Button variant="ghost" size="sm" onClick={() => setSearchQuery("")}>Limpiar búsqueda</Button>
+                                ) : null}
+                            />
+                        ) : (
+                            <ul className="patient-picker" role="list">
+                                {searchResults.map((p) => {
+                                    const isDischarged = p.status === "DISCHARGED";
+                                    return (
+                                        <li key={p.id}>
+                                            <button
+                                                type="button"
+                                                className="patient-picker__item"
+                                                onClick={() => selectPatient(p)}
+                                            >
+                                                <span className="patient-picker__avatar" aria-hidden="true">
+                                                    <User size={18} />
+                                                </span>
+                                                <span className="patient-picker__meta">
+                                                    <span className="patient-picker__name">
+                                                        {p.firstName} {p.lastName}
+                                                    </span>
+                                                    <span className="patient-picker__sub">
+                                                        {p.curp || "Sin CURP"}
+                                                        {p.email ? ` · ${p.email}` : ""}
+                                                    </span>
+                                                </span>
+                                                <Badge variant={isDischarged ? "danger" : "success"}>
+                                                    {isDischarged ? "Dado de alta" : "Activo"}
+                                                </Badge>
+                                            </button>
+                                        </li>
+                                    );
+                                })}
+                            </ul>
+                        )}
+                    </CardBody>
+                </Card>
             ) : (
-                <Card className="bg-primary-light border-primary">
-                    <CardHeader className="cluster justify-between align-center">
-                        <div className="cluster gap-4">
-                            <div className="avatar-placeholder"><User /></div>
-                            <div>
-                                <h3 className="m-0">{patient?.firstName} {patient?.lastName}</h3>
-                                <p className="text-sm m-0">CURP: {patient?.curp || 'No registrada'}</p>
+                <Card hoverable={false} className="patient-context-card">
+                    <CardHeader>
+                        <div className="cluster justify-between align-center wrap gap-3" style={{ width: "100%" }}>
+                            <div className="cluster gap-3 align-center">
+                                <span className="patient-picker__avatar patient-picker__avatar--lg" aria-hidden="true">
+                                    <User size={20} />
+                                </span>
+                                <div className="stack-1">
+                                    <h2 style={{ margin: 0 }}>{patient?.firstName} {patient?.lastName}</h2>
+                                    <p className="helper-text" style={{ margin: 0 }}>
+                                        CURP: {patient?.curp || "No registrada"}
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="cluster gap-2 wrap">
+                                <Button
+                                    variant="ghost"
+                                    onClick={() => navigate(`/patients/${selectedPatientId}/prescriptions`)}
+                                >
+                                    <FileText size={16} aria-hidden="true" style={{ marginRight: 6 }} />
+                                    Ver prescripciones del paciente
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    onClick={() => navigate(`/patients/${selectedPatientId}`)}
+                                >
+                                    Volver al expediente
+                                </Button>
+                                <Button variant="secondary" size="sm" onClick={clearSelection}>
+                                    Cambiar paciente
+                                </Button>
                             </div>
                         </div>
-                        <div className="cluster gap-2">
-                {/* NUEVO BOTÓN: Ver Historial / Recetas del paciente */}
-                    <Button
-                        variant="secondary"
-                        onClick={() => navigate(`/patients/${selectedPatientId}`)}
-                    >
-                        Volver al perfil
-                    </Button>
-                    <Button 
-                        variant="secondary" 
-                        onClick={() => navigate(`/prescriptions/${selectedPatientId}`)} 
-                    >
-                        <FileText size={16} className="mr-2" /> Ver Detalle de Registro
-                    </Button>
-                
-                <Button variant="ghost" onClick={clearSelection}>Cambiar Paciente</Button>
-            </div>
+                        {patientLoading ? (
+                            <p className="helper-text" style={{ marginTop: 8 }}>Cargando datos del paciente…</p>
+                        ) : patientError ? (
+                            <p className="form-error" role="alert" style={{ marginTop: 8 }}>{patientError}</p>
+                        ) : null}
                     </CardHeader>
                 </Card>
             )}
@@ -433,7 +542,12 @@ export default function Prescriptions() {
                             >
                                 Regresar al perfil
                             </Button>
-                            <ButtonPrimary type="submit" loading={submitting}>
+                            <ButtonPrimary
+                                type="submit"
+                                loading={submitting}
+                                disabled={!userCanPrescribe}
+                                title={!userCanPrescribe ? prescribeReason : undefined}
+                            >
                                 Finalizar y Guardar Registro
                             </ButtonPrimary>
                         </div>

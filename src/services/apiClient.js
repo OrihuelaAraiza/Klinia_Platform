@@ -1,148 +1,167 @@
-import { db, persist, uid, delay, nowIso } from "./mocks/db";
 import {
-  getUser,
+  getToken,
   setToken,
   setRefreshToken,
-  setUser,
-  setRole,
+  getRefreshToken,
+  clearAll,
 } from "./storage";
 
-function makeToken(userId) {
-  return `mock.${userId}.${Date.now().toString(36)}`;
+/**
+ * Cliente HTTP para hablar con klinia-api.
+ *
+ * Configuración:
+ *   - Lee la URL base de `import.meta.env.VITE_API_URL`.
+ *   - Default: `http://localhost:4000/api` (modo dev local).
+ *
+ * Features:
+ *   - Inyecta `Authorization: Bearer <token>` desde localStorage.
+ *   - Soporta FormData sin pisar el content-type del navegador.
+ *   - Refresh automático ante 401 (intenta /auth/refresh y reintenta UNA vez).
+ *   - Si el refresh falla → clearAll() y redirige al login.
+ *   - Lanza Error con `.status` y `.message` para que los callers traten errores
+ *     con el mismo patrón que tenían antes.
+ *
+ * Uso:
+ *   import api from "./apiClient";
+ *   await api.get("/patients");
+ *   await api.post("/auth/login", { email, password });
+ *   await api.get("/utils/consulta-cp/06700", { auth: false });
+ */
+
+const BASE_URL =
+  (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_URL) ||
+  "http://localhost:4000/api";
+
+let isRefreshing = false;
+let refreshQueue = [];
+
+function notifyRefreshed(error, newToken) {
+  refreshQueue.forEach(({ resolve, reject }) => {
+    if (error) reject(error);
+    else resolve(newToken);
+  });
+  refreshQueue = [];
 }
 
-function persistSession(user) {
-  const access = makeToken(user.id);
-  const refresh = `refresh.${user.id}`;
-  setToken(access);
-  setRefreshToken(refresh);
-  const publicUser = { ...user };
-  delete publicUser.password;
-  setUser(publicUser);
-  setRole(publicUser.role);
-  return { token: access, accessToken: access, refreshToken: refresh, user: publicUser };
-}
-
-async function handle(method, path, body) {
-  await delay(80);
-  const store = db();
-
-  // Auth endpoints
-  if (path === "/auth/forgot-password" && method === "POST") {
-    return { ok: true, sent: true, debugMessage: "Correo de recuperación enviado (mock)." };
+async function refreshAccessToken() {
+  if (isRefreshing) {
+    return new Promise((resolve, reject) => {
+      refreshQueue.push({ resolve, reject });
+    });
   }
-  if (path === "/auth/reset-password" && method === "POST") {
-    return { ok: true, reset: true };
-  }
-  if (path === "/auth/register/patient" && method === "POST") {
-    const email = (body?.email || `paciente+${Date.now()}@demo.com`).toLowerCase();
-    if (store.users.find((u) => u.email.toLowerCase() === email)) {
-      const err = new Error("Ya existe una cuenta con ese correo.");
-      err.status = 409;
-      throw err;
-    }
-    const user = {
-      id: uid("user"),
-      email,
-      password: body?.password || "demo1234",
-      firstName: body?.firstName || "Paciente",
-      lastName: body?.lastName || "Nuevo",
-      name: `${body?.firstName || "Paciente"} ${body?.lastName || "Nuevo"}`.trim(),
-      role: "PATIENT",
-      phone: body?.phone || "",
-      verified: true,
-    };
-    store.users.push(user);
-    const patient = {
-      id: uid("pat"),
-      userId: user.id,
-      professionalId: body?.professionalId || "prof_demo_1",
-      firstName: user.firstName,
-      lastName: user.lastName,
-      curp: body?.curp || "",
-      email,
-      phone: user.phone,
-      birthDate: body?.birthDate || "",
-      status: "ACTIVE",
-      createdAt: nowIso(),
-      updatedAt: nowIso(),
-      attachments: [],
-      ...body,
-    };
-    store.patients.push(patient);
-    user.patientId = patient.id;
-    persist();
-    return persistSession(user);
-  }
-  if (path === "/auth/refresh" && method === "POST") {
-    const user = getUser();
-    if (!user) return null;
-    return persistSession(user);
-  }
-  if (path === "/auth/logout" && method === "POST") {
-    return { ok: true };
-  }
-
-  // Patient profile shortcuts
-  if (path === "/patient/profile" && method === "PUT") {
-    const user = getUser();
-    const patient = store.patients.find(
-      (p) => p.userId === user?.id || p.id === user?.patientId
-    );
-    if (patient) {
-      Object.assign(patient, body, { updatedAt: nowIso() });
-      persist();
-      return patient;
-    }
-    return body;
-  }
-  if (path === "/patient/profile" && method === "GET") {
-    const user = getUser();
-    return (
-      store.patients.find((p) => p.userId === user?.id || p.id === user?.patientId) ||
-      null
-    );
-  }
-
-  // Postal code lookup
-  if (path.startsWith("/utils/consulta-cp/")) {
-    const cp = path.split("/").pop();
-    return {
-      cp,
-      municipio: "Ciudad de México",
-      estado: "CDMX",
-      colonias: ["Centro", "Roma Norte", "Condesa", "Polanco"],
-    };
-  }
-
-  // Default: empty
-  if (import.meta.env?.DEV) {
-    console.warn(`[mock apiClient] ${method} ${path} not handled, returning null`);
-  }
-  return null;
-}
-
-async function request(path, options = {}) {
-  const { method = "GET", body } = options;
+  isRefreshing = true;
   try {
-    return await handle(method, path, body);
-  } catch (err) {
-    if (!err.status) {
-      err.code = err.code || "NETWORK_ERROR";
+    const refreshToken = getRefreshToken();
+    if (!refreshToken) {
+      throw makeError("Sin refresh token disponible.", 401);
     }
-    throw err;
+    const response = await fetch(`${BASE_URL}/auth/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refreshToken }),
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw makeError(data.message || "Sesión expirada.", response.status);
+    }
+    const data = await response.json();
+    const newToken = data.token || data.accessToken;
+    if (newToken) setToken(newToken);
+    if (data.refreshToken) setRefreshToken(data.refreshToken);
+    notifyRefreshed(null, newToken);
+    return newToken;
+  } catch (error) {
+    notifyRefreshed(error, null);
+    clearAll();
+    if (typeof window !== "undefined" && window.location.pathname !== "/login") {
+      window.location.href = "/login";
+    }
+    throw error;
+  } finally {
+    isRefreshing = false;
   }
 }
 
-const withMethod = (method) => (path, payload, options = {}) =>
-  request(path, { ...options, method, body: payload });
+function makeError(message, status, details) {
+  const err = new Error(message);
+  err.status = status;
+  if (details) err.details = details;
+  return err;
+}
+
+function buildHeaders(body, extra, auth) {
+  const headers = { Accept: "application/json", ...(extra || {}) };
+  // No tocamos Content-Type si el body es FormData (browser lo setea con boundary)
+  if (body && !(body instanceof FormData) && !headers["Content-Type"]) {
+    headers["Content-Type"] = "application/json";
+  }
+  if (auth !== false) {
+    const token = getToken();
+    if (token) headers.Authorization = `Bearer ${token}`;
+  }
+  return headers;
+}
+
+function serializeBody(body) {
+  if (body === undefined || body === null) return undefined;
+  if (body instanceof FormData) return body;
+  if (typeof body === "string") return body;
+  return JSON.stringify(body);
+}
+
+async function request(method, path, body, options = {}) {
+  const { auth = true, headers: extraHeaders, signal } = options;
+  const url = path.startsWith("http") ? path : `${BASE_URL}${path}`;
+
+  const doFetch = async () =>
+    fetch(url, {
+      method,
+      headers: buildHeaders(body, extraHeaders, auth),
+      body: serializeBody(body),
+      signal,
+      credentials: "omit",
+    });
+
+  let response = await doFetch();
+
+  // Si recibimos 401 en una llamada autenticada, intentamos refresh una sola vez.
+  if (response.status === 401 && auth !== false && !options._retry) {
+    try {
+      await refreshAccessToken();
+      return request(method, path, body, { ...options, _retry: true });
+    } catch {
+      // refreshAccessToken ya limpió y redirigió; relanzamos el 401 original
+    }
+  }
+
+  // No content
+  if (response.status === 204) return null;
+
+  let data;
+  const contentType = response.headers.get("content-type") || "";
+  if (contentType.includes("application/json")) {
+    data = await response.json().catch(() => null);
+  } else {
+    data = await response.text().catch(() => null);
+  }
+
+  if (!response.ok) {
+    const message =
+      (data && (data.message || data.error)) ||
+      response.statusText ||
+      "Error en la solicitud.";
+    throw makeError(message, response.status, data?.errors || data?.details);
+  }
+
+  return data;
+}
 
 export const api = {
-  get: (path, options) => request(path, { ...options, method: "GET" }),
-  post: withMethod("POST"),
-  put: withMethod("PUT"),
-  patch: withMethod("PATCH"),
-  del: (path, options) => request(path, { ...options, method: "DELETE" }),
+  get: (path, options) => request("GET", path, undefined, options),
+  post: (path, body, options) => request("POST", path, body, options),
+  put: (path, body, options) => request("PUT", path, body, options),
+  patch: (path, body, options) => request("PATCH", path, body, options),
+  delete: (path, options) => request("DELETE", path, undefined, options),
   request,
 };
 
