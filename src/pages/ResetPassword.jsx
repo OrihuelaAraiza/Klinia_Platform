@@ -4,6 +4,7 @@ import InputField from "../components/InputField";
 import ButtonPrimary from "../components/ButtonPrimary";
 import { api } from "../services/apiClient";
 import { useToast } from "../components/UI/Toast";
+import DoodleScatter from "../components/DoodleScatter";
 
 export default function ResetPassword() {
     const [params] = useSearchParams();
@@ -37,6 +38,7 @@ export default function ResetPassword() {
 
     return (
         <div className="login-page">
+            <DoodleScatter density="sparse" />
             <form onSubmit={handleSubmit} className="auth-card">
                 <h1>Nueva contraseña</h1>
 

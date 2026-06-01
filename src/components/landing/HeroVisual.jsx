@@ -3,7 +3,7 @@ import { Sparkles, ShieldCheck, FileSignature, Brain } from "lucide-react";
 
 /**
  * Visual abstracto del hero: tres cards flotantes que representan los
- * momentos clave de la plataforma — diagnóstico TBE, copiloto Brifi y
+ * momentos clave de la plataforma — diagnóstico TBE, copiloto Romi Transcript y
  * constancia firmada. Cada tarjeta tiene una animación de flotación con
  * desfases ligeramente distintos para sensación viva sin distraer.
  */
@@ -46,7 +46,7 @@ export default function HeroVisual() {
       </Motion.div>
 
       <Motion.div
-        className="hero-card hero-card--brifi"
+        className="hero-card hero-card--romi-transcript"
         initial={{ opacity: 0, x: -30, y: 50 }}
         animate={{ opacity: 1, x: 0, y: 0 }}
         transition={{ duration: 0.6, delay: 0.5 }}
@@ -54,7 +54,7 @@ export default function HeroVisual() {
         <Motion.div animate={{ y: [0, 8, 0] }} transition={floatTransition(0.8)}>
           <div className="hero-card__head">
             <span className="hero-card__icon hero-card__icon--ai"><Sparkles size={16} /></span>
-            <span className="hero-card__title">Brifi sugiere</span>
+            <span className="hero-card__title">Romi Transcript sugiere</span>
             <span className="hero-card__tag">IA</span>
           </div>
           <p className="hero-card__quote">

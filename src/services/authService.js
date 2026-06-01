@@ -111,12 +111,17 @@ export function clearSession() {
  * limpia la sesión.
  */
 export async function hydrateSession() {
+  const cached = getUser();
+  if (!cached?.id) return null;
+
+  const refreshToken = getRefreshToken();
+  // Sin refresh token no podemos revalidar — la sesión está rota, hay que cerrarla.
+  if (!refreshToken) {
+    clearAll();
+    return null;
+  }
+
   try {
-    const cached = getUser();
-    if (!cached?.id) return null;
-    const refreshToken = getRefreshToken();
-    if (!refreshToken) return cached;
-    // Reusamos /auth/refresh para revalidar y traer user fresco
     const refreshed = await api.post("/auth/refresh", { refreshToken }, { auth: false });
     if (refreshed?.user) {
       setUser(refreshed.user);
@@ -125,9 +130,17 @@ export async function hydrateSession() {
       if (refreshed.refreshToken) setRefreshToken(refreshed.refreshToken);
       return refreshed.user;
     }
+    // Backend respondió pero sin user → tratar como sesión inválida
+    clearAll();
+    return null;
+  } catch (err) {
+    // 401/403 (refresh token rechazado): cerrar sesión.
+    // Otros errores (red, 5xx): preservar storage para reintento.
+    if (err?.status === 401 || err?.status === 403) {
+      clearAll();
+      return null;
+    }
     return cached;
-  } catch {
-    return getUser();
   }
 }
 

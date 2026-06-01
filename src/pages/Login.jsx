@@ -23,6 +23,7 @@ import { useToast } from "../components/UI/Toast";
 import doctorImg from "../assets/hero/doctor-login.jpg";
 import Logo from "../components/Brand/Logo";
 import SelectionFlag from "../components/landing/SelectionFlag";
+import DoodleScatter from "../components/DoodleScatter";
 const INITIAL_FORM = {
   email: "",
   password: "",
@@ -210,6 +211,7 @@ export default function Login() {
 
   return (
     <div className="login-page">
+      <DoodleScatter />
       <SelectionFlag ctaLabel="Crear cuenta paciente" ctaTo="/register/patient" />
       <div className="login-layout">
         <section className="login-card">

@@ -1,46 +1,75 @@
-import { api } from "../services/apiClient";
+// Romi SEPOMEX API — busca códigos postales mexicanos y devuelve estado,
+// municipio, ciudad y lista de colonias. No requiere autenticación.
+const SEPOMEX_BASE_URL =
+  "https://romisepomex-e6fca9badrcneabt.canadacentral-01.azurewebsites.net";
 
+/**
+ * Consulta un código postal mexicano de 5 dígitos.
+ *
+ * @param {string} cp - Código postal de 5 dígitos
+ * @returns {Promise<null | {
+ *   postalCode: string,
+ *   stateName: string,
+ *   city: string,
+ *   municipality: string,
+ *   colonies: string[],
+ *   coloniesDetailed: Array<{name: string, type?: string, zone?: string}>
+ * }>}
+ */
 export const lookupPostalCode = async (cp) => {
-  if (!cp || cp.length !== 5) return null;
+  if (!cp || cp.length !== 5 || !/^\d{5}$/.test(cp)) return null;
 
   try {
-    const response = await api.get(`/utils/consulta-cp/${cp}`, { auth: false });
-    
-    // Verificación de seguridad: si no hay estado, algo salió mal
-    if (!response || !response.estado) {
-        console.warn("La API no devolvió el formato esperado:", response);
-        return null;
+    const res = await fetch(`${SEPOMEX_BASE_URL}/api/v1/cp/${cp}`, {
+      method: "GET",
+      headers: { Accept: "application/json" },
+    });
+    if (!res.ok) {
+      if (res.status === 404) return null;
+      console.warn(`[CP] SEPOMEX devolvió ${res.status} para CP=${cp}`);
+      return null;
+    }
+    const data = await res.json();
+    if (!data?.estado) {
+      console.warn("[CP] Respuesta sin estado:", data);
+      return null;
     }
 
+    const colonias = Array.isArray(data.colonias) ? data.colonias : [];
+    const colonies = colonias.map((c) =>
+      typeof c === "string" ? c : c.nombre
+    );
+    const coloniesDetailed = colonias.map((c) =>
+      typeof c === "string"
+        ? { name: c }
+        : { name: c.nombre, type: c.tipo, zone: c.zona }
+    );
+
     return {
-      stateName: response.estado, // Antes buscabas info.estado
-      city: response.municipio,   // Antes buscabas info.municipio
-      postalCode: cp,
-      // Mapeamos las colonias: si vienen como objetos {nombre: "..."} extraemos solo el string
-      colonies: Array.isArray(response.colonias) 
-        ? response.colonias.map(c => typeof c === 'string' ? c : c.nombre)
-        : [] 
+      postalCode: data.codigo_postal || cp,
+      stateName: data.estado,
+      city: data.ciudad || data.municipio,
+      municipality: data.municipio,
+      colonies,
+      coloniesDetailed,
     };
   } catch (error) {
-    console.error("Error en lookupPostalCode:", error);
+    console.error("[CP] Error consultando SEPOMEX:", error);
     return null;
   }
 };
 
 export const findStateValue = (statesList, stateNameFromApi) => {
   if (!statesList || !stateNameFromApi) return "";
-  
-  // Normalización para ignorar acentos y mayúsculas (Ej: "Puebla" -> "puebla")
-  const normalize = (s) => 
-    String(s).toLowerCase()
+  const normalize = (s) =>
+    String(s)
+      .toLowerCase()
       .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[̀-ͯ]/g, "")
       .trim();
-
   const search = normalize(stateNameFromApi);
-  
-  // Buscamos en la lista de constantes (MEXICAN_STATES)
-  const found = statesList.find(s => normalize(s.label) === search || normalize(s.value) === search);
-  
+  const found = statesList.find(
+    (s) => normalize(s.label) === search || normalize(s.value) === search
+  );
   return found ? found.value : "";
 };

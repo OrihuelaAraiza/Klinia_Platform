@@ -2,7 +2,12 @@ import { useTheme } from "../../hooks/useTheme";
 import logoBlack from "../../assets/brand/romi_lrgblack.png";
 import logoPink from "../../assets/brand/romi_lrgpink.png";
 import logoFace from "../../assets/brand/romiface.png";
+import heroRomi from "../../assets/brand/heroromi.png";
 
+// Variantes disponibles:
+//   horizontal — logo tipográfico (ROMI). Color depende del tema.
+//   vertical   — versión vertical (ROMI con cara).
+//   hero       — la mascota (axolote) en grande, usada como ilustración hero.
 const VARIANT_ASSET = {
     horizontal: {
         light: logoBlack,
@@ -12,12 +17,17 @@ const VARIANT_ASSET = {
         light: logoFace,
         dark: logoFace,
     },
+    hero: {
+        light: heroRomi,
+        dark: heroRomi,
+    },
 };
 
 const SIZE_WIDTH = {
     sm: 140,
     md: 180,
     lg: 220,
+    xl: 320,
 };
 
 export default function Logo({

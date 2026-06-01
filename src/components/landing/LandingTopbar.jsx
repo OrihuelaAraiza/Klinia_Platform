@@ -7,7 +7,7 @@ const ROMI_AI_URL = "https://romiai.com.mx/";
 
 const NAV_LINKS = [
   { hash: "que-es-brevemente", label: "¿Qué es?" },
-  { hash: "brifi", label: "Brifi (IA)" },
+  { hash: "romi-transcript", label: "Romi Transcript (IA)" },
   { hash: "como-funciona", label: "Cómo funciona" },
   { hash: "terapeutas", label: "Terapeutas" },
   { hash: "metodologia-tbe", label: "Metodología TBE" },

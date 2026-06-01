@@ -7,6 +7,7 @@ import StepExtendedIdentity from "../components/register/StepExtendedIdentity";
 import StepContact from "../components/register/StepContact";
 import StepPatientSource from "../components/register/StepPatientSource"; 
 import ButtonPrimary from "../components/ButtonPrimary";
+import DoodleScatter from "../components/DoodleScatter";
 import { useToast } from "../components/UI/Toast";
 import Logo from "../components/Brand/Logo";
 import { ShieldCheck, FileCheck2, Lock } from "lucide-react";
@@ -356,6 +357,7 @@ const submitRegistration = async () => {
     <>
       <SelectionFlag ctaLabel="Continuar registro" ctaTo="/register/patient" />
       <div className="register-page">
+      <DoodleScatter />
       <section className="register-main">
         <header className="register-header">
           <Logo variant="horizontal" size="md" theme="auto" className="register-logo" />

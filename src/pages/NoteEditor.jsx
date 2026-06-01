@@ -237,12 +237,12 @@ export default function NoteEditor() {
         </div>
       </div>
 
-      <div className="brifi-callout" role="note">
-        <div className="brifi-callout__icon" aria-hidden="true">✦</div>
-        <div className="brifi-callout__content">
+      <div className="romi-transcript-callout" role="note">
+        <div className="romi-transcript-callout__icon" aria-hidden="true">✦</div>
+        <div className="romi-transcript-callout__content">
           <div className="cluster gap-2 align-center" style={{ flexWrap: "wrap" }}>
-            <strong>Brifi</strong>
-            <span className="brifi-callout__chip">Próximamente</span>
+            <strong>Romi Transcript</strong>
+            <span className="romi-transcript-callout__chip">Próximamente</span>
           </div>
           <p className="helper-text" style={{ margin: "0.25rem 0 0" }}>
             Tu copiloto clínico de IA podrá sugerir resúmenes y autollenado de esta nota a partir

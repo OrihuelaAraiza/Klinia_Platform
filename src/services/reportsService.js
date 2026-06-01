@@ -57,7 +57,8 @@ export async function sign(reportId) {
       pdfHash = "";
     }
   }
-  return api.post(`/reports/${reportId}/sign`, { pdfHash });
+  // Backend nombra al cierre "lock" (firma == cerrar el reporte para edición)
+  return api.post(`/reports/${reportId}/lock`, { pdfHash });
 }
 
 export const lock = sign;

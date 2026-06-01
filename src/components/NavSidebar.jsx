@@ -14,7 +14,7 @@ const NAV_ITEMS = [
   { to: ROUTES.patients, label: "Pacientes", icon: UsersIcon, roles: [ROLES.ADMIN, ROLES.PROFESSIONAL, ROLES.ASSISTANT] },
   { to: ROUTES.sessions, label: "Agenda", icon: CalendarIcon, roles: [ROLES.ADMIN, ROLES.PROFESSIONAL, ROLES.ASSISTANT] },
   { to: ROUTES.prescriptions, label: "Sesiones", icon: ClipboardIcon, roles: [ROLES.ADMIN, ROLES.PROFESSIONAL, ROLES.ASSISTANT] },
-  { id: "brifi", label: "Brifi", icon: SparkleIcon, roles: [ROLES.ADMIN, ROLES.PROFESSIONAL, ROLES.ASSISTANT], comingSoon: true },
+  { id: "romi-transcript", label: "Romi Transcript", icon: SparkleIcon, roles: [ROLES.ADMIN, ROLES.PROFESSIONAL, ROLES.ASSISTANT], comingSoon: true },
   { to: ROUTES.solicitudes, label: "Solicitudes", icon: InboxIcon, roles: [ROLES.ADMIN, ROLES.PROFESSIONAL, ROLES.ASSISTANT], badgeSource: "requests" },
   { to: ROUTES.reports, label: "Reportes", icon: ChartIcon, roles: [ROLES.ADMIN, ROLES.PROFESSIONAL] },
   { to: ROUTES.expedientes, label: "Buscar expediente", icon: SearchIcon, roles: [ROLES.ADMIN, ROLES.PROFESSIONAL] },
@@ -194,7 +194,7 @@ export default function NavSidebar({
   const pendingCounts = usePendingRequestsCount(role);
   const totalPending = (pendingCounts.linkage || 0) + (pendingCounts.appointment || 0);
   useRequestsArrivalToast(role, pendingCounts);
-  const [brifiModalOpen, setBrifiModalOpen] = useState(false);
+  const [romiTranscriptModalOpen, setRomiTranscriptModalOpen] = useState(false);
 
   return (
     <nav
@@ -213,14 +213,14 @@ export default function NavSidebar({
       </div>
       <ul className="sidebar__list">
         {filteredItems.map((item) => {
-          if (item.comingSoon && item.id === "brifi") {
+          if (item.comingSoon && item.id === "romi-transcript") {
             const Icon = item.icon;
             return (
-              <li key="brifi" className="sidebar__item">
+              <li key="romi-transcript" className="sidebar__item">
                 <button
                   type="button"
                   className="sidebar__link sidebar__link--coming-soon"
-                  onClick={() => setBrifiModalOpen(true)}
+                  onClick={() => setRomiTranscriptModalOpen(true)}
                   data-tooltip={collapsed ? `${item.label} (Próximamente)` : undefined}
                   title={collapsed ? `${item.label} (Próximamente)` : undefined}
                   aria-label={`${item.label} — Próximamente`}
@@ -252,23 +252,23 @@ export default function NavSidebar({
       </ul>
 
       <Modal
-        open={brifiModalOpen}
-        onClose={() => setBrifiModalOpen(false)}
+        open={romiTranscriptModalOpen}
+        onClose={() => setRomiTranscriptModalOpen(false)}
         title={
           <span className="cluster gap-2 align-center">
             <SparkleIcon style={{ width: 20, height: 20, color: "var(--primary)" }} aria-hidden="true" />
-            Brifi · Copiloto clínico de IA
+            Romi Transcript · Copiloto clínico de IA
           </span>
         }
         footer={
           <div className="cluster justify-end">
-            <Button variant="primary" onClick={() => setBrifiModalOpen(false)}>Entendido</Button>
+            <Button variant="primary" onClick={() => setRomiTranscriptModalOpen(false)}>Entendido</Button>
           </div>
         }
       >
         <div className="stack-3">
           <p>
-            <strong>Brifi</strong> es el copiloto clínico de ROMI TBE. Próximamente podrás:
+            <strong>Romi Transcript</strong> es el copiloto clínico de ROMI TBE. Próximamente podrás:
           </p>
           <ul className="stack-1" style={{ paddingLeft: "1.1rem", margin: 0 }}>
             <li>Transcribir y resumir sesiones desde audio.</li>
@@ -276,13 +276,13 @@ export default function NavSidebar({
             <li>Detectar fórmulas TBE (DX, VC/VG, RST) y proponer dimensiones SPR.</li>
             <li>Buscar dentro del corpus cerrado (CIE-11, DSM-5-TR, protocolos institucionales).</li>
           </ul>
-          <div className="brifi-callout" style={{ marginTop: "0.5rem" }}>
-            <div className="brifi-callout__icon" aria-hidden="true">✦</div>
-            <div className="brifi-callout__content">
+          <div className="romi-transcript-callout" style={{ marginTop: "0.5rem" }}>
+            <div className="romi-transcript-callout__icon" aria-hidden="true">✦</div>
+            <div className="romi-transcript-callout__content">
               <strong>La IA nunca decide sola.</strong>
               <p className="helper-text" style={{ margin: "0.25rem 0 0" }}>
                 Toda sugerencia tendrá que ser validada por ti antes de quedar en el expediente o
-                firmarse. Brifi no genera diagnósticos vinculantes ni puede cerrar documentos por
+                firmarse. Romi Transcript no genera diagnósticos vinculantes ni puede cerrar documentos por
                 sí mismo.
               </p>
             </div>

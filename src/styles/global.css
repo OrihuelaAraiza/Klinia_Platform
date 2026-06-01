@@ -1136,7 +1136,7 @@ main {
   background: var(--brand);
 }
 
-/* Item "próximamente" (Brifi) — botón, no NavLink */
+/* Item "próximamente" (Romi Transcript) — botón, no NavLink */
 .sidebar__link--coming-soon {
   width: 100%;
   background: transparent;
@@ -7641,7 +7641,7 @@ hr {
   right: 0;
 }
 
-.hero-card--brifi {
+.hero-card--romi-transcript {
   top: 38%;
   left: 4%;
   width: 300px;
@@ -7803,13 +7803,13 @@ hr {
 .pillar-card__desc { margin: 0; color: var(--text-muted); font-size: 0.92rem; line-height: 1.5; }
 
 /* ============================================================
-   Brifi spotlight
+   Romi Transcript spotlight
    ============================================================ */
-.brifi-section {
+.romi-transcript-section {
   max-width: 1180px;
 }
 
-.brifi-spotlight {
+.romi-transcript-spotlight {
   display: grid;
   grid-template-columns: 1.2fr 1fr;
   gap: 2rem;
@@ -7824,10 +7824,10 @@ hr {
 }
 
 @media (max-width: 900px) {
-  .brifi-spotlight { grid-template-columns: 1fr; padding: 1.5rem; }
+  .romi-transcript-spotlight { grid-template-columns: 1fr; padding: 1.5rem; }
 }
 
-.brifi-spotlight__eyebrow {
+.romi-transcript-spotlight__eyebrow {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
@@ -7841,22 +7841,22 @@ hr {
   background: color-mix(in srgb, var(--primary) 16%, transparent);
 }
 
-.brifi-spotlight__title {
+.romi-transcript-spotlight__title {
   margin: 0.85rem 0 0.65rem;
   font-size: clamp(1.6rem, 2.5vw, 2.2rem);
   line-height: 1.2;
 }
 
-.brifi-spotlight__brand {
+.romi-transcript-spotlight__brand {
   background: linear-gradient(120deg, var(--primary), color-mix(in srgb, var(--primary) 40%, var(--accent, var(--primary))));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
 }
 
-.brifi-spotlight__desc { margin: 0; color: var(--text-muted); line-height: 1.55; }
+.romi-transcript-spotlight__desc { margin: 0; color: var(--text-muted); line-height: 1.55; }
 
-.brifi-bubble {
+.romi-transcript-bubble {
   margin-top: 1.5rem;
   padding: 1rem 1.1rem;
   border-radius: 14px;
@@ -7865,7 +7865,7 @@ hr {
   box-shadow: 0 12px 30px color-mix(in srgb, var(--primary) 10%, transparent);
 }
 
-.brifi-bubble__head {
+.romi-transcript-bubble__head {
   display: flex;
   align-items: center;
   gap: 0.4rem;
@@ -7874,21 +7874,21 @@ hr {
   margin-bottom: 0.5rem;
 }
 
-.brifi-bubble p {
+.romi-transcript-bubble p {
   margin: 0;
   font-size: 0.92rem;
   line-height: 1.5;
   color: var(--text);
 }
 
-.brifi-bubble__actions {
+.romi-transcript-bubble__actions {
   display: flex;
   gap: 0.45rem;
   margin-top: 0.85rem;
   flex-wrap: wrap;
 }
 
-.brifi-bubble__btn {
+.romi-transcript-bubble__btn {
   padding: 6px 12px;
   border-radius: 8px;
   font-size: 0.78rem;
@@ -7900,24 +7900,24 @@ hr {
   color: var(--text);
 }
 
-.brifi-bubble__btn--ok {
+.romi-transcript-bubble__btn--ok {
   background: var(--primary);
   color: white;
 }
 
-.brifi-bubble__btn--ghost {
+.romi-transcript-bubble__btn--ghost {
   background: transparent;
   color: var(--text-muted);
   border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
 }
 
-.brifi-spotlight__guardrails {
+.romi-transcript-spotlight__guardrails {
   display: flex;
   flex-direction: column;
   gap: 0.85rem;
 }
 
-.brifi-guardrails-list {
+.romi-transcript-guardrails-list {
   list-style: none;
   padding: 0;
   margin: 0;
@@ -7926,7 +7926,7 @@ hr {
   gap: 0.75rem;
 }
 
-.brifi-guardrail {
+.romi-transcript-guardrail {
   display: flex;
   gap: 0.85rem;
   padding: 0.95rem 1rem;
@@ -7935,7 +7935,7 @@ hr {
   border: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
 }
 
-.brifi-guardrail__icon {
+.romi-transcript-guardrail__icon {
   width: 36px;
   height: 36px;
   border-radius: 10px;
@@ -7947,8 +7947,8 @@ hr {
   flex-shrink: 0;
 }
 
-.brifi-guardrail strong { display: block; margin-bottom: 0.2rem; color: var(--text); }
-.brifi-guardrail p { margin: 0; font-size: 0.86rem; color: var(--text-muted); line-height: 1.45; }
+.romi-transcript-guardrail strong { display: block; margin-bottom: 0.2rem; color: var(--text); }
+.romi-transcript-guardrail p { margin: 0; font-size: 0.86rem; color: var(--text-muted); line-height: 1.45; }
 
 /* ============================================================
    TBE Methodology
@@ -8668,9 +8668,9 @@ hr {
 }
 
 /* ============================================================
-   Brifi (placeholder "Próximamente")
+   Romi Transcript (placeholder "Próximamente")
    ============================================================ */
-.brifi-callout {
+.romi-transcript-callout {
   display: flex;
   gap: 0.85rem;
   align-items: flex-start;
@@ -8682,7 +8682,7 @@ hr {
   border: 1px solid color-mix(in srgb, var(--primary) 25%, transparent);
 }
 
-.brifi-callout__icon {
+.romi-transcript-callout__icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -8695,12 +8695,12 @@ hr {
   flex-shrink: 0;
 }
 
-.brifi-callout__content {
+.romi-transcript-callout__content {
   flex: 1;
   min-width: 0;
 }
 
-.brifi-callout__chip {
+.romi-transcript-callout__chip {
   display: inline-flex;
   align-items: center;
   padding: 2px 8px;

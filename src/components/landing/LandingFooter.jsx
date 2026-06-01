@@ -7,7 +7,7 @@ const ROMI_AI_URL = "https://romiai.com.mx/";
 const SECTIONS = {
   platform: [
     { hash: "que-es-brevemente", label: "¿Qué es ROMI TBE?" },
-    { hash: "brifi", label: "Brifi (copiloto IA)" },
+    { hash: "romi-transcript", label: "Romi Transcript (copiloto IA)" },
     { hash: "metodologia-tbe", label: "Metodología TBE" },
     { hash: "faq", label: "Preguntas frecuentes" },
   ],

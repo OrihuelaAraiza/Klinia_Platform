@@ -153,6 +153,22 @@ export default function ProfessionalProfile() {
             .catch(() => { });
     }, []);
 
+    // Carga el perfil con URLs SAS resueltas al montar y refresca las fotos
+    // (el `user` cacheado puede traer blobNames sin firmar).
+    useEffect(() => {
+        let alive = true;
+        professionalService.getMyProfile().then((profile) => {
+            if (!alive || !profile?.professionalProfile) return;
+            const p = profile.professionalProfile;
+            setGeneralForm(prev => ({
+                ...prev,
+                profilePictureUrl: p.profilePictureUrl || prev.profilePictureUrl,
+                galleryPhotos: Array.isArray(p.galleryPhotos) ? p.galleryPhotos : prev.galleryPhotos,
+            }));
+        }).catch(() => {});
+        return () => { alive = false; };
+    }, []);
+
     // --- EFECTOS ---
     useEffect(() => {
         if (activeSection === 'delegate') {
@@ -215,19 +231,19 @@ export default function ProfessionalProfile() {
         setIsUploading(true);
         try {
             const response = await api.post("/uploads/profile-asset", formData);
-            // El back devuelve previewUrl (para mostrar); blobName se ignora aquí
-            // porque la galería trabaja con la URL firmada directamente.
-            const { previewUrl } = response;
+            // Guardamos blobName (persistente) y previewUrl (efímero, 30 min) por separado.
+            // En la BD se persiste solo blobName; previewUrl es para mostrar ya.
+            const { blobName, previewUrl } = response;
 
             if (isGallery) {
-                // Para galería guardamos el objeto con preview para verlo ya
                 setGeneralForm(prev => ({
                     ...prev,
-                    galleryPhotos: [...prev.galleryPhotos, previewUrl]
+                    galleryPhotos: [...prev.galleryPhotos, { blobName, previewUrl }]
                 }));
             } else {
                 setGeneralForm(prev => ({
                     ...prev,
+                    profilePictureBlobName: blobName,
                     profilePictureUrl: previewUrl
                 }));
             }
@@ -377,8 +393,15 @@ export default function ProfessionalProfile() {
             emergencyContactName: cleanValue(generalForm.emergencyContactName),
             emergencyContactPhone: cleanValue(generalForm.emergencyContactPhone),
             email: cleanValue(generalForm.newEmail),
-            profilePictureUrl: cleanValue(generalForm.profilePictureUrl),
-            galleryPhotos: generalForm.galleryPhotos,
+            // Persistimos blobName (canónico), no URL SAS (que expira en 30 min).
+            // Si no hay blobName nuevo, mantenemos lo que ya estaba almacenado.
+            profilePictureUrl: cleanValue(
+                generalForm.profilePictureBlobName || generalForm.profilePictureUrl
+            ),
+            galleryPhotos: (generalForm.galleryPhotos || []).map(item => {
+                if (typeof item === "string") return item;        // legado o ya-SAS
+                return item?.blobName || item?.previewUrl || null;
+            }).filter(Boolean),
             documentsJson: uploadedDocuments,
             currentPassword: generalForm.currentPassword,
             newPassword: cleanValue(generalForm.newPassword),
@@ -471,12 +494,15 @@ export default function ProfessionalProfile() {
                                 <div className="stack-2">
                                     <label className="ui-field__label">Galería del Consultorio</label>
                                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '1rem' }}>
-                                        {generalForm.galleryPhotos.map((url, idx) => (
-                                            <div key={idx} style={{ position: 'relative', aspectRatio: '1', borderRadius: '8px', overflow: 'hidden', border: '1px solid #ddd' }}>
-                                                <img src={url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Galería" />
-                                                <button type="button" onClick={() => removeGalleryPhoto(idx)} style={{ position: 'absolute', top: '4px', right: '4px', background: 'red', color: 'white', border: 'none', borderRadius: '50%', cursor: 'pointer' }}><X size={12} /></button>
-                                            </div>
-                                        ))}
+                                        {generalForm.galleryPhotos.map((item, idx) => {
+                                            const src = typeof item === "string" ? item : (item?.previewUrl || item?.blobName);
+                                            return (
+                                                <div key={idx} style={{ position: 'relative', aspectRatio: '1', borderRadius: '8px', overflow: 'hidden', border: '1px solid #ddd' }}>
+                                                    <img src={src} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Galería" />
+                                                    <button type="button" onClick={() => removeGalleryPhoto(idx)} style={{ position: 'absolute', top: '4px', right: '4px', background: 'red', color: 'white', border: 'none', borderRadius: '50%', cursor: 'pointer' }}><X size={12} /></button>
+                                                </div>
+                                            );
+                                        })}
                                         {generalForm.galleryPhotos.length < MAX_GALLERY_PHOTOS && (
                                             <button type="button" onClick={() => galleryInputRef.current.click()} style={{ aspectRatio: '1', border: '2px dashed #ccc', borderRadius: '8px', background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><ImageIcon size={24} /></button>
                                         )}

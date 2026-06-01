@@ -32,7 +32,7 @@ export default function TermsConditions() {
               ROMI TBE es una plataforma tecnológica que facilita la <strong>gestión clínica
               y administrativa</strong> entre profesionales de la salud mental y sus pacientes.
               Incluye expediente clínico electrónico, agenda, generación de reportes y un copiloto
-              de IA (Brifi).
+              de IA (Romi Transcript).
             </p>
             <p>
               <strong>Romi AI no presta servicios médicos ni terapéuticos directamente</strong>.
@@ -88,14 +88,14 @@ export default function TermsConditions() {
           </section>
 
           <section>
-            <h2>6. Brifi y limitaciones de la IA</h2>
+            <h2>6. Romi Transcript y limitaciones de la IA</h2>
             <p>
-              Brifi es un asistente de soporte. Sus sugerencias <strong>no constituyen
+              Romi Transcript es un asistente de soporte. Sus sugerencias <strong>no constituyen
               recomendación médica vinculante</strong> y deben ser siempre validadas por el
               profesional antes de aplicarse en el expediente o comunicarse al paciente.
             </p>
             <p>
-              Romi AI no garantiza que las sugerencias generadas por Brifi sean libres de error.
+              Romi AI no garantiza que las sugerencias generadas por Romi Transcript sean libres de error.
               Tampoco se responsabiliza por decisiones clínicas tomadas con base exclusiva en
               dichas sugerencias sin la debida revisión profesional.
             </p>

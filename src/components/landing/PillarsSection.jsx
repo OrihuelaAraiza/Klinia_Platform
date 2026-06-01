@@ -10,7 +10,7 @@ const PILLARS = [
   },
   {
     icon: Sparkles,
-    title: "Copiloto clínico Brifi",
+    title: "Copiloto clínico Romi Transcript",
     description:
       "Transcribe sesiones, propone autollenado del expediente y sugiere intervenciones con base en un corpus cerrado (CIE-11, DSM-5-TR). Tú validas cada paso: ninguna decisión clínica es automática.",
   },
@@ -24,7 +24,7 @@ const PILLARS = [
     icon: Workflow,
     title: "Operación híbrida: Modo IA o Manual",
     description:
-      "Graba la sesión y deja que Brifi proponga el borrador, o trabaja con clics y menús desplegables. La plataforma se adapta a tu ritmo y estilo clínico.",
+      "Graba la sesión y deja que Romi Transcript proponga el borrador, o trabaja con clics y menús desplegables. La plataforma se adapta a tu ritmo y estilo clínico.",
   },
 ];
 

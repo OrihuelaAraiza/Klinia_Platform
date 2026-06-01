@@ -4,6 +4,7 @@ import ButtonPrimary from "../components/ButtonPrimary";
 import { useToast } from "../components/UI/Toast";
 import { api } from "../services/apiClient";
 import { useNavigate } from "react-router-dom";
+import DoodleScatter from "../components/DoodleScatter";
 
 
 export default function ForgotPassword() {
@@ -32,6 +33,7 @@ export default function ForgotPassword() {
 
     return (
         <div className="login-page">
+            <DoodleScatter density="sparse" />
             <form onSubmit={handleSubmit} className="auth-card">
                 <h1>Restablecer contraseña</h1>
                 <p className="auth-subtitle">

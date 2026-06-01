@@ -1,10 +1,10 @@
 import { motion as Motion } from "framer-motion";
 import { Asterisk, Squiggle, Heart, Sparkle, StarBurst, Dots, Zigzag, Underline } from "./doodles/Doodles";
+import heroRomi from "../../assets/brand/heroromi.png";
 
 /**
- * Ilustración del hero en estilo blob / hand-drawn / corporate-memphis.
- * Un "blob character" amarillo amorfo sostiene un corazón mientras flota
- * rodeado de garabatos pastel — vibe Headspace/Calm/Buck.
+ * Ilustración del hero usando la mascota oficial de ROMI (axolote heroromi)
+ * sobre manchas blob pastel y garabatos animados estilo Headspace/Calm/Buck.
  */
 export default function HeroDoodle() {
   return (
@@ -23,9 +23,20 @@ export default function HeroDoodle() {
         />
       </svg>
 
-      {/* Personaje blob */}
+      {/* Mascota oficial ROMI (axolote heroromi) con animación flotante */}
+      <Motion.img
+        src={heroRomi}
+        alt=""
+        aria-hidden="true"
+        className="hero-doodle__mascot"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.7, delay: 0.2 }}
+      />
+
+      {/* Personaje blob (oculto — preservamos código por si se quiere alternar) */}
       <Motion.svg
-        className="hero-doodle__character"
+        className="hero-doodle__character hero-doodle__character--hidden"
         viewBox="0 0 320 360"
         fill="none"
         initial={{ opacity: 0, y: 20 }}

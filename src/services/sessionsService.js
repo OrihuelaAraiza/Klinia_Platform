@@ -39,11 +39,11 @@ export async function changeStatus(id, statusOrPayload) {
   const body = typeof statusOrPayload === "string"
     ? { status: statusOrPayload }
     : { status: statusOrPayload?.status || statusOrPayload };
-  return api.post(`/sessions/${id}/status`, body);
+  return api.put(`/sessions/${id}/status`, body);
 }
 
 export async function linkNote(id, noteId) {
-  return api.post(`/sessions/${id}/link-note`, { noteId });
+  return api.put(`/sessions/${id}/link-note`, { noteId });
 }
 
 export async function getTodayCounts() {

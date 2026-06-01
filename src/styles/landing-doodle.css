@@ -264,6 +264,24 @@
   filter: drop-shadow(6px 6px 0 rgba(26, 26, 26, 0.08));
 }
 
+.hero-doodle__character--hidden { display: none; }
+
+.hero-doodle__mascot {
+  position: relative;
+  z-index: 2;
+  width: clamp(280px, 95%, 480px);
+  height: auto;
+  filter: drop-shadow(8px 10px 0 rgba(26, 26, 26, 0.1));
+  animation: hero-mascot-float 4.5s ease-in-out infinite;
+}
+
+@keyframes hero-mascot-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-12px); }
+}
+
+.hero-doodle__mascot-float { display: none; }
+
 .hero-doodle__deco {
   position: absolute;
   z-index: 3;
@@ -405,13 +423,13 @@
 }
 
 /* -----------------------------------------------------------------------------
-   BRIFI SPOTLIGHT
+   ROMI TRANSCRIPT SPOTLIGHT
    ----------------------------------------------------------------------------- */
-.home-page .brifi-section {
+.home-page .romi-transcript-section {
   position: relative;
 }
 
-.home-page .brifi-spotlight {
+.home-page .romi-transcript-spotlight {
   background: var(--doodle-paper);
   border: 3px solid var(--doodle-ink);
   border-radius: 32px;
@@ -424,7 +442,7 @@
   overflow: hidden;
 }
 
-.home-page .brifi-spotlight::before {
+.home-page .romi-transcript-spotlight::before {
   content: "";
   position: absolute;
   top: -60px;
@@ -437,7 +455,7 @@
   z-index: 0;
 }
 
-.home-page .brifi-spotlight::after {
+.home-page .romi-transcript-spotlight::after {
   content: "";
   position: absolute;
   bottom: -80px;
@@ -450,13 +468,13 @@
   z-index: 0;
 }
 
-.home-page .brifi-spotlight > * { position: relative; z-index: 1; }
+.home-page .romi-transcript-spotlight > * { position: relative; z-index: 1; }
 
 @media (max-width: 900px) {
-  .home-page .brifi-spotlight { grid-template-columns: 1fr; padding: 1.5rem; }
+  .home-page .romi-transcript-spotlight { grid-template-columns: 1fr; padding: 1.5rem; }
 }
 
-.home-page .brifi-spotlight__eyebrow {
+.home-page .romi-transcript-spotlight__eyebrow {
   background: var(--doodle-yellow);
   color: var(--doodle-ink);
   border: 2px solid var(--doodle-ink);
@@ -470,7 +488,7 @@
   transform: rotate(-1.5deg);
 }
 
-.home-page .brifi-spotlight__title {
+.home-page .romi-transcript-spotlight__title {
   font-size: clamp(1.6rem, 3.2vw, 2.2rem);
   font-weight: 800;
   line-height: 1.1;
@@ -478,7 +496,7 @@
   color: var(--doodle-ink);
 }
 
-.home-page .brifi-spotlight__brand {
+.home-page .romi-transcript-spotlight__brand {
   background: none;
   color: var(--doodle-ink);
   -webkit-text-fill-color: var(--doodle-ink);
@@ -486,7 +504,7 @@
   z-index: 0;
 }
 
-.home-page .brifi-spotlight__brand::before {
+.home-page .romi-transcript-spotlight__brand::before {
   content: "";
   position: absolute;
   inset: 0.05em -8px 0.05em -8px;
@@ -497,13 +515,13 @@
   opacity: 0.85;
 }
 
-.home-page .brifi-spotlight__desc {
+.home-page .romi-transcript-spotlight__desc {
   color: var(--doodle-muted);
   font-size: 1rem;
   line-height: 1.6;
 }
 
-.home-page .brifi-bubble {
+.home-page .romi-transcript-bubble {
   background: var(--doodle-butter);
   border: 2.5px solid var(--doodle-ink);
   border-radius: 24px;
@@ -513,7 +531,7 @@
   position: relative;
 }
 
-.home-page .brifi-bubble::before {
+.home-page .romi-transcript-bubble::before {
   content: "";
   position: absolute;
   bottom: -14px;
@@ -526,18 +544,18 @@
   transform: rotate(45deg);
 }
 
-.home-page .brifi-bubble__head strong {
+.home-page .romi-transcript-bubble__head strong {
   color: var(--doodle-ink);
   font-weight: 700;
 }
 
-.home-page .brifi-bubble p {
+.home-page .romi-transcript-bubble p {
   color: var(--doodle-ink-soft);
   font-size: 0.95rem;
   line-height: 1.5;
 }
 
-.home-page .brifi-bubble__btn {
+.home-page .romi-transcript-bubble__btn {
   background: var(--doodle-paper);
   border: 2px solid var(--doodle-ink);
   border-radius: 100px;
@@ -548,20 +566,20 @@
   box-shadow: 2px 2px 0 var(--doodle-ink);
 }
 
-.home-page .brifi-bubble__btn--ok {
+.home-page .romi-transcript-bubble__btn--ok {
   background: var(--doodle-mint);
 }
 
-.home-page .brifi-bubble__btn--ghost {
+.home-page .romi-transcript-bubble__btn--ghost {
   background: transparent;
 }
 
-.home-page .brifi-spotlight__guardrails .helper-text {
+.home-page .romi-transcript-spotlight__guardrails .helper-text {
   color: var(--doodle-ink);
   font-weight: 700;
 }
 
-.home-page .brifi-guardrails-list {
+.home-page .romi-transcript-guardrails-list {
   list-style: none;
   padding: 0;
   margin: 1rem 0 0;
@@ -569,7 +587,7 @@
   gap: 0.9rem;
 }
 
-.home-page .brifi-guardrail {
+.home-page .romi-transcript-guardrail {
   background: var(--doodle-paper);
   border: 2.5px solid var(--doodle-ink);
   border-radius: 20px;
@@ -580,11 +598,11 @@
   box-shadow: 3px 3px 0 var(--doodle-ink);
 }
 
-.home-page .brifi-guardrail:nth-child(1) { background: var(--doodle-pink-soft); }
-.home-page .brifi-guardrail:nth-child(2) { background: var(--doodle-blue-soft); }
-.home-page .brifi-guardrail:nth-child(3) { background: var(--doodle-mint-soft); }
+.home-page .romi-transcript-guardrail:nth-child(1) { background: var(--doodle-pink-soft); }
+.home-page .romi-transcript-guardrail:nth-child(2) { background: var(--doodle-blue-soft); }
+.home-page .romi-transcript-guardrail:nth-child(3) { background: var(--doodle-mint-soft); }
 
-.home-page .brifi-guardrail__icon {
+.home-page .romi-transcript-guardrail__icon {
   width: 38px;
   height: 38px;
   flex-shrink: 0;
@@ -596,14 +614,14 @@
   color: var(--doodle-ink);
 }
 
-.home-page .brifi-guardrail strong {
+.home-page .romi-transcript-guardrail strong {
   display: block;
   color: var(--doodle-ink);
   font-size: 0.95rem;
   font-weight: 700;
 }
 
-.home-page .brifi-guardrail p {
+.home-page .romi-transcript-guardrail p {
   color: var(--doodle-muted);
   font-size: 0.86rem;
   line-height: 1.45;

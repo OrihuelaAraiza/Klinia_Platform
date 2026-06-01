@@ -1,6 +1,14 @@
 import { api } from "./apiClient";
 import { setUser } from "./storage";
 
+/**
+ * Devuelve el perfil del profesional logueado con URLs SAS frescas (30 min).
+ * Usar este endpoint cuando se necesite mostrar fotos/galerías persistidas.
+ */
+export async function getMyProfile() {
+  return api.get("/professional/profile").catch(() => null);
+}
+
 export async function updateProfile(payload) {
   const updated = await api.put("/professional/profile", payload);
   // refrescar cache local
@@ -35,6 +43,7 @@ export async function countDelegates() {
 }
 
 export default {
+  getMyProfile,
   updateProfile,
   listDelegates,
   createDelegate,
