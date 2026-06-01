@@ -243,7 +243,7 @@ export default function Reports() {
                                     </Button>
                                 ) : (
                                     <Button onClick={() => handleStartTemplate(TBE_TEMPLATE_ID)}>
-                                        Crear primera constancia TBE
+                                        Crear primera constancia clínica
                                     </Button>
                                 )
                             }

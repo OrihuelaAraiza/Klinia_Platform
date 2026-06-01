@@ -140,7 +140,7 @@ export default function PatientSessions() {
       <div className="show-only-print">
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
           <h1 style={{ fontSize: '24pt', margin: 0 }}>AGENDA DE SESIONES</h1>
-          <p style={{ fontSize: '12pt', color: '#666' }}>Plataforma Clínica ROMI TBE</p>
+          <p style={{ fontSize: '12pt', color: '#666' }}>Plataforma Clínica ROMI Clínica</p>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #000', paddingBottom: '1rem' }}>
           <span><strong>Paciente:</strong> {user?.firstName} {user?.lastName}</span>
@@ -357,7 +357,7 @@ export default function PatientSessions() {
       {/* PIE DE PÁGINA: Solo en PDF [cite: 31, 34] */}
       <footer className="show-only-print" style={{ marginTop: '3rem', textAlign: 'center', borderTop: '1px solid #eee', paddingTop: '1rem' }}>
         <p style={{ fontSize: '9pt', color: '#999' }}>
-          Documento generado automáticamente por ROMI TBE.
+          Documento generado automáticamente por ROMI Clínica.
           Válido para fines informativos del paciente.
         </p>
       </footer>

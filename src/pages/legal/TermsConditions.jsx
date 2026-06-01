@@ -19,7 +19,7 @@ export default function TermsConditions() {
           <section>
             <h2>1. Aceptación de los términos</h2>
             <p>
-              Al crear una cuenta en <strong>ROMI TBE</strong> (operada por Red de Optimización
+              Al crear una cuenta en <strong>ROMI Clínica</strong> (operada por Red de Optimización
               Médica Inteligente, S.A. de C.V., "Romi AI") usted acepta los presentes Términos y
               Condiciones, así como el Aviso de Privacidad. Si no está de acuerdo con alguno de
               estos términos, abstenerse de utilizar la plataforma.
@@ -29,7 +29,7 @@ export default function TermsConditions() {
           <section>
             <h2>2. Naturaleza del servicio</h2>
             <p>
-              ROMI TBE es una plataforma tecnológica que facilita la <strong>gestión clínica
+              ROMI Clínica es una plataforma tecnológica que facilita la <strong>gestión clínica
               y administrativa</strong> entre profesionales de la salud mental y sus pacientes.
               Incluye expediente clínico electrónico, agenda, generación de reportes y un copiloto
               de IA (Romi Transcript).
@@ -77,7 +77,7 @@ export default function TermsConditions() {
             <h2>5. Responsabilidad sobre la información clínica</h2>
             <p>
               El profesional es el único responsable de la veracidad, integridad y oportunidad de
-              la información clínica que registra. ROMI TBE provee la infraestructura tecnológica
+              la información clínica que registra. ROMI Clínica provee la infraestructura tecnológica
               (folios, sellos SHA-256, trazabilidad) para cumplir con NOM-004 y NOM-024, pero no
               valida el contenido clínico de notas, prescripciones o reportes.
             </p>

@@ -362,7 +362,7 @@ const submitRegistration = async () => {
         <header className="register-header">
           <Logo variant="horizontal" size="md" theme="auto" className="register-logo" />
           <div className="register-heading">
-            <span className="register-eyebrow">ROMI TBE</span>
+            <span className="register-eyebrow">ROMI Clínica</span>
             <h1>Registro de Paciente</h1>
             <p>Completa tu información para generar tu expediente digital.</p>
           </div>

@@ -79,7 +79,7 @@ export default function PatientNavSidebar({
           variant="horizontal"
           size="md"
           theme="dark"
-          alt="ROMI TBE"
+          alt="ROMI Clínica"
           className="sidebar__logo"
         />
       </div>

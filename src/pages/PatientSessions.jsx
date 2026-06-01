@@ -43,7 +43,7 @@ export default function PatientSessions() {
   const professional = useMemo(
     () => ({
       id: user?.id || "user",
-      name: user?.name || "Profesional ROMI TBE",
+      name: user?.name || "Profesional ROMI Clínica",
       license: user?.license,
     }),
     [user]

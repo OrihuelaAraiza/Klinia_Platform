@@ -34,7 +34,7 @@ export default function Logo({
     variant = "horizontal",
     size = "md",
     theme = "auto",
-    alt = "ROMI TBE",
+    alt = "ROMI Clínica",
     className = "",
 }) {
     const { theme: systemTheme } = useTheme();

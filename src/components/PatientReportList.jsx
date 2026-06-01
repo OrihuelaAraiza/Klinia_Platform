@@ -131,7 +131,7 @@ export default function PatientReportsList() {
                             icon={FileText}
                             title="Aún no hay reportes"
                             message="Genera la primera constancia psicoterapéutica de este paciente."
-                            action={<Button onClick={handleCreate}>Crear primera constancia TBE</Button>}
+                            action={<Button onClick={handleCreate}>Crear primera constancia clínica</Button>}
                         />
                     ) : (
                         <div className="table-container">

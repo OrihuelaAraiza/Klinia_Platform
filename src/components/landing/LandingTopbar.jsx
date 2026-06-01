@@ -10,7 +10,6 @@ const NAV_LINKS = [
   { hash: "romi-transcript", label: "Romi Transcript (IA)" },
   { hash: "como-funciona", label: "Cómo funciona" },
   { hash: "terapeutas", label: "Terapeutas" },
-  { hash: "metodologia-tbe", label: "Metodología TBE" },
   { hash: "faq", label: "FAQ" },
 ];
 
@@ -60,7 +59,7 @@ export default function LandingTopbar() {
           <Link
             to="/"
             className="landing-topbar__brand-link"
-            aria-label="Ir al inicio de ROMI TBE"
+            aria-label="Ir al inicio de ROMI Clínica"
             onClick={closeMobile}
           >
             <Logo
@@ -70,7 +69,7 @@ export default function LandingTopbar() {
               alt="ROMI"
               className="landing-topbar__logo"
             />
-            <span className="landing-topbar__product">TBE</span>
+            
           </Link>
           <a
             href={ROMI_AI_URL}

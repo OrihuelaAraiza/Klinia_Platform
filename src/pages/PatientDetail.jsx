@@ -18,6 +18,7 @@ import { useToast } from "../components/UI/Toast";
 import ExportMenu from "../components/ExportMenu";
 import patientsService from "../services/patientsService";
 import { reingressPatient } from "../services/patientsService";
+import { listPatientDocuments, getDocumentUrl } from "../services/documentsService";
 import { useBreadcrumbLabel } from "../context/breadcrumb-context";
 import { canPrescribe, whyCannotPrescribe } from "../utils/permissions";
 
@@ -93,6 +94,7 @@ export default function PatientDetail() {
   const [cancelOrderModal, setCancelOrderModal] = useState({ open: false, orderId: null });
   const [reingresModal, setReingresModal] = useState({ open: false, reason: "" });
   const [reingresLoading, setReingresLoading] = useState(false);
+  const [generatedDocs, setGeneratedDocs] = useState([]);
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -195,6 +197,20 @@ export default function PatientDetail() {
     };
   }, [id]);
 
+  // Carga documentos PDF generados (notas, reportes, recetas, órdenes...) y
+  // refresca cuando se emite uno nuevo desde cualquier parte de la app.
+  useEffect(() => {
+    let active = true;
+    const refresh = () =>
+      listPatientDocuments(id).then((docs) => active && setGeneratedDocs(docs || []));
+    refresh();
+    window.addEventListener("klinia:document-generated", refresh);
+    return () => {
+      active = false;
+      window.removeEventListener("klinia:document-generated", refresh);
+    };
+  }, [id]);
+
   const consentByType = useMemo(() => {
     const map = new Map();
     for (const consent of consents) {
@@ -241,7 +257,7 @@ export default function PatientDetail() {
     try {
       if (action === "sign") {
         const response = await signConsent(id, type, {
-          professional: user?.name ?? "Profesional ROMI TBE",
+          professional: user?.name ?? "Profesional ROMI Clínica",
         });
         setConsents((prev) => {
           const next = prev.filter((item) => item.type !== type);
@@ -253,7 +269,7 @@ export default function PatientDetail() {
       } else if (action === "revoke") {
         const consent = ensureConsentEntry(id, type);
         const response = await revokeConsent(id, consent.id, {
-          professional: consent.professional || user?.name || "Profesional ROMI TBE",
+          professional: consent.professional || user?.name || "Profesional ROMI Clínica",
         });
         setConsents((prev) => prev.map((item) => (item.id === response.id ? response : item)));
         toast.warn("Consentimiento revocado");
@@ -512,6 +528,51 @@ auditService.logAudit("patient_re_entry_client", { id });
                 <span>{formatDateISOToHuman(patient.updatedAt)}</span>
               </div>
             </div>
+          </CardBody>
+        </Card>
+
+        <Card hoverable={false}>
+          <CardHeader className="cluster" style={{ justifyContent: "space-between" }}>
+            <h2>Documentos PDF generados</h2>
+            <span className="helper-text small">
+              {generatedDocs.length} en historial
+            </span>
+          </CardHeader>
+          <CardBody className="stack-2">
+            {generatedDocs.length === 0 ? (
+              <p className="helper-text">
+                Aún no se han generado PDFs. Cada nota, receta, reporte u orden que descargues quedará registrada aquí con su folio.
+              </p>
+            ) : (
+              <ul className="attachments-list">
+                {generatedDocs.slice(0, 20).map((doc) => (
+                  <li key={doc.id} className="attachments-item cluster justify-between">
+                    <div className="cluster">
+                      <span className={`attachments-item__icon attachments-item__icon--pdf`}>
+                        PDF
+                      </span>
+                      <div className="attachments-item__meta">
+                        <strong>{doc.title || doc.type}</strong>
+                        <p className="helper-text">
+                          {doc.folio} · {formatDateISOToHuman(doc.generatedAt)}
+                          {doc.generatedBy ? ` · ${doc.generatedBy}` : ""}
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={async () => {
+                        const url = await getDocumentUrl(doc.id);
+                        if (url) window.open(url, "_blank");
+                      }}
+                    >
+                      Descargar
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </CardBody>
         </Card>
 

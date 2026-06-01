@@ -1,176 +1,159 @@
-import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import {
+  createBasePdf,
+  finalizePdf,
+  drawSection,
+  drawKeyValues,
+  addContinuationPage,
+  bottomLimit,
+  PAGE,
+  TYPE,
+  LH,
+} from "./basePdfTemplate";
+import { generateAndRegister } from "./triggerAndRegister";
+import { canonicalize, sha256 } from "../composeRecord";
 import { formatDateISOToHuman } from "../../formatters";
 
-const MARGIN = 48;
-const BODY_FONT_SIZE = 11;
-const TITLE_FONT_SIZE = 16;
-const LINE_HEIGHT = 14;
+export async function generateNotePdf({
+  note,
+  patient,
+  professional,
+  folio,
+  generatedAt = new Date().toISOString(),
+}) {
+  if (!note) throw new Error("No se proporcionó una nota clínica para exportar.");
 
-function drawWrappedText(page, text, options) {
-  const {
-    x,
-    yStart,
-    font,
-    fontSize = BODY_FONT_SIZE,
-    maxWidth = page.getWidth() - MARGIN * 2,
-    lineHeight = LINE_HEIGHT,
-  } = options;
+  const effectiveFolio = folio || note.folio || null;
+  const subtitle = note.status === "closed"
+    ? "Nota cerrada — Inalterable conforme a NOM-004."
+    : "Nota de evolución en borrador.";
 
-  if (!text) {
-    return yStart;
-  }
+  const baseTitle = "Nota de evolución";
+  const { pdfDoc, page, fonts, cursorY: startY } = await createBasePdf({
+    title: baseTitle,
+    subtitle,
+    folio: effectiveFolio,
+    generatedAt,
+  });
 
-  const words = text.split(/\s+/);
-  let line = "";
-  let cursorY = yStart;
+  const width = page.getWidth();
+  const maxWidth = width - PAGE.MARGIN * 2;
+  let currentPage = page;
+  let y = startY;
 
-  for (const word of words) {
-    const attempt = line ? `${line} ${word}` : word;
-    const width = font.widthOfTextAtSize(attempt, fontSize);
-    if (width > maxWidth && line) {
-      page.drawText(line, { x, y: cursorY, size: fontSize, font });
-      cursorY -= lineHeight;
-      line = word;
-    } else {
-      line = attempt;
+  const patientName = `${patient?.firstName ?? ""} ${patient?.lastName ?? ""}`.trim() || "—";
+  const noteDate = note.datetime ? formatDateISOToHuman(note.datetime) : "—";
+
+  y = drawKeyValues(
+    currentPage,
+    [
+      ["Paciente", patientName],
+      ["CURP", patient?.curp || "—"],
+      ["Fecha", noteDate],
+      ["Estado", note.status === "closed" ? "Cerrada" : "Borrador"],
+    ],
+    { fonts, x: PAGE.MARGIN, y, columnWidth: maxWidth / 2 }
+  );
+  y -= 4;
+
+  const sections = [
+    ["Subjetivo (S)", note.subjective],
+    ["Objetivo (O)", note.objective],
+    ["Análisis (A)", note.analysis],
+    ["Plan (P)", note.plan],
+  ];
+
+  const dxList = Array.isArray(note.diagnoses) && note.diagnoses.length
+    ? note.diagnoses.map((d) => `${d.code} — ${d.label}`).join("\n")
+    : "Sin diagnósticos registrados.";
+  sections.push(["Diagnósticos", dxList]);
+
+  for (const [title, body] of sections) {
+    // Salto de página si no queda espacio
+    if (y < bottomLimit() + LH.H2 + LH.BODY * 3) {
+      const cont = addContinuationPage(pdfDoc, fonts, {
+        title: baseTitle,
+        subtitle,
+        folio: effectiveFolio,
+        generatedAt,
+      });
+      currentPage = cont.page;
+      y = cont.cursorY;
     }
-  }
-
-  if (line) {
-    page.drawText(line, { x, y: cursorY, size: fontSize, font });
-    cursorY -= lineHeight;
-  }
-
-  return cursorY;
-}
-
-function drawSection(page, title, content, fonts, cursorY) {
-  const { bold, regular } = fonts;
-  const maxWidth = page.getWidth() - MARGIN * 2;
-  page.drawText(title, {
-    x: MARGIN,
-    y: cursorY,
-    font: bold,
-    size: 13,
-    color: rgb(0.07, 0.11, 0.2),
-  });
-  cursorY -= LINE_HEIGHT + 4;
-  cursorY = drawWrappedText(page, content || "Sin información capturada.", {
-    x: MARGIN,
-    yStart: cursorY,
-    font: regular,
-    fontSize: BODY_FONT_SIZE,
-    maxWidth,
-  });
-  cursorY -= 8;
-  return cursorY;
-}
-
-export async function generateNotePdf({ patient, note, generatedAt = new Date().toISOString() }) {
-  if (!note) {
-    throw new Error("No se proporcionó una nota clínica para exportar.");
-  }
-
-  const pdfDoc = await PDFDocument.create();
-  const page = pdfDoc.addPage();
-  const { height } = page.getSize();
-
-  const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
-  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-
-  page.drawRectangle({
-    x: 0,
-    y: height - 60,
-    width: page.getWidth(),
-    height: 60,
-    color: rgb(0.77, 0.96, 0.24),
-  });
-
-  page.drawText("ROMI TBE — Nota de evolución", {
-    x: MARGIN,
-    y: height - 32,
-    font: fontBold,
-    size: TITLE_FONT_SIZE,
-    color: rgb(0.08, 0.14, 0.28),
-  });
-
-  const patientName = `${patient?.firstName ?? ""} ${patient?.lastName ?? ""}`.trim() || "Paciente sin nombre";
-  const noteDate = note.datetime ? formatDateISOToHuman(note.datetime) : "Fecha no registrada";
-  const generatedDate = formatDateISOToHuman(generatedAt);
-
-  let cursorY = height - 90;
-  page.drawText(`Paciente: ${patientName}`, { x: MARGIN, y: cursorY, font: fontBold, size: 13 });
-  cursorY -= LINE_HEIGHT;
-  page.drawText(`CURP: ${patient?.curp ?? "CURP no registrado"}`, { x: MARGIN, y: cursorY, font: fontRegular, size: BODY_FONT_SIZE });
-  cursorY -= LINE_HEIGHT;
-  page.drawText(`Nota registrada el: ${noteDate}`, { x: MARGIN, y: cursorY, font: fontRegular, size: BODY_FONT_SIZE });
-  cursorY -= LINE_HEIGHT;
-  page.drawText(`Estado: ${note.status === "closed" ? "Cerrada" : "Abierta"}`, {
-    x: MARGIN,
-    y: cursorY,
-    font: fontRegular,
-    size: BODY_FONT_SIZE,
-  });
-  cursorY -= LINE_HEIGHT * 1.5;
-
-  cursorY = drawSection(page, "Subjetivo (S)", note.subjective, { bold: fontBold, regular: fontRegular }, cursorY);
-  cursorY = drawSection(page, "Objetivo (O)", note.objective, { bold: fontBold, regular: fontRegular }, cursorY);
-  cursorY = drawSection(page, "Análisis (A)", note.analysis, { bold: fontBold, regular: fontRegular }, cursorY);
-  cursorY = drawSection(page, "Plan (P)", note.plan, { bold: fontBold, regular: fontRegular }, cursorY);
-
-  const diagnoses =
-    Array.isArray(note.diagnoses) && note.diagnoses.length
-      ? note.diagnoses.map((dx) => `${dx.code} — ${dx.label}`).join("; ")
-      : "Sin diagnósticos registrados.";
-  cursorY = drawSection(page, "Diagnósticos", diagnoses, { bold: fontBold, regular: fontRegular }, cursorY);
-
-  const professionalName = note.professional?.name || "Profesional no registrado";
-  const license = note.professional?.license ? ` — Cédula ${note.professional.license}` : "";
-  page.drawText(`Profesional: ${professionalName}${license}`, {
-    x: MARGIN,
-    y: cursorY,
-    font: fontBold,
-    size: BODY_FONT_SIZE,
-  });
-  cursorY -= LINE_HEIGHT;
-
-  if (note.status === "closed") {
-    const closedAt = note.closedAt ? formatDateISOToHuman(note.closedAt) : noteDate;
-    page.drawText(`Nota cerrada el: ${closedAt}`, {
-      x: MARGIN,
-      y: cursorY,
-      font: fontRegular,
-      size: BODY_FONT_SIZE,
+    y = drawSection(currentPage, {
+      title,
+      body,
+      fonts,
+      x: PAGE.MARGIN,
+      y,
+      maxWidth,
     });
-    cursorY -= LINE_HEIGHT;
   }
 
-  const addenda = Array.isArray(note.addenda ?? note.addendums) ? note.addenda ?? note.addendums : [];
+  // Addendums
+  const addenda = Array.isArray(note.addenda ?? note.addendums)
+    ? note.addenda ?? note.addendums
+    : [];
   if (addenda.length) {
-    cursorY = drawSection(
-      page,
-      "Addendums",
-      addenda
-        .map((item) => {
-          const date = item.datetime ? formatDateISOToHuman(item.datetime) : "";
-          return `${date} — ${item.author ?? "Autor desconocido"}: ${item.text ?? ""}`;
-        })
-        .join("\n"),
-      { bold: fontBold, regular: fontRegular },
-      cursorY
-    );
+    const body = addenda
+      .map((item) => {
+        const date = item.datetime ? formatDateISOToHuman(item.datetime) : "";
+        return `${date} — ${item.author ?? "Autor desconocido"}: ${item.text ?? ""}`;
+      })
+      .join("\n");
+    if (y < bottomLimit() + LH.H2 * 3) {
+      const cont = addContinuationPage(pdfDoc, fonts, {
+        title: baseTitle,
+        subtitle,
+        folio: effectiveFolio,
+        generatedAt,
+      });
+      currentPage = cont.page;
+      y = cont.cursorY;
+    }
+    y = drawSection(currentPage, {
+      title: "Addendums",
+      body,
+      fonts,
+      x: PAGE.MARGIN,
+      y,
+      maxWidth,
+    });
   }
 
-  page.drawText("Documento generado por ROMI TBE (PMV) — No sustituye firma autógrafa.", {
-    x: MARGIN,
-    y: 32,
-    font: fontRegular,
-    size: 9,
-    color: rgb(0.4, 0.4, 0.4),
-  });
+  const hash = await sha256(
+    canonicalize({
+      folio: effectiveFolio,
+      noteId: note.id,
+      datetime: note.datetime,
+      subjective: note.subjective,
+      objective: note.objective,
+      analysis: note.analysis,
+      plan: note.plan,
+    })
+  );
 
-  const pdfBytes = await pdfDoc.save();
-  return new Blob([pdfBytes], { type: "application/pdf" });
+  return finalizePdf(pdfDoc, fonts, {
+    folio: effectiveFolio,
+    professional: note.professional || professional,
+    sha256: hash,
+  });
+}
+
+export async function downloadNotePdf(config) {
+  const patientId = config?.patient?.id || config?.note?.patientId;
+  const sourceId = config?.note?.id;
+  const title = config?.note?.datetime
+    ? `Nota ${formatDateISOToHuman(config.note.datetime)}`
+    : "Nota de evolución";
+
+  return generateAndRegister({
+    type: "NOTE",
+    patientId,
+    sourceId,
+    title,
+    filename: `nota_${config?.note?.id || "documento"}.pdf`,
+    render: (folio) => generateNotePdf({ ...config, folio }),
+  });
 }
 
 export default generateNotePdf;

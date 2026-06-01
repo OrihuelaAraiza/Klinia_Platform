@@ -23,7 +23,7 @@ export default function PrivacyPolicy() {
               "Romi AI" o "el Responsable"), con domicilio en Hospital Ángeles Puebla, Av. Kepler
               No. 2143, Torre de Especialidades IV, Consultorio 3800, CP 72820, Reserva Territorial
               Atlixcáyotl, Puebla, Pue., es la entidad responsable del tratamiento de sus datos
-              personales recabados a través de la plataforma <strong>ROMI TBE</strong>.
+              personales recabados a través de la plataforma <strong>ROMI Clínica</strong>.
             </p>
           </section>
 
@@ -64,7 +64,7 @@ export default function PrivacyPolicy() {
           <section>
             <h2>4. Romi Transcript (asistente de inteligencia artificial)</h2>
             <p>
-              ROMI TBE incluye un copiloto clínico de IA llamado <strong>Romi Transcript</strong>. Es
+              ROMI Clínica incluye un copiloto clínico de IA llamado <strong>Romi Transcript</strong>. Es
               importante que conozca cómo opera respecto a sus datos personales:
             </p>
             <ul>

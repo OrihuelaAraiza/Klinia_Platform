@@ -1,13 +1,13 @@
 /* =================================================================
-   ROMI TBE - Design System Tokens
-   Fuente: ROMI TBE Guía de Uso
+   ROMI Clínica - Design System Tokens
+   Fuente: ROMI Clínica Guía de Uso
    ================================================================= */
 
-/* Tipografía ROMI TBE: Inclusive Sans */
+/* Tipografía ROMI Clínica: Inclusive Sans */
 @import url("https://fonts.googleapis.com/css2?family=Inclusive+Sans:wght@300;400;500;600;700&display=swap");
 
 :root {
-  /* ===== BRAND COLORS - ROMI TBE (fuente de verdad) ===== */
+  /* ===== BRAND COLORS - ROMI Clínica (fuente de verdad) ===== */
   /* Azul Neural: Color primario de la marca */
   --bm-blue-neural: #304768;
   /* Azul Conciencia: Color de acento */
@@ -47,7 +47,7 @@
   /* Focus ring = Azul Conciencia */
   --focus: var(--bm-blue-conciencia);
   
-  /* Gradients con identidad ROMI TBE */
+  /* Gradients con identidad ROMI Clínica */
   --gradient-app: radial-gradient(
     circle at top left, 
     color-mix(in srgb, var(--bm-blue-conciencia) 18%, transparent) 0%, 
@@ -70,7 +70,7 @@
   --r-md: 12px;
   --r-lg: 20px;
 
-  /* Shadows (ajustadas a paleta ROMI TBE) */
+  /* Shadows (ajustadas a paleta ROMI Clínica) */
   --shadow-1: 0 1px 3px rgba(48, 71, 104, 0.08), 0 1px 2px rgba(48, 71, 104, 0.06);
   --shadow-2: 0 20px 40px rgba(48, 71, 104, 0.12);
 
@@ -141,7 +141,7 @@
   --error: var(--danger);
 }
 
-/* ===== DARK MODE - ROMI TBE ===== */
+/* ===== DARK MODE - ROMI Clínica ===== */
 [data-theme="dark"] {
   /* Mantener identidad de marca en dark mode */
   --primary: var(--bm-blue-neural);
@@ -5450,7 +5450,7 @@ main {
 
 /* =========================================
    MODALES DE ACCIÓN (Cámara / OTP)
-   Adaptado al Design System de ROMI TBE
+   Adaptado al Design System de ROMI Clínica
    ========================================= */
 
 /* Reutiliza la lógica de z-index y overlay de tu sistema */

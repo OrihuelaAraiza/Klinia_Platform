@@ -220,7 +220,7 @@ export default function Login() {
               variant="horizontal"
               size="lg"
               theme="auto"
-              alt="ROMI TBE"
+              alt="ROMI Clínica"
               className="login-logo"
             />
             <ThemeToggle className="login-theme-toggle" />
@@ -342,7 +342,7 @@ export default function Login() {
             >
               <p style={{ margin: 0 }}>
                 {userType === "professional"
-                  ? "¿Eres nuevo en ROMI TBE?"
+                  ? "¿Eres nuevo en ROMI Clínica?"
                   : "¿Primera vez aquí?"}
               </p>
 
@@ -370,7 +370,7 @@ export default function Login() {
         >
           <img
             src={doctorImg}
-            alt="Profesional de salud usando la plataforma ROMI TBE"
+            alt="Profesional de salud usando la plataforma ROMI Clínica"
             className="login-hero__image"
           />
         </Motion.aside>

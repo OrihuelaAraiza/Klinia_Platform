@@ -1,5 +1,5 @@
 /* =============================================================================
-   ROMI TBE · App-wide doodle skin
+   ROMI Clínica · App-wide doodle skin
    Aplica la estética hand-drawn/blob/Headspace a toda la aplicación.
    Importado en main.jsx después de global.css para sobrescribirlo.
    No se aplica al .home-page (landing tiene su propio skin que ya cubre todo).
@@ -899,7 +899,6 @@ a:hover { color: var(--doodle-hot); }
    ----------------------------------------------------------------------------- */
 .address-fields__select {
   width: 100%;
-  background: var(--doodle-paper) !important;
   color: var(--doodle-ink);
   border: 2px solid var(--doodle-ink) !important;
   border-radius: 12px !important;
@@ -908,12 +907,14 @@ a:hover { color: var(--doodle-hot); }
   font-family: inherit;
   font-size: 0.95rem;
   cursor: pointer;
-  appearance: none;
-  -webkit-appearance: none;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%231A1A1A' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><path d='M6 8l4 4 4-4'/></svg>") !important;
-  background-repeat: no-repeat;
-  background-position: right 0.8rem center;
-  background-size: 16px;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  /* Background shorthand para que ninguna regla posterior (.ui-field input) pueda
+     resetear el repeat/position/size con su propio shorthand. */
+  background:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%231A1A1A' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><path d='M6 8l4 4 4-4'/></svg>")
+    right 0.8rem center / 16px no-repeat
+    var(--doodle-paper) !important;
   padding-right: 2.2rem;
   transition: box-shadow 0.12s ease, transform 0.12s ease;
 }
@@ -968,11 +969,13 @@ a:hover { color: var(--doodle-hot); }
 
 /* Dark mode para los hints y select */
 [data-theme="dark"] .address-fields__select {
-  background: var(--doodle-paper) !important;
   color: var(--doodle-ink);
   border-color: var(--doodle-ink) !important;
   box-shadow: 2px 2px 0 var(--doodle-yellow);
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%23FAEED3' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><path d='M6 8l4 4 4-4'/></svg>") !important;
+  background:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%23FAEED3' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><path d='M6 8l4 4 4-4'/></svg>")
+    right 0.8rem center / 16px no-repeat
+    var(--doodle-paper) !important;
 }
 
 [data-theme="dark"] .address-fields__hint {
@@ -1092,6 +1095,262 @@ hr {
 
 .modal__header {
   border-bottom: 2px dashed color-mix(in srgb, var(--doodle-ink) 18%, transparent);
+}
+
+/* -----------------------------------------------------------------------------
+   CLINICAL HISTORY TABS (3 tipos: psicológica, psiquiátrica, psicoterapéutica)
+   ----------------------------------------------------------------------------- */
+.clinical-history-tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.ch-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.4rem;
+  background: var(--doodle-paper);
+  border: 2.5px solid var(--doodle-ink);
+  border-radius: 18px;
+  box-shadow: 3px 3px 0 var(--doodle-ink);
+}
+
+.ch-tab {
+  flex: 1 1 0;
+  min-width: 150px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.7rem 1rem;
+  border: 2px solid transparent;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--doodle-ink);
+  font-weight: 600;
+  font-size: 0.92rem;
+  cursor: pointer;
+  transition: background 0.12s ease, transform 0.12s ease;
+}
+
+.ch-tab:hover {
+  background: var(--doodle-butter);
+}
+
+.ch-tab.is-active {
+  background: var(--doodle-yellow);
+  border-color: var(--doodle-ink);
+  box-shadow: 2px 2px 0 var(--doodle-ink);
+}
+
+.ch-tab-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.ch-tab-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.ch-readonly-field__label {
+  display: block;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--doodle-muted);
+  font-weight: 700;
+  margin-bottom: 0.2rem;
+}
+
+.ch-readonly-field__value {
+  margin: 0;
+  color: var(--doodle-ink-soft);
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+.ch-physical-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.ch-physical-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.7rem 0.9rem;
+  background: var(--doodle-butter);
+  border: 2px solid var(--doodle-ink);
+  border-radius: 14px;
+  box-shadow: 2px 2px 0 var(--doodle-ink);
+}
+
+[data-theme="dark"] .ch-tabs,
+[data-theme="dark"] .ch-physical-item {
+  background: var(--doodle-paper);
+  box-shadow: 3px 3px 0 var(--doodle-yellow);
+}
+
+[data-theme="dark"] .ch-tab.is-active {
+  background: var(--doodle-yellow);
+  color: #15110d;
+}
+
+/* -----------------------------------------------------------------------------
+   HISTORIA CLÍNICA FORM / READ-ONLY (schema-driven)
+   ----------------------------------------------------------------------------- */
+.historia-form,
+.historia-readonly {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.historia-form__legal {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  background: var(--doodle-mint-soft);
+  border: 2px solid var(--doodle-ink);
+  border-radius: 14px;
+  padding: 0.7rem 1rem;
+  font-size: 0.82rem;
+  color: var(--doodle-ink);
+  line-height: 1.45;
+}
+
+.historia-form__legal svg { flex-shrink: 0; margin-top: 2px; }
+.historia-form__legal p { margin: 0; }
+
+.historia-form__seq {
+  display: inline-flex;
+  width: 26px;
+  height: 26px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--doodle-yellow);
+  border: 2px solid var(--doodle-ink);
+  color: var(--doodle-ink);
+  font-weight: 800;
+  font-size: 0.85rem;
+}
+
+.historia-form__grid,
+.historia-readonly__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.85rem 1rem;
+}
+
+@media (max-width: 720px) {
+  .historia-form__grid,
+  .historia-readonly__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.historia-form__field.span-2,
+.historia-readonly__field.span-2 {
+  grid-column: 1 / -1;
+}
+
+.historia-readonly__label {
+  display: block;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--doodle-muted);
+  font-weight: 700;
+  margin-bottom: 0.2rem;
+}
+
+.historia-readonly__value {
+  margin: 0;
+  color: var(--doodle-ink-soft);
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+.historia-form__readonly-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: var(--doodle-peach-soft);
+  border: 2px dashed var(--doodle-hot);
+  border-radius: 12px;
+  padding: 0.55rem 0.85rem;
+  font-size: 0.85rem;
+  color: var(--doodle-ink);
+}
+
+/* Bloque de detalle opcional que aparece bajo un select cuando hay valor */
+.historia-form__detalle {
+  margin-top: 0.55rem;
+  padding: 0.6rem 0.7rem;
+  background: var(--doodle-butter);
+  border: 2px dashed var(--doodle-ink);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  animation: detalle-pop 0.18s ease;
+}
+
+.historia-form__detalle-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--doodle-ink);
+  letter-spacing: 0.02em;
+}
+
+.historia-form__detalle-label .helper-text {
+  font-weight: 500;
+  color: var(--doodle-muted);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.historia-form__detalle textarea {
+  min-height: 56px;
+  resize: vertical;
+}
+
+@keyframes detalle-pop {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.historia-readonly__detalle {
+  margin: 0.35rem 0 0;
+  padding: 0.5rem 0.7rem;
+  background: var(--doodle-butter);
+  border: 1.5px dashed var(--doodle-ink);
+  border-radius: 10px;
+  font-size: 0.88rem;
+  color: var(--doodle-ink);
+}
+
+[data-theme="dark"] .historia-form__detalle,
+[data-theme="dark"] .historia-readonly__detalle {
+  background: var(--doodle-paper-2);
+  color: var(--doodle-ink);
+}
+
+[data-theme="dark"] .historia-form__legal {
+  background: var(--doodle-mint-soft);
+  color: var(--doodle-ink);
 }
 
 /* -----------------------------------------------------------------------------

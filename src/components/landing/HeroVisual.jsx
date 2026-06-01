@@ -3,7 +3,7 @@ import { Sparkles, ShieldCheck, FileSignature, Brain } from "lucide-react";
 
 /**
  * Visual abstracto del hero: tres cards flotantes que representan los
- * momentos clave de la plataforma — diagnóstico TBE, copiloto Romi Transcript y
+ * momentos clave de la plataforma — copiloto Romi Transcript y
  * constancia firmada. Cada tarjeta tiene una animación de flotación con
  * desfases ligeramente distintos para sensación viva sin distraer.
  */

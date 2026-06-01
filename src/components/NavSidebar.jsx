@@ -207,7 +207,7 @@ export default function NavSidebar({
           variant="horizontal"
           size="md"
           theme="dark"
-          alt="ROMI TBE"
+          alt="ROMI Clínica"
           className="sidebar__logo"
         />
       </div>
@@ -268,12 +268,12 @@ export default function NavSidebar({
       >
         <div className="stack-3">
           <p>
-            <strong>Romi Transcript</strong> es el copiloto clínico de ROMI TBE. Próximamente podrás:
+            <strong>Romi Transcript</strong> es el copiloto clínico de ROMI Clínica. Próximamente podrás:
           </p>
           <ul className="stack-1" style={{ paddingLeft: "1.1rem", margin: 0 }}>
             <li>Transcribir y resumir sesiones desde audio.</li>
             <li>Sugerir autollenado de notas, reportes y planes de tratamiento.</li>
-            <li>Detectar fórmulas TBE (DX, VC/VG, RST) y proponer dimensiones SPR.</li>
+            <li>Identificar estructura y campos clave del expediente.</li>
             <li>Buscar dentro del corpus cerrado (CIE-11, DSM-5-TR, protocolos institucionales).</li>
           </ul>
           <div className="romi-transcript-callout" style={{ marginTop: "0.5rem" }}>

@@ -191,7 +191,7 @@ function drawFooter(ctx, { folio, pdfHash, verificationCode }) {
       color: rgb(0.4, 0.45, 0.55),
     });
   }
-  const legend = "Documento sujeto al secreto profesional · NOM-004 · ROMI TBE";
+  const legend = "Documento sujeto al secreto profesional · NOM-004 · ROMI Clínica";
   const legendWidth = fonts.regular.widthOfTextAtSize(legend, 8);
   page.drawText(legend, {
     x: width - PAGE_MARGIN - legendWidth,
@@ -202,7 +202,12 @@ function drawFooter(ctx, { folio, pdfHash, verificationCode }) {
   });
 }
 
-export async function generateSchemaReportPdf({ template, report, patient, generatedAt = new Date().toISOString() }) {
+export async function generateSchemaReportPdf({ template, report, patient, folio: folioOverride, generatedAt = new Date().toISOString() }) {
+  // El folio puede venir del backend (preview) o del registro existente
+  const effectiveReportFolio = folioOverride || report.folio || null;
+  if (!report.folio && folioOverride) {
+    report = { ...report, folio: folioOverride };
+  }
   if (!template) throw new Error("Template requerido para generar el PDF.");
   if (!report) throw new Error("Reporte requerido.");
   if (!patient) throw new Error("Datos del paciente requeridos.");

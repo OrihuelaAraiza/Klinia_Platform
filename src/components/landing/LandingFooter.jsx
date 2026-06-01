@@ -6,9 +6,8 @@ const ROMI_AI_URL = "https://romiai.com.mx/";
 
 const SECTIONS = {
   platform: [
-    { hash: "que-es-brevemente", label: "¿Qué es ROMI TBE?" },
+    { hash: "que-es-brevemente", label: "¿Qué es ROMI Clínica?" },
     { hash: "romi-transcript", label: "Romi Transcript (copiloto IA)" },
-    { hash: "metodologia-tbe", label: "Metodología TBE" },
     { hash: "faq", label: "Preguntas frecuentes" },
   ],
   product: [
@@ -62,7 +61,7 @@ export default function LandingFooter() {
       <div className="landing-footer__main">
         {/* Brand */}
         <div className="landing-footer__col landing-footer__col--brand">
-          <Link to="/" className="landing-footer__brand-link" aria-label="Inicio de ROMI TBE">
+          <Link to="/" className="landing-footer__brand-link" aria-label="Inicio de ROMI Clínica">
             <Logo
               variant="horizontal"
               size="md"
@@ -70,11 +69,11 @@ export default function LandingFooter() {
               alt="ROMI"
               className="landing-footer__logo"
             />
-            <span className="landing-footer__product">TBE</span>
+            
           </Link>
           <p className="landing-footer__tagline">
             Plataforma clínica de salud mental de <strong>Romi AI</strong>. Construida con
-            Terapia Breve Estratégica y cumplimiento NOM-004 / NOM-024.
+            historia clínica completa por especialidad y cumplimiento NOM-004-SSA3-2012 y NOM-024-SSA3-2012.
           </p>
           <a
             href={ROMI_AI_URL}

@@ -9,7 +9,6 @@ import { ROUTES } from "../utils/constants";
 import HeroDoodle from "../components/landing/HeroDoodle";
 import PillarsSection from "../components/landing/PillarsSection";
 import RomiTranscript from "../components/landing/RomiTranscript";
-import TbeMethodology from "../components/landing/TbeMethodology";
 import TherapistDirectory from "../components/landing/TherapistDirectory";
 import HowItWorks from "../components/landing/HowItWorks";
 import SpecialtiesSection from "../components/landing/SpecialtiesSection";
@@ -98,13 +97,13 @@ export default function Home() {
             animate="visible"
           >
             <Motion.span className="home-eyebrow" variants={heroItem}>
-              ROMI TBE · Ecosistema clínico de salud mental
+              ROMI Clínica · Ecosistema clínico de salud mental
             </Motion.span>
             <Motion.h1 className="home-title" variants={heroItem}>
               Práctica clínica con <span className="home-title__accent">rigor, IA y respaldo NOM-004</span>.
             </Motion.h1>
             <Motion.p className="home-description" variants={heroItem}>
-              Construido sobre Terapia Breve Estratégica (TBE), con Romi Transcript —tu copiloto de IA bajo
+              Plataforma clínica de salud mental con Romi Transcript —tu copiloto de IA bajo
               corpus cerrado— y arquitectura que cumple NOM-004 y NOM-024 desde el primer día.
               Para pacientes y profesionales que quieren seriedad sin perder agilidad.
             </Motion.p>
@@ -161,7 +160,6 @@ export default function Home() {
 
       <RevealSection><TherapistDirectory onSelectTherapist={handleSelectTherapist} /></RevealSection>
 
-      <RevealSection><TbeMethodology /></RevealSection>
 
       <RevealSection><SpecialtiesSection /></RevealSection>
 

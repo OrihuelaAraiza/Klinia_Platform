@@ -1,242 +1,197 @@
-import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import {
+  createBasePdf,
+  finalizePdf,
+  drawSection,
+  drawKeyValues,
+  drawWrapped,
+  addContinuationPage,
+  bottomLimit,
+  PAGE,
+  TYPE,
+  LH,
+  COLOR,
+} from "./basePdfTemplate";
+import { generateAndRegister } from "./triggerAndRegister";
+import { canonicalize, sha256 } from "../composeRecord";
 import { formatDateISOToHuman } from "../../formatters";
 
-const PAGE_MARGIN = 48;
-const BODY_FONT_SIZE = 11;
-const TITLE_FONT_SIZE = 18;
-const SECTION_TITLE_SIZE = 13;
-const LINE_HEIGHT = 14;
-
-function drawWrappedText(page, text, options) {
-  const {
-    x,
-    yStart,
-    font,
-    fontSize = BODY_FONT_SIZE,
-    maxWidth = page.getWidth() - PAGE_MARGIN * 2,
-    lineHeight = LINE_HEIGHT,
-  } = options;
-
-  if (!text) {
-    return yStart;
-  }
-
-  const words = text.split(/\s+/);
-  let line = "";
-  let cursorY = yStart;
-
-  for (const word of words) {
-    const tentativeLine = line ? `${line} ${word}` : word;
-    const width = font.widthOfTextAtSize(tentativeLine, fontSize);
-    if (width > maxWidth && line) {
-      page.drawText(line, { x, y: cursorY, size: fontSize, font });
-      cursorY -= lineHeight;
-      line = word;
-    } else {
-      line = tentativeLine;
-    }
-  }
-
-  if (line) {
-    page.drawText(line, { x, y: cursorY, size: fontSize, font });
-    cursorY -= lineHeight;
-  }
-
-  return cursorY;
-}
-
-function drawSection(page, title, content, fonts, cursorY) {
-  const { bold, regular } = fonts;
-  const maxWidth = page.getWidth() - PAGE_MARGIN * 2;
-  page.drawText(title, {
-    x: PAGE_MARGIN,
-    y: cursorY,
-    font: bold,
-    size: SECTION_TITLE_SIZE,
-    color: rgb(0.07, 0.11, 0.2),
-  });
-  cursorY -= LINE_HEIGHT + 4;
-  cursorY = drawWrappedText(page, content || "Sin información capturada.", {
-    x: PAGE_MARGIN,
-    yStart: cursorY,
-    font: regular,
-    fontSize: BODY_FONT_SIZE,
-    maxWidth,
-  });
-  cursorY -= 8;
-  return cursorY;
-}
-
+/**
+ * Genera el PDF de Historia Clínica usando la plantilla base unificada.
+ */
 export async function generateHistoryPdf({
   patient,
   history,
   prescriptions = [],
+  folio,
   generatedAt = new Date().toISOString(),
 }) {
-  if (!history) {
-    throw new Error("No hay historia clínica registrada para este paciente.");
+  if (!history) throw new Error("No hay historia clínica registrada para este paciente.");
+
+  const effectiveFolio = folio || history.folio || null;
+  const baseTitle = "Historia Clínica";
+  const subtitle = "Expediente clínico estructurado — NOM-004-SSA3";
+
+  const { pdfDoc, page, fonts, cursorY: startY } = await createBasePdf({
+    title: baseTitle,
+    subtitle,
+    folio: effectiveFolio,
+    generatedAt,
+  });
+
+  const width = page.getWidth();
+  const maxWidth = width - PAGE.MARGIN * 2;
+  let currentPage = page;
+  let y = startY;
+
+  const patientName = `${patient?.firstName ?? ""} ${patient?.lastName ?? ""}`.trim() || "—";
+  const curp = patient?.curp || "—";
+  const historyDate = history.createdAt
+    ? formatDateISOToHuman(history.createdAt)
+    : formatDateISOToHuman(generatedAt);
+
+  y = drawKeyValues(
+    currentPage,
+    [
+      ["Paciente", patientName],
+      ["CURP", curp],
+      ["Registro", historyDate],
+      ["Responsable", history.professional?.name || "—"],
+    ],
+    { fonts, x: PAGE.MARGIN, y, columnWidth: maxWidth / 2 }
+  );
+  y -= 4;
+
+  const sections = [
+    ["Motivo de consulta", history.motive],
+    ["Antecedentes psicosociales", history.psychosocialBackground],
+    ["Hábitos alimenticios", history.dietaryHabits],
+    ["Actividad física", history.physicalActivity],
+    ["Patrón de sueño", history.sleepPatterns],
+    ["Tratamientos previos", history.previousTreatments],
+    ["Examen mental", history.mentalStatusExam],
+  ];
+
+  const dxList = Array.isArray(history.diagnoses) && history.diagnoses.length
+    ? history.diagnoses.map((dx) => `${dx.code} — ${dx.label}`).join("\n")
+    : "Sin diagnósticos registrados.";
+  sections.push(["Diagnósticos (CIE-10/CIE-11)", dxList]);
+  sections.push(["Objetivos terapéuticos", history.goals]);
+  sections.push(["Plan terapéutico", history.therapeuticPlan]);
+
+  function pageBreakIfNeeded(reserve = LH.H2 + LH.BODY * 3) {
+    if (y < bottomLimit() + reserve) {
+      const cont = addContinuationPage(pdfDoc, fonts, {
+        title: baseTitle,
+        subtitle,
+        folio: effectiveFolio,
+        generatedAt,
+      });
+      currentPage = cont.page;
+      y = cont.cursorY;
+    }
   }
 
-  const pdfDoc = await PDFDocument.create();
-  const page = pdfDoc.addPage();
-  const { width, height } = page.getSize();
+  for (const [title, body] of sections) {
+    pageBreakIfNeeded();
+    y = drawSection(currentPage, {
+      title,
+      body,
+      fonts,
+      x: PAGE.MARGIN,
+      y,
+      maxWidth,
+    });
+  }
 
-  const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
-  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-
-  page.drawRectangle({
-    x: 0,
-    y: height - 72,
-    width,
-    height: 72,
-    color: rgb(0.77, 0.96, 0.24),
+  // Sección de prescripciones (resumen)
+  pageBreakIfNeeded(LH.H2 + LH.BODY * 6);
+  currentPage.drawText("Prescripciones registradas", {
+    x: PAGE.MARGIN,
+    y,
+    font: fonts.bold,
+    size: TYPE.H2,
+    color: COLOR.INK,
   });
-
-  page.drawText("ROMI TBE — Historia Clínica", {
-    x: PAGE_MARGIN,
-    y: height - 40,
-    font: fontBold,
-    size: TITLE_FONT_SIZE,
-    color: rgb(0.08, 0.14, 0.28),
-  });
-
-  const patientName = `${patient?.firstName ?? ""} ${patient?.lastName ?? ""}`.trim() || "Paciente sin nombre";
-  const curp = patient?.curp ?? "CURP no registrado";
-  const generatedDate = formatDateISOToHuman(generatedAt);
-
-  let cursorY = height - 100;
-  page.drawText(`Paciente: ${patientName}`, {
-    x: PAGE_MARGIN,
-    y: cursorY,
-    font: fontBold,
-    size: SECTION_TITLE_SIZE,
-  });
-  cursorY -= LINE_HEIGHT;
-  page.drawText(`CURP: ${curp}`, {
-    x: PAGE_MARGIN,
-    y: cursorY,
-    font: fontRegular,
-    size: BODY_FONT_SIZE,
-  });
-  cursorY -= LINE_HEIGHT;
-  page.drawText(`Generado: ${generatedDate}`, {
-    x: PAGE_MARGIN,
-    y: cursorY,
-    font: fontRegular,
-    size: BODY_FONT_SIZE,
-  });
-  cursorY -= LINE_HEIGHT * 1.5;
-
-  cursorY = drawSection(page, "Motivo de consulta", history.motive, { bold: fontBold, regular: fontRegular }, cursorY);
-  cursorY = drawSection(
-    page,
-    "Antecedentes psicosociales",
-    history.psychosocialBackground,
-    { bold: fontBold, regular: fontRegular },
-    cursorY
-  );
-  cursorY = drawSection(
-    page,
-    "Examen mental",
-    history.mentalStatusExam,
-    { bold: fontBold, regular: fontRegular },
-    cursorY
-  );
-
-  const diagnoses =
-    Array.isArray(history.diagnoses) && history.diagnoses.length
-      ? history.diagnoses.map((dx) => `${dx.code} — ${dx.label}`).join("; ")
-      : "Sin diagnósticos registrados.";
-  cursorY = drawSection(page, "Diagnósticos (CIE-10)", diagnoses, { bold: fontBold, regular: fontRegular }, cursorY);
-
-  cursorY = drawSection(
-    page,
-    "Objetivos terapéuticos",
-    history.goals,
-    { bold: fontBold, regular: fontRegular },
-    cursorY
-  );
-  cursorY = drawSection(
-    page,
-    "Plan terapéutico",
-    history.therapeuticPlan,
-    { bold: fontBold, regular: fontRegular },
-    cursorY
-  );
-
-  const professionalName = history.professional?.name || "Profesional no registrado";
-  const license = history.professional?.license ? ` — Cédula ${history.professional.license}` : "";
-  const historyDate = history.createdAt ? formatDateISOToHuman(history.createdAt) : generatedDate;
-  page.drawText(`Responsable: ${professionalName}${license}`, {
-    x: PAGE_MARGIN,
-    y: cursorY,
-    font: fontBold,
-    size: BODY_FONT_SIZE,
-  });
-  cursorY -= LINE_HEIGHT;
-  page.drawText(`Registro: ${historyDate}`, {
-    x: PAGE_MARGIN,
-    y: cursorY,
-    font: fontRegular,
-    size: BODY_FONT_SIZE,
-  });
-
-  cursorY -= LINE_HEIGHT * 1.5;
-  page.drawText("Prescripciones", {
-    x: PAGE_MARGIN,
-    y: cursorY,
-    font: fontBold,
-    size: SECTION_TITLE_SIZE,
-  });
-  cursorY -= LINE_HEIGHT;
+  y -= LH.H2;
 
   if (Array.isArray(prescriptions) && prescriptions.length) {
-    prescriptions.slice(0, 5).forEach((item) => {
-      page.drawText(`${item.folio ?? "RX"} — ${formatDateISOToHuman(item.createdAt)}`, {
-        x: PAGE_MARGIN,
-        y: cursorY,
-        font: fontBold,
-        size: BODY_FONT_SIZE,
+    const recent = prescriptions.slice(0, 6);
+    for (const item of recent) {
+      pageBreakIfNeeded();
+      currentPage.drawText(`${item.folio || "RX"} · ${formatDateISOToHuman(item.createdAt)}`, {
+        x: PAGE.MARGIN,
+        y,
+        font: fonts.bold,
+        size: TYPE.BODY,
+        color: COLOR.INK,
       });
-      cursorY -= LINE_HEIGHT;
-      const detail = `Principio activo: ${item.substance} | Dosis: ${item.dose} | Frecuencia: ${item.frequency}`;
-      cursorY = drawWrappedText(page, detail, {
-        x: PAGE_MARGIN,
-        yStart: cursorY,
-        font: fontRegular,
-        fontSize: BODY_FONT_SIZE,
+      y -= LH.BODY;
+      const detail = `${item.substance || "—"}  ·  ${item.dose || "—"}  ·  ${item.frequency || "—"}`;
+      y = drawWrapped(currentPage, detail, {
+        x: PAGE.MARGIN,
+        y,
+        font: fonts.regular,
+        size: TYPE.BODY,
+        color: COLOR.INK_SOFT,
+        maxWidth,
       });
-      cursorY -= LINE_HEIGHT * 0.5;
-    });
-    if (prescriptions.length > 5) {
-      page.drawText(`+${prescriptions.length - 5} prescripciones adicionales registradas.`, {
-        x: PAGE_MARGIN,
-        y: cursorY,
-        font: fontRegular,
-        size: BODY_FONT_SIZE,
-      });
-      cursorY -= LINE_HEIGHT;
+      y -= 4;
+    }
+    if (prescriptions.length > recent.length) {
+      currentPage.drawText(
+        `+${prescriptions.length - recent.length} prescripciones adicionales registradas.`,
+        {
+          x: PAGE.MARGIN,
+          y,
+          font: fonts.italic,
+          size: TYPE.SMALL,
+          color: COLOR.MUTED,
+        }
+      );
+      y -= LH.BODY;
     }
   } else {
-    page.drawText("Sin prescripciones registradas.", {
-      x: PAGE_MARGIN,
-      y: cursorY,
-      font: fontRegular,
-      size: BODY_FONT_SIZE,
+    currentPage.drawText("Sin prescripciones registradas.", {
+      x: PAGE.MARGIN,
+      y,
+      font: fonts.regular,
+      size: TYPE.BODY,
+      color: COLOR.MUTED,
     });
-    cursorY -= LINE_HEIGHT;
+    y -= LH.BODY;
   }
 
-  page.drawText("Documento generado por ROMI TBE (PMV) — No sustituye firma autógrafa.", {
-    x: PAGE_MARGIN,
-    y: 32,
-    font: fontRegular,
-    size: 9,
-    color: rgb(0.4, 0.4, 0.4),
-  });
+  const hash = await sha256(
+    canonicalize({
+      folio: effectiveFolio,
+      patient: { id: patient?.id, curp: patient?.curp },
+      motive: history.motive,
+      diagnoses: history.diagnoses,
+      generatedAt,
+    })
+  );
 
-  const pdfBytes = await pdfDoc.save();
-  return new Blob([pdfBytes], { type: "application/pdf" });
+  return finalizePdf(pdfDoc, fonts, {
+    folio: effectiveFolio,
+    professional: history.professional,
+    sha256: hash,
+  });
+}
+
+/**
+ * Helper: descarga la historia clínica y registra el documento.
+ */
+export async function downloadHistoryPdf(config) {
+  const patientId = config?.patient?.id;
+  const title = "Historia clínica";
+  return generateAndRegister({
+    type: "HISTORY",
+    patientId,
+    sourceId: config?.history?.id,
+    title,
+    filename: `historia_${patientId || "documento"}.pdf`,
+    render: (folio) => generateHistoryPdf({ ...config, folio }),
+  });
 }
 
 export default generateHistoryPdf;

@@ -1,144 +1,101 @@
-import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import {
+  createBasePdf,
+  finalizePdf,
+  drawWrapped,
+  drawSection,
+  drawKeyValues,
+  PAGE,
+  TYPE,
+  LH,
+  COLOR,
+} from "./export/pdf/basePdfTemplate";
+import { generateAndRegister } from "./export/pdf/triggerAndRegister";
 import { canonicalize, sha256 } from "./export/composeRecord";
 import { formatDateISOToHuman } from "./formatters";
-
-const MARGIN = 48;
-const LINE = 16;
 
 function computeAge(birthDate) {
   if (!birthDate) return "—";
   const date = new Date(birthDate);
-  if (Number.isNaN(date.getTime())) {
-    return "—";
-  }
+  if (Number.isNaN(date.getTime())) return "—";
   const today = new Date();
   let age = today.getFullYear() - date.getFullYear();
   const monthDiff = today.getMonth() - date.getMonth();
-  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < date.getDate())) {
-    age -= 1;
-  }
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < date.getDate())) age -= 1;
   return `${age} años`;
 }
 
-function triggerDownload(blob, filename) {
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = filename;
-  document.body.appendChild(anchor);
-  anchor.click();
-  document.body.removeChild(anchor);
-  URL.revokeObjectURL(url);
-}
-
-function wrapText(page, font, text, size, x, y) {
-  const maxWidth = page.getWidth() - MARGIN * 2;
-  const words = text.split(/\s+/);
-  let line = "";
-  let cursorY = y;
-
-  for (const word of words) {
-    const attempt = line ? `${line} ${word}` : word;
-    const width = font.widthOfTextAtSize(attempt, size);
-    if (width > maxWidth && line) {
-      page.drawText(line, { x, y: cursorY, font, size });
-      cursorY -= LINE;
-      line = word;
-    } else {
-      line = attempt;
-    }
-  }
-
-  if (line) {
-    page.drawText(line, { x, y: cursorY, font, size });
-    cursorY -= LINE;
-  }
-  return cursorY;
-}
-
+/**
+ * Genera el PDF de prescripción usando la plantilla base unificada.
+ */
 export async function generatePrescriptionPdf({
   prescription,
   patient,
   professional,
+  folio,
   generatedAt = new Date().toISOString(),
 }) {
-  if (!prescription) {
-    throw new Error("No se encontró la prescripción solicitada.");
-  }
+  if (!prescription) throw new Error("No se encontró la prescripción solicitada.");
 
-  const pdfDoc = await PDFDocument.create();
-  const page = pdfDoc.addPage();
-  const { height, width } = page.getSize();
-  const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
-  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-
-  page.drawRectangle({
-    x: 0,
-    y: height - 70,
-    width,
-    height: 70,
-    color: rgb(0.54, 0.79, 0.05),
+  const effectiveFolio = folio || prescription.folio || null;
+  const { pdfDoc, page, fonts, cursorY: startY } = await createBasePdf({
+    title: "Prescripción electrónica",
+    subtitle: "Conforme a NOM-024-SSA3 — Uso clínico controlado.",
+    folio: effectiveFolio,
+    generatedAt,
   });
 
-  page.drawText("ROMI TBE — Prescripción electrónica", {
-    x: MARGIN,
-    y: height - 35,
-    font: fontBold,
-    size: 18,
-    color: rgb(0.08, 0.14, 0.28),
-  });
+  const width = page.getWidth();
+  const maxWidth = width - PAGE.MARGIN * 2;
+  let y = startY;
 
-  const issuedDate = formatDateISOToHuman(prescription.createdAt || generatedAt);
+  // Datos de paciente y profesional en 2 columnas
   const patientName =
     `${patient?.firstName ?? ""} ${patient?.lastName ?? ""}`.trim() ||
     prescription.patientName ||
     "Paciente";
-  const patientCurp = patient?.curp || prescription.patientCurp || "CURP no disponible";
+  const patientCurp = patient?.curp || prescription.patientCurp || "—";
   const patientAge = computeAge(patient?.birthDate || prescription.patientBirthDate);
+  const issued = formatDateISOToHuman(prescription.createdAt || generatedAt);
 
-  let cursorY = height - 110;
-  page.drawText(`Folio: ${prescription.folio}`, { x: MARGIN, y: cursorY, font: fontBold, size: 13 });
-  cursorY -= LINE;
-  page.drawText(`Fecha: ${issuedDate}`, { x: MARGIN, y: cursorY, font: fontRegular, size: 12 });
-  cursorY -= LINE * 1.5;
+  y = drawKeyValues(
+    page,
+    [
+      ["Paciente", patientName],
+      ["Edad", patientAge],
+      ["CURP", patientCurp],
+      ["Emitida", issued],
+      ["Profesional", professional?.name || "—"],
+      ["Cédula", professional?.license || "—"],
+    ],
+    { fonts, x: PAGE.MARGIN, y, columnWidth: maxWidth / 2 }
+  );
+  y -= 6;
 
-  page.drawText("Profesional tratante", {
-    x: MARGIN,
-    y: cursorY,
-    font: fontBold,
-    size: 13,
+  // Sección de medicamento — un card-like con fondo butter suave
+  page.drawRectangle({
+    x: PAGE.MARGIN - 12,
+    y: y - 6 - 130,
+    width: maxWidth + 24,
+    height: 130,
+    color: COLOR.YELLOW,
+    opacity: 0.18,
   });
-  cursorY -= LINE;
-  page.drawText(`Nombre: ${professional?.name || "Profesional ROMI TBE"}`, {
-    x: MARGIN,
-    y: cursorY,
-    font: fontRegular,
-    size: 12,
+  page.drawRectangle({
+    x: PAGE.MARGIN - 12,
+    y: y - 6 - 132,
+    width: maxWidth + 24,
+    height: 2,
+    color: COLOR.INK,
   });
-  cursorY -= LINE;
-  page.drawText(`Rol: ${professional?.role || "—"}`, {
-    x: MARGIN,
-    y: cursorY,
-    font: fontRegular,
-    size: 12,
-  });
-  cursorY -= LINE;
-  page.drawText(`Cédula: ${professional?.license || "No registrada"}`, {
-    x: MARGIN,
-    y: cursorY,
-    font: fontRegular,
-    size: 12,
-  });
-  cursorY -= LINE * 1.5;
 
-  page.drawText("Paciente", { x: MARGIN, y: cursorY, font: fontBold, size: 13 });
-  cursorY -= LINE;
-  page.drawText(`Nombre: ${patientName}`, { x: MARGIN, y: cursorY, font: fontRegular, size: 12 });
-  cursorY -= LINE;
-  page.drawText(`CURP: ${patientCurp}`, { x: MARGIN, y: cursorY, font: fontRegular, size: 12 });
-  cursorY -= LINE;
-  page.drawText(`Edad: ${patientAge}`, { x: MARGIN, y: cursorY, font: fontRegular, size: 12 });
-  cursorY -= LINE * 1.5;
+  page.drawText("Medicamento prescrito", {
+    x: PAGE.MARGIN,
+    y,
+    font: fonts.bold,
+    size: TYPE.H2,
+    color: COLOR.INK,
+  });
+  y -= LH.H2;
 
   const detailEntries = [
     ["Principio activo", prescription.substance],
@@ -148,61 +105,58 @@ export async function generatePrescriptionPdf({
     ["Frecuencia", prescription.frequency],
     ["Duración", prescription.duration],
   ];
+  y = drawKeyValues(page, detailEntries, { fonts, x: PAGE.MARGIN, y, columnWidth: maxWidth / 2 });
+  y -= 6;
 
-  detailEntries.forEach(([label, value]) => {
-    page.drawText(`${label}:`, { x: MARGIN, y: cursorY, font: fontBold, size: 12 });
-    const textWidth = fontBold.widthOfTextAtSize(`${label}:`, 12);
-    page.drawText(value || "—", {
-      x: MARGIN + textWidth + 8,
-      y: cursorY,
-      font: fontRegular,
-      size: 12,
+  if (prescription.notes) {
+    y = drawSection(page, {
+      title: "Indicaciones",
+      body: prescription.notes,
+      fonts,
+      x: PAGE.MARGIN,
+      y,
+      maxWidth,
     });
-    cursorY -= LINE;
+  }
+
+  // Sello SHA-256 del payload clínico
+  const hashFull = await sha256(
+    canonicalize({
+      folio: effectiveFolio,
+      fecha: prescription.createdAt || generatedAt,
+      principioActivo: prescription.substance,
+      dosis: prescription.dose,
+      frecuencia: prescription.frequency,
+      duracion: prescription.duration,
+      indicaciones: prescription.notes || "",
+    })
+  );
+
+  return finalizePdf(pdfDoc, fonts, {
+    folio: effectiveFolio,
+    professional,
+    sha256: hashFull,
   });
-
-  cursorY -= LINE * 0.5;
-  page.drawText("Indicaciones:", { x: MARGIN, y: cursorY, font: fontBold, size: 12 });
-  cursorY -= LINE;
-  cursorY = wrapText(page, fontRegular, prescription.notes || "Sin indicaciones adicionales.", 12, MARGIN, cursorY);
-  cursorY -= LINE * 0.5;
-
-  const hashPayload = {
-    folio: prescription.folio,
-    fecha: prescription.createdAt || generatedAt,
-    principioActivo: prescription.substance,
-    dosis: prescription.dose,
-    frecuencia: prescription.frequency,
-    duracion: prescription.duration,
-    indicaciones: prescription.notes || "",
-  };
-  const hashFull = await sha256(canonicalize(hashPayload));
-  const hashShort = hashFull.slice(0, 10).toUpperCase();
-
-  page.drawText("Documento generado digitalmente por ROMI TBE.", {
-    x: MARGIN,
-    y: 60,
-    font: fontRegular,
-    size: 10,
-    color: rgb(0.3, 0.3, 0.3),
-  });
-  page.drawText(`Hash clínico: ${hashShort}`, {
-    x: MARGIN,
-    y: 44,
-    font: fontRegular,
-    size: 10,
-    color: rgb(0.3, 0.3, 0.3),
-  });
-
-  const pdfBytes = await pdfDoc.save();
-  return new Blob([pdfBytes], { type: "application/pdf" });
 }
 
+/**
+ * Descarga el PDF de la prescripción Y lo registra como documento del paciente.
+ * Si patientId está disponible, el PDF aparecerá en la lista de documentos.
+ */
 export async function downloadPrescriptionPdf(config) {
-  const blob = await generatePrescriptionPdf(config);
-  const filename = `prescripcion_${config?.prescription?.folio || "romimente"}.pdf`;
-  triggerDownload(blob, filename);
-  return blob;
+  const patientId = config?.patient?.id || config?.prescription?.patientId;
+  const sourceId = config?.prescription?.id;
+  const title = config?.prescription?.substance || "Prescripción";
+
+  return generateAndRegister({
+    type: "PRESCRIPTION",
+    patientId,
+    sourceId,
+    title,
+    filename: `prescripcion_${config?.prescription?.folio || "documento"}.pdf`,
+    render: (folio) =>
+      generatePrescriptionPdf({ ...config, folio: folio || config?.prescription?.folio }),
+  });
 }
 
 export default {
