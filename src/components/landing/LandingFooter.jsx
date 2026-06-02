@@ -1,22 +1,37 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Mail, Phone, MapPin, Clock, Instagram, Linkedin, Facebook, ExternalLink } from "lucide-react";
 import Logo from "../Brand/Logo";
+import { BRAND, isPalliative } from "../../config/brand";
 
 const ROMI_AI_URL = "https://romiai.com.mx/";
 
-const SECTIONS = {
-  platform: [
-    { hash: "que-es-brevemente", label: "¿Qué es ROMI Clínica?" },
-    { hash: "romi-transcript", label: "Romi Transcript (copiloto IA)" },
-    { hash: "faq", label: "Preguntas frecuentes" },
-  ],
-  product: [
-    { hash: "terapeutas", label: "Directorio de terapeutas" },
-    { href: "/register/patient", label: "Crear cuenta paciente", internal: true },
-    { href: "/register", label: "Soy profesional", internal: true },
-    { href: "/login", label: "Iniciar sesión", internal: true },
-  ],
-};
+const SECTIONS = isPalliative()
+  ? {
+      platform: [
+        { hash: "que-es-brevemente", label: `¿Qué es ${BRAND.name}?` },
+        { hash: "como-funciona", label: "Cómo acompañamos" },
+        { hash: "faq", label: "Preguntas frecuentes" },
+      ],
+      product: [
+        { hash: "paliativistas", label: "Directorio de paliativistas" },
+        { href: "/register/patient", label: "Crear cuenta paciente / familia", internal: true },
+        { href: "/register", label: "Soy paliativista", internal: true },
+        { href: "/login", label: "Iniciar sesión", internal: true },
+      ],
+    }
+  : {
+      platform: [
+        { hash: "que-es-brevemente", label: "¿Qué es ROMI Clínica?" },
+        { hash: "romi-transcript", label: "Romi Transcript (copiloto IA)" },
+        { hash: "faq", label: "Preguntas frecuentes" },
+      ],
+      product: [
+        { hash: "terapeutas", label: "Directorio de terapeutas" },
+        { href: "/register/patient", label: "Crear cuenta paciente", internal: true },
+        { href: "/register", label: "Soy profesional", internal: true },
+        { href: "/login", label: "Iniciar sesión", internal: true },
+      ],
+    };
 
 const SOCIALS = [
   {
@@ -61,19 +76,25 @@ export default function LandingFooter() {
       <div className="landing-footer__main">
         {/* Brand */}
         <div className="landing-footer__col landing-footer__col--brand">
-          <Link to="/" className="landing-footer__brand-link" aria-label="Inicio de ROMI Clínica">
+          <Link to="/" className="landing-footer__brand-link" aria-label={`Inicio de ${BRAND.name}`}>
             <Logo
               variant="horizontal"
               size="md"
               theme="dark"
-              alt="ROMI"
+              alt={BRAND.shortName}
               className="landing-footer__logo"
             />
-            
+            <span className="landing-footer__brand-name">{BRAND.shortName}</span>
           </Link>
           <p className="landing-footer__tagline">
-            Plataforma clínica de salud mental de <strong>Romi AI</strong>. Construida con
-            historia clínica completa por especialidad y cumplimiento NOM-004-SSA3-2012 y NOM-024-SSA3-2012.
+            {isPalliative() ? (
+              <>Plataforma de <strong>cuidados paliativos</strong> de Romi AI. Acompañamiento integral
+              al final de la vida con cumplimiento NOM-004-SSA3-2012 y normatividad de cuidados
+              paliativos vigente.</>
+            ) : (
+              <>Plataforma clínica de salud mental de <strong>Romi AI</strong>. Construida con
+              historia clínica completa por especialidad y cumplimiento NOM-004-SSA3-2012 y NOM-024-SSA3-2012.</>
+            )}
           </p>
           <a
             href={ROMI_AI_URL}

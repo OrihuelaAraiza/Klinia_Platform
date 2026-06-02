@@ -719,7 +719,7 @@ auditService.logAudit("patient_re_entry_client", { id });
             <Button variant="ghost" onClick={() => navigate(`/patients/${id}/sessions`)} className="clinical-link-btn">
               Agenda
             </Button>
-            {/* Botón Alta — ocultar si ya está dado de alta */}
+            {/* Botón Alta — ocultar si ya está dado de alta o fallecido */}
             {!isDischarge && (
               <Button
                 variant="ghost"

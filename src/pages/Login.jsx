@@ -20,7 +20,6 @@ import {
 import { ROLES, ROUTES } from "../utils/constants";
 import { isValidEmail, isValidPassword } from "../utils/validators";
 import { useToast } from "../components/UI/Toast";
-import doctorImg from "../assets/hero/doctor-login.jpg";
 import Logo from "../components/Brand/Logo";
 import SelectionFlag from "../components/landing/SelectionFlag";
 import DoodleScatter from "../components/DoodleScatter";
@@ -369,8 +368,8 @@ export default function Login() {
           transition={{ duration: 0.6 }}
         >
           <img
-            src={doctorImg}
-            alt="Profesional de salud usando la plataforma ROMI Clínica"
+            src="/psicolog.png"
+            alt="Psicología y salud mental — ROMI Clínica"
             className="login-hero__image"
           />
         </Motion.aside>

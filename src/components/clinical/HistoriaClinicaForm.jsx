@@ -138,6 +138,40 @@ function FormField({ field, value, detalle, onChange, onDetalleChange, disabled 
     );
   }
 
+  if (field.type === "scale") {
+    const num = value === "" || value === null || value === undefined ? 0 : Number(value);
+    const max = field.max ?? 10;
+    return (
+      <div className={`historia-form__field ${span}`}>
+        <InputField
+          label={field.label}
+          name={field.key}
+          required={field.required}
+          assistiveText={field.hint}
+          disabled={disabled}
+        >
+          {({ controlId, describedBy }) => (
+            <div className="historia-form__scale">
+              <input
+                id={controlId}
+                type="range"
+                min={field.min ?? 0}
+                max={max}
+                step={field.step ?? 1}
+                value={num}
+                onChange={(e) => onChange(e.target.value)}
+                disabled={disabled}
+                aria-describedby={describedBy}
+                className="historia-form__scale-range"
+              />
+              <span className="historia-form__scale-value" aria-live="polite">{num}</span>
+            </div>
+          )}
+        </InputField>
+      </div>
+    );
+  }
+
   if (field.type === "select") {
     const hasValue = Boolean(value && value !== "");
     const showDetalle = hasValue && field.detalle !== false && !disabled;

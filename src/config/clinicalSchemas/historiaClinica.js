@@ -456,6 +456,12 @@ export const HISTORIA_PSICOTERAPEUTICA = {
   ],
 };
 
+// =====================================================================
+//   4) HISTORIA CLÍNICA PALIATIVA (Cuidados Paliativos / Tanatología)
+//   Valoración integral: física, psicológica, social y espiritual.
+//   Conforme a NOM-004-SSA3-2012 y normatividad de cuidados paliativos.
+// =====================================================================
+
 export const HISTORIA_SCHEMAS = {
   PSICOLOGICA: HISTORIA_PSICOLOGICA,
   PSIQUIATRICA: HISTORIA_PSIQUIATRICA,

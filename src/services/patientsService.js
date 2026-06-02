@@ -51,6 +51,7 @@ export async function createDischargeNote(data) {
   return api.post(`/patients/${patientId}/discharge`, rest);
 }
 
+
 export async function getMyProfile() {
   return api.get("/patient/profile");
 }

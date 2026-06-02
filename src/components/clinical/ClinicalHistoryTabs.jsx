@@ -65,7 +65,10 @@ export default function ClinicalHistoryTabs({
     return SPECIALTY_TO_HISTORY_TYPE[userSpecialty] || null;
   }, [isPatient, isAdmin, isAssistant, userSpecialty]);
 
-  const [activeType, setActiveType] = useState(editableType || "PSICOLOGICA");
+  const defaultType = editableType && TABS.find((t) => t.type === editableType)
+    ? editableType
+    : (TABS[0]?.type || "PSICOLOGICA");
+  const [activeType, setActiveType] = useState(defaultType);
   const [byType, setByType] = useState({});
   const [loading, setLoading] = useState(true);
   const [physicalDocs, setPhysicalDocs] = useState([]); // GeneratedDocument type=HISTORY del paciente
@@ -269,6 +272,7 @@ export default function ClinicalHistoryTabs({
           </CardBody>
         </Card>
       ) : null}
+
     </div>
   );
 }

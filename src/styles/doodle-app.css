@@ -1365,3 +1365,221 @@ hr {
 .home-page .app-shell,
 .home-page .panel,
 .home-page .alert { /* no-op aquí — la landing controla su look */ }
+
+/* =============================================================================
+   BRAND: TANATOLOGÍA Y CUIDADOS PALIATIVOS
+   Paleta sage + lavanda + rosa polvo. Mismo skin doodle, tono sobrio y cálido,
+   apropiado para acompañamiento al final de la vida.
+   Se activa con data-brand="tanatologia" en <html> (ver src/main.jsx).
+   ============================================================================= */
+[data-brand="tanatologia"] {
+  --doodle-cream: #f8f4f6;
+  --doodle-paper: #ffffff;
+  --doodle-ink: #2d1f35;
+  --doodle-ink-soft: #3d2e45;
+  --doodle-muted: #6a5c6f;
+
+  /* Acentos: el "yellow/butter" se vuelve lavanda suave,
+     el "hot" se vuelve uva intensa, el "pink" rosa polvo,
+     "mint" verde salvia, etc. Los nombres semánticos se mantienen
+     para que ningún componente tenga que cambiar — solo el color cambia. */
+  --doodle-yellow: #b19cd9;          /* lavanda principal */
+  --doodle-butter: #ece4f5;          /* lavanda muy suave */
+  --doodle-lilac: #b19cd9;           /* lavanda */
+  --doodle-lilac-soft: #ece4f5;
+  --doodle-peach: #e8b4c4;           /* rosa polvo */
+  --doodle-peach-soft: #f5dde6;
+  --doodle-pink: #e8b4c4;            /* rosa polvo */
+  --doodle-pink-soft: #f5dde6;
+  --doodle-mint: #9dc4a0;            /* verde salvia */
+  --doodle-mint-soft: #d1e3d3;
+  --doodle-blue: #6b4e8c;            /* uva profunda en vez de azul */
+  --doodle-blue-soft: #ddd1ec;
+  --doodle-hot: #b85986;             /* rosa intenso (acento principal) */
+
+  --primary: var(--doodle-ink);
+  --accent: var(--doodle-hot);
+  --bg: var(--doodle-cream);
+  --surface: var(--doodle-paper);
+  --text-primary: var(--doodle-ink);
+  --text: var(--doodle-ink);
+  --text-muted: var(--doodle-muted);
+  --border: var(--doodle-ink);
+  --focus: var(--doodle-hot);
+
+  --shadow-1: 3px 3px 0 var(--doodle-ink);
+  --shadow-2: 5px 5px 0 var(--doodle-ink);
+}
+
+/* Dark mode del brand tanatologia: warm dark con plum oscuro */
+[data-brand="tanatologia"][data-theme="dark"],
+[data-theme="dark"][data-brand="tanatologia"] {
+  --doodle-cream: #1c1620;          /* plum near-black */
+  --doodle-paper: #261f2b;          /* card / surface */
+  --doodle-paper-2: #2e2634;        /* nested surface */
+  --doodle-ink: #f3e6f1;            /* warm off-white plum */
+  --doodle-ink-soft: #e6d4e2;
+  --doodle-muted: #b1a0ad;
+
+  --doodle-yellow: #c8b6e0;
+  --doodle-butter: #3a2f44;
+  --doodle-lilac: #c8b6e0;
+  --doodle-lilac-soft: #3a2f44;
+  --doodle-peach: #e8b4c4;
+  --doodle-peach-soft: #4a2f3a;
+  --doodle-pink: #e8b4c4;
+  --doodle-pink-soft: #4a2f3a;
+  --doodle-mint: #b6d4b8;
+  --doodle-mint-soft: #2f4030;
+  --doodle-blue: #b6a0e0;
+  --doodle-blue-soft: #2f2540;
+  --doodle-hot: #d97aa6;
+}
+
+/* =============================================================================
+   Campo tipo "scale" (slider 0–10) usado en ESAS / EVA paliativos.
+   Estilo doodle: track grueso, thumb con borde negro y sombra offset.
+   ============================================================================= */
+.historia-form__scale {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.4rem 0.2rem;
+}
+.historia-form__scale-range {
+  flex: 1;
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  height: 28px;
+  cursor: pointer;
+}
+.historia-form__scale-range::-webkit-slider-runnable-track {
+  height: 10px;
+  background: var(--doodle-lilac-soft);
+  border: 2px solid var(--doodle-ink);
+  border-radius: 99px;
+  box-shadow: 2px 2px 0 var(--doodle-ink);
+}
+.historia-form__scale-range::-moz-range-track {
+  height: 10px;
+  background: var(--doodle-lilac-soft);
+  border: 2px solid var(--doodle-ink);
+  border-radius: 99px;
+  box-shadow: 2px 2px 0 var(--doodle-ink);
+}
+.historia-form__scale-range::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 24px;
+  height: 24px;
+  margin-top: -9px;
+  border-radius: 50%;
+  background: var(--doodle-hot);
+  border: 2.5px solid var(--doodle-ink);
+  box-shadow: 2px 2px 0 var(--doodle-ink);
+  cursor: grab;
+}
+.historia-form__scale-range::-moz-range-thumb {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--doodle-hot);
+  border: 2.5px solid var(--doodle-ink);
+  box-shadow: 2px 2px 0 var(--doodle-ink);
+  cursor: grab;
+}
+.historia-form__scale-range:active::-webkit-slider-thumb { cursor: grabbing; }
+.historia-form__scale-range:active::-moz-range-thumb { cursor: grabbing; }
+
+.historia-form__scale-value {
+  min-width: 3.5rem;
+  text-align: center;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--doodle-ink);
+  background: var(--doodle-butter);
+  border: 2px solid var(--doodle-ink);
+  border-radius: 10px;
+  padding: 0.2rem 0.5rem;
+  box-shadow: 2px 2px 0 var(--doodle-ink);
+}
+
+/* =============================================================================
+   Gráfica ESAS (clinimetría evolutiva). Estilo doodle, SVG sin deps.
+   ============================================================================= */
+.esas-chart { display: flex; flex-direction: column; gap: 0.9rem; }
+.esas-chart__svg {
+  display: block;
+  background: var(--doodle-paper);
+  border: 2px solid var(--doodle-ink);
+  border-radius: 16px;
+  box-shadow: 3px 3px 0 var(--doodle-ink);
+}
+.esas-chart__legend {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0;
+  margin: 0;
+}
+.esas-chart__legend-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.65rem;
+  border-radius: 99px;
+  background: var(--doodle-paper);
+  border: 1.5px solid var(--doodle-ink);
+  font-size: 0.85rem;
+  color: var(--doodle-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  opacity: 0.55;
+}
+.esas-chart__legend-btn:hover { opacity: 0.85; }
+.esas-chart__legend-btn.is-on {
+  background: var(--doodle-butter);
+  color: var(--doodle-ink);
+  opacity: 1;
+  box-shadow: 2px 2px 0 var(--doodle-ink);
+}
+.esas-chart__legend-swatch {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1.5px solid var(--doodle-ink);
+}
+
+/* =============================================================================
+   Diálogo de fallecimiento (paliativos). Sobrio, sin alertas estridentes.
+   ============================================================================= */
+.mark-deceased__intro {
+  background: var(--doodle-cream);
+  border: 1.5px solid var(--doodle-ink);
+  border-radius: 12px;
+  padding: 0.9rem 1.1rem;
+  font-size: 0.92rem;
+  color: var(--doodle-ink);
+}
+.mark-deceased__intro p { margin-bottom: 0.4rem; }
+.mark-deceased__intro ul {
+  list-style: disc;
+  padding-left: 1.2rem;
+  margin: 0;
+  color: var(--doodle-muted);
+}
+.mark-deceased__intro ul li { margin-top: 0.2rem; }
+
+/* Banner DECEASED — sobrio, sin colores estridentes. Plum grayscale. */
+.patient-status-banner--deceased {
+  background: var(--doodle-cream);
+  border: 1.5px solid var(--doodle-ink);
+  color: var(--doodle-ink);
+}
+.patient-status-banner--deceased .status-dot--off {
+  background: var(--doodle-muted);
+}

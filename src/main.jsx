@@ -1,11 +1,15 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.jsx";
+import { BRAND } from "./config/brand";
 import "./styles/theme.css";
 import "./styles/global.css";
 import "./styles/doodle-app.css";
 import { initMsal } from "./services/msal";
 import { hydrateSession } from "./services/authService";
+
+document.documentElement.setAttribute("data-brand", BRAND.id);
+document.title = BRAND.name;
 
 try {
   await initMsal();

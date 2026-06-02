@@ -86,6 +86,10 @@ function formatValue(field, raw) {
   if (field.type === "date") {
     return formatDateISOToHuman(raw);
   }
+  if (field.type === "scale") {
+    const max = field.max ?? 10;
+    return `${raw} / ${max}`;
+  }
   return String(raw);
 }
 

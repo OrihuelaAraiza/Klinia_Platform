@@ -4,14 +4,14 @@ import TherapistCard from "./TherapistCard";
 import { listPublicTherapists } from "../../services/directoryService";
 import selectionStorage from "../../services/selectionStorage";
 import { SPECIALTIES, SPECIALTY_LABELS } from "../../utils/constants";
+import { BRAND } from "../../config/brand";
 import { SkeletonGrid } from "../UI/Skeleton";
 import EmptyState from "../UI/EmptyState";
 
+// Filtros visibles dependen de la marca activa.
 const SPECIALTY_FILTERS = [
   { value: "", label: "Todos" },
-  { value: SPECIALTIES.PSIQUIATRA, label: SPECIALTY_LABELS.PSIQUIATRA },
-  { value: SPECIALTIES.PSICOLOGO, label: SPECIALTY_LABELS.PSICOLOGO },
-  { value: SPECIALTIES.PSICOTERAPEUTA, label: SPECIALTY_LABELS.PSICOTERAPEUTA },
+  ...BRAND.specialties.map((sp) => ({ value: sp, label: SPECIALTY_LABELS[sp] || sp })),
 ];
 
 export default function TherapistDirectory({ onSelectTherapist }) {
@@ -53,10 +53,10 @@ export default function TherapistDirectory({ onSelectTherapist }) {
   }, [selection]);
 
   return (
-    <section className="therapist-directory" id="terapeutas">
+    <section className="therapist-directory" id={BRAND.copy.directoryAnchor}>
       <header className="therapist-directory__header">
         <div className="stack-1">
-          <h2>Conoce a nuestros terapeutas</h2>
+          <h2>{BRAND.id === "tanatologia" ? "Conoce a nuestros médicos paliativistas" : "Conoce a nuestros terapeutas"}</h2>
           <p className="helper-text">
             Elige al profesional con quien quieres iniciar tu proceso. Puedes marcar una segunda opción
             por si tu primera elección no tiene disponibilidad.

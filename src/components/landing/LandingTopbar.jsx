@@ -2,16 +2,24 @@ import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Menu, X, ExternalLink } from "lucide-react";
 import Logo from "../Brand/Logo";
+import { BRAND, isPalliative } from "../../config/brand";
 
 const ROMI_AI_URL = "https://romiai.com.mx/";
 
-const NAV_LINKS = [
-  { hash: "que-es-brevemente", label: "¿Qué es?" },
-  { hash: "romi-transcript", label: "Romi Transcript (IA)" },
-  { hash: "como-funciona", label: "Cómo funciona" },
-  { hash: "terapeutas", label: "Terapeutas" },
-  { hash: "faq", label: "FAQ" },
-];
+const NAV_LINKS = isPalliative()
+  ? [
+      { hash: "que-es-brevemente", label: "¿Qué es?" },
+      { hash: "como-funciona", label: "Cómo funciona" },
+      { hash: "paliativistas", label: "Paliativistas" },
+      { hash: "faq", label: "FAQ" },
+    ]
+  : [
+      { hash: "que-es-brevemente", label: "¿Qué es?" },
+      { hash: "romi-transcript", label: "Romi Transcript (IA)" },
+      { hash: "como-funciona", label: "Cómo funciona" },
+      { hash: "terapeutas", label: "Terapeutas" },
+      { hash: "faq", label: "FAQ" },
+    ];
 
 function SectionLink({ hash, label, onAfterClick }) {
   const location = useLocation();
@@ -59,17 +67,17 @@ export default function LandingTopbar() {
           <Link
             to="/"
             className="landing-topbar__brand-link"
-            aria-label="Ir al inicio de ROMI Clínica"
+            aria-label={`Ir al inicio de ${BRAND.name}`}
             onClick={closeMobile}
           >
             <Logo
               variant="horizontal"
               size="sm"
               theme="auto"
-              alt="ROMI"
+              alt={BRAND.shortName}
               className="landing-topbar__logo"
             />
-            
+            <span className="landing-topbar__brand-text">{BRAND.shortName}</span>
           </Link>
           <a
             href={ROMI_AI_URL}
